@@ -22,6 +22,9 @@ void    Ed_Copy(void);
 void    Ed_Paste(void);
 void    Ed_SelectAll(void);
 
+/* True if MDW Mono didn't load and Monaco is being used instead. */
+Boolean Ed_UsingFallbackFont(void);
+
 /* Replace the whole document (no undo). */
 Boolean Ed_SetText(const char *text, long len);
 

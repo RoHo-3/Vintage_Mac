@@ -45,7 +45,11 @@ static const char kWelcome[] =
     "\r"
     "Cut, Copy and Paste use the Mac clipboard. Command-A selects all. "
     "Command-Q quits. There is no saving yet: this build forgets your text "
-    "when it quits.";
+    "when it quits.\r"
+    "\r"
+    "Font: ";
+static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono).";
+static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load.";
 
 static void InitToolbox(void)
 {
@@ -180,7 +184,16 @@ int main(void)
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
     }
-    Ed_SetText(kWelcome, sizeof(kWelcome) - 1);
+    {
+        /* welcome text + which font is in use */
+        const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
+        long n1 = sizeof(kWelcome) - 1, n2 = 0, i;
+        char buf[sizeof(kWelcome) + 64];
+        while (f[n2]) n2++;
+        for (i = 0; i < n1; i++) buf[i] = kWelcome[i];
+        for (i = 0; i < n2; i++) buf[n1 + i] = f[i];
+        Ed_SetText(buf, n1 + n2);
+    }
 
     while (!gQuit) {
         if (gHasWNE) {

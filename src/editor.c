@@ -30,6 +30,7 @@ static Boolean gCaretOn, gActive = true;
 static unsigned long gCaretTick, gLastClick;
 static long  gLastClickPos = -1;
 static Boolean gTyping;                  /* coalesce typing into one undo */
+static Boolean gFallbackFont;
 
 #define SelStart() (gAnchor < gCaret ? gAnchor : gCaret)
 #define SelEnd()   (gAnchor < gCaret ? gCaret : gAnchor)
@@ -578,6 +579,8 @@ void Ed_Idle(void)
     }
 }
 
+Boolean Ed_UsingFallbackFont(void) { return gFallbackFont; }
+
 Boolean Ed_SetText(const char *text, long len)
 {
     if (!TB_Replace(0, TB_Len(), text, len))
@@ -602,6 +605,7 @@ Boolean Ed_Init(WindowPtr w)
     if (!RealFont(kFontMDW, kBodySize)) {
         TextFont(kFontMonaco);           /* our font didn't load */
         TextSize(9);
+        gFallbackFont = true;
     }
     GetFontInfo(&fi);
     gAsc = fi.ascent;
