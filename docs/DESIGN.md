@@ -23,7 +23,9 @@ Living record of design decisions. Pixel values assume the 512×342, 72 ppi,
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
-- Status footer (10 px): word count + saved state, fades in after ~2 s idle.
+- Status footer (10 px): fades in after ~2 s idle. Left: word count and
+  session time, separated by a slash — `1,284 words / 5:45 minutes this
+  session`. Right: saved state.
 
 ## 3. Typography
 
@@ -74,6 +76,16 @@ interface is visually distinct from the prose.
 | Cmd+F | Find |
 | Cmd+S | Save now |
 | Cmd+= / Cmd+- | Body 10 px ↔ 12 px |
+
+### Session timer
+
+The footer shows how long the current writing session has run (from app
+launch / document open, via `TickCount`).
+
+**Future feature — writing goal timer:** the user sets how long they want to
+write (e.g. 25 min). The footer counts down instead of up, and when the time
+is reached the app celebrates with a brief, non-blocking 1-bit animation and a
+toast — it never interrupts typing or forces a dialog.
 
 ## 5. Text engine
 
