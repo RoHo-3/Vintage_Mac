@@ -684,7 +684,7 @@ static long VerticalMove(long lines)
     if (target < 0) return 0;
     if (target >= LY_Count()) return TB_Len();
     GetLine(target, &li);
-    return PosAt(&li, gGoalX);
+    return PrefixEnd(PosAt(&li, gGoalX));
 }
 
 void Ed_Key(EventRecord *ev)
@@ -700,7 +700,7 @@ void Ed_Key(EventRecord *ev)
     switch (c) {
     case 0x1C:                                           /* left */
         if (HasSel() && !shift) pos = SelStart();
-        else if (cmd) pos = LY_Start(line);
+        else if (cmd) pos = PrefixEnd(LY_Start(line));
         else if (opt) pos = WordLeft(gCaret);
         else {
             pos = SkipLeft(gCaret);
@@ -724,7 +724,7 @@ void Ed_Key(EventRecord *ev)
         pos = cmd ? TB_Len() : VerticalMove(1);
         vertical = true;
         break;
-    case 0x01: pos = 0; break;                           /* home */
+    case 0x01: pos = PrefixEnd(0); break;                /* home */
     case 0x04: pos = TB_Len(); break;                    /* end */
     case 0x0B: pos = VerticalMove(gTop - LastVisible()); vertical = true; break;  /* page up */
     case 0x0C: pos = VerticalMove(LastVisible() - gTop); vertical = true; break;  /* page down */
@@ -806,7 +806,7 @@ static long HitTest(Point pt)
     if (line < 0) return 0;
     if (line >= LY_Count()) return TB_Len();
     GetLine(line, &li);
-    return PosAt(&li, pt.h);
+    return PrefixEnd(PosAt(&li, pt.h));
 }
 
 void Ed_Click(Point pt, EventRecord *ev)
@@ -876,6 +876,11 @@ void Ed_SetShowMarks(Boolean on)
     LY_SetShowMarks(on);
     MD_Invalidate();
     LY_Rebuild();
+    if (gAnchor == gCaret) {             /* caret never rests inside a hidden "# " */
+        gAnchor = gCaret = PrefixEnd(MD_ParaStart(gCaret)) > gCaret
+                           ? PrefixEnd(MD_ParaStart(gCaret)) : gCaret;
+        LY_SetCaret(gCaret);
+    }
     if (!ScrollToCaret())
         Ed_DrawAll();
 }
@@ -895,7 +900,8 @@ Boolean Ed_SetText(const char *text, long len)
     gWeight = 0;
     gTyping = false;
     gTop = 0;
-    gAnchor = gCaret = 0;
+    gAnchor = gCaret = PrefixEnd(0);     /* start of the visible text, past "# " */
+    LY_SetCaret(gCaret);
     Ed_DrawAll();
     return true;
 }
