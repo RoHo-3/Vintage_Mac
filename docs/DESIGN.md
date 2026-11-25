@@ -103,7 +103,7 @@ interface is visually distinct from the prose.
   markers (`#`, `**`, `_`) visible only on the caret's line.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
   drawer is headed with the current document's name and lists:
-  `<Project name> ›`, `Sections ›`, `Links ›`, `Focus Timer ›`, `History ›`,
+  `<Project name> ›`, `Sections ›`, `Links ›`, `Find ›`, `Focus Timer ›`, `History ›`,
   `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
@@ -116,7 +116,6 @@ interface is visually distinct from the prose.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
 - **Selection pill** (mouse selections only): see §4a.
-- **Find (Cmd+F):** slim inline bar, not a modal dialog.
 - **No blocking alerts** for routine events (see Principle: a quiet app).
 - **Mouse and keyboard parity:** every command can be clicked, and frequent ones have a shortcut shown beside them (an accelerator, not a second way).
 
@@ -155,6 +154,22 @@ rows, shortcuts and the palette all read from it, so they cannot drift.
 | Focus | Start Focus Timer (15/25/45/60/custom) · Stop Focus Timer |
 | View | Text size 10 / 12 px · Show/hide session clock · Show/hide word count |
 | App | About Mac MD Write · Quit |
+
+### Find & Replace
+
+A drawer blade (`Find ›`, Cmd-F), not a pill item: the pill only exists
+with a selection, so it could not be the one mouse path to searching. If
+text is selected when Find opens, the field is prefilled with it.
+
+- Fields: **Find**, **Replace**. Options: Match case · Whole word. Scope:
+  **This document / Project** (project-wide replace is safe — every
+  document's History can undo it).
+- **Results list** grouped by document, each with a short snippet; the
+  current match is reversed. Clicking a result highlights it in the text
+  and scrolls it into view (opening another document pushes the back stack).
+- **Replace** (current match) · **Replace All**. Cmd-G next match.
+- The writing is **not dimmed** while Find is open so matches stay visible;
+  snippets carry the context for matches hidden behind the blade.
 
 ### Going back
 
@@ -318,6 +333,7 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 | `<Project name> ›` | the project's name | Project documents (Outline pinned first) and folders › |
 | `Sections ›` | Sections | Headings of the current document, indented by level |
 | `Links ›` | Links | Links in this document (target, ⚠ if broken, web links marked) and **Linking here** — backlinks from other project documents. Clicking goes there; editing/removing stays in the link pill |
+| `Find ›` | Find | Find & Replace (see below); opened by the row or Cmd-F, prefilled with the selection if there is one |
 | `Focus Timer ›` | Focus Timer | 15 · 25 · 45 · 60 min · Custom… · Off |
 | `History ›` | History | One timeline of versions (see below) |
 | `Export ›` | Export | Markdown… · Print… · Template… |
