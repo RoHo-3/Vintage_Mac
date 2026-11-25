@@ -67,3 +67,27 @@ discarding history. A "prune history older than…" setting can come later.
 - Version history: every checkpoint is restorable.
 - Named versions: labeled checkpoints.
 - Connected drafts: records tagged with a draft ID, branching from a checkpoint.
+
+## Round-trip with modern editors (v1 requirement)
+
+Writers will also edit the same `.md` files in a modern editor on another
+machine. The rule: **never damage a file you didn't write** — the app only
+changes the bytes the writer actually edited.
+
+- **Line endings:** read LF, CRLF and CR; write back in the file's original
+  style (new files: LF, the modern default).
+- **Text encoding:** files are UTF-8 on disk; the app converts to MacRoman
+  for display and back on save. Characters with no MacRoman equivalent
+  (emoji, CJK, many symbols) are kept byte-for-byte and shown as a small
+  placeholder glyph; they survive any number of round trips.
+- **Unknown Markdown** (tables, footnotes, front matter, raw HTML) is shown
+  as plain text and never rewritten.
+- **Finder metadata:** files arriving without a type/creator are opened by
+  the `.md` extension; saving sets type `TEXT`, creator `MMDW` so they
+  double-click into the app. Name length is limited by HFS (31 chars).
+- **Edited elsewhere:** if a document's text no longer matches its latest
+  journal checkpoint, the app quietly records the new text as a version in
+  History, marked "◆ Edited on another computer". Nothing is lost on either
+  side.
+- The `.history` journal stays with the file but is meaningless to other
+  editors; they simply ignore it.
