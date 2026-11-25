@@ -17,6 +17,12 @@
 
 #define kWaitNextEventTrap 0xA860
 #define kUnimplementedTrap 0xA89F
+#define kToolTrapType      1    /* TrapType: OSTrap = 0, ToolTrap = 1 */
+#define kMonacoFontID      4
+
+/* Retro68 makes "\p..." literals plain char*; Toolbox calls want
+   const unsigned char*. */
+#define PSTR(s) ((ConstStringPtr)(s))
 
 static WindowPtr gWindow;
 static Boolean   gQuit = false;
@@ -36,8 +42,8 @@ static void InitToolbox(void)
 
 static Boolean HasWaitNextEvent(void)
 {
-    return NGetTrapAddress(kWaitNextEventTrap, ToolTrap)
-        != NGetTrapAddress(kUnimplementedTrap, ToolTrap);
+    return NGetTrapAddress(kWaitNextEventTrap, kToolTrapType)
+        != NGetTrapAddress(kUnimplementedTrap, kToolTrapType);
 }
 
 static void OpenCanvas(void)
@@ -45,7 +51,7 @@ static void OpenCanvas(void)
     Rect r = qd.screenBits.bounds;
     r.top += GetMBarHeight();   /* menu-bar hiding comes later */
 
-    gWindow = NewWindow(NULL, &r, "\p", true, plainDBox,
+    gWindow = NewWindow(NULL, &r, PSTR("\p"), true, plainDBox,
                         (WindowPtr)-1, false, 0);
     SetPort(gWindow);
 }
@@ -54,10 +60,10 @@ static void DrawCanvas(void)
 {
     SetPort(gWindow);
     EraseRect(&gWindow->portRect);
-    TextFont(monaco);
+    TextFont(kMonacoFontID);
     TextSize(9);
     MoveTo(46, 30);
-    DrawString("\pMac MD Write \321 skeleton build. Cmd-Q to quit.");
+    DrawString(PSTR("\pMac MD Write \321 skeleton build. Cmd-Q to quit."));
 }
 
 static void DoIdle(void)
