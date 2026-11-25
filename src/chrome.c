@@ -33,6 +33,9 @@ static Boolean   gMenuHidden;
 void Chrome_HideMenuBar(void)
 {
     Rect r;
+#ifdef DIAG_NO_MENUHIDE
+    return;
+#endif
     if (gMenuHidden) return;
     gSavedMBarHeight = LM_MBarHeight;
     if (!gMBarRgn) gMBarRgn = NewRgn();
@@ -182,6 +185,9 @@ void Chrome_Draw(void)
 
 static void Show(void)
 {
+#ifdef DIAG_NO_CHROME
+    return;
+#endif
     if (gShown) return;
     gShown = true;
     Chrome_Draw();

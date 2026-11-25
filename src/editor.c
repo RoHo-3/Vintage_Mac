@@ -873,6 +873,9 @@ Boolean Ed_Init(WindowPtr w)
         for (i = 0; i < 7; i++)
             if (gLH[i] > maxH) maxH = gLH[i];
         gOffBits.baseAddr = NewPtr((long)rowBytes * maxH);
+#ifdef DIAG_NO_OFFSCREEN
+        gOffBits.baseAddr = 0;
+#endif
         if (gOffBits.baseAddr) {
             gOffBits.rowBytes = rowBytes;
             SetRect(&b, 0, 0, w->portRect.right, maxH);

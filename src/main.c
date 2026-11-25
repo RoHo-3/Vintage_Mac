@@ -98,6 +98,9 @@ static void OpenCanvas(void)
     Rect r = qd.screenBits.bounds;      /* the whole screen: no menu bar */
 
     Chrome_HideMenuBar();
+#ifdef DIAG_NO_MENUHIDE
+    r.top += GetMBarHeight();
+#endif
 
     gWindow = NewWindow(NULL, &r, PSTR("\p"), true, plainDBox,
                         (WindowPtr)-1, false, 0);

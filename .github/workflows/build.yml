@@ -18,7 +18,7 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+          cmake .. -DDIAGNOSTICS=ON -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
 
       - name: Build
         shell: bash
@@ -38,6 +38,25 @@ jobs:
             echo "::warning::${line}"
           done
 
+      - name: Symbol map and CPU check (build summary)
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "## Symbol map (MacMDWrite)"
+            echo '```'
+            m68k-apple-macos-nm -n build/MacMDWrite.gdb | grep -i " t " | head -400
+            echo '```'
+            echo "## 68020+ instructions found (must be none for the Plus/SE)"
+            echo '```'
+            m68k-apple-macos-objdump -d build/MacMDWrite.gdb | grep -E "extb|mulsl|mulul|divsl|divul|bfext|bfins|cas |\(%[ad][0-7],%[ad][0-7]:[lw]:[248]\)" | head -40 || true
+            echo '```'
+            echo "## Compiler target"
+            echo '```'
+            m68k-apple-macos-gcc -Q --help=target 2>/dev/null | grep -E "^ +-m(68000|68020|cpu|arch|tune)" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload app
         uses: actions/upload-artifact@v4
         with:
@@ -45,4 +64,5 @@ jobs:
           path: |
             build/MacMDWrite.dsk
             build/MacMDWrite.bin
+            build/Diag_*.dsk
           if-no-files-found: error
