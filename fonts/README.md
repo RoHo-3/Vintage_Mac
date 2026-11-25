@@ -17,4 +17,4 @@ committed here.
 4. Export as NFNT + FOND and embed in the app's resource fork.
 
 Font files in this directory remain under the SIL Open Font License, not the
-project's MIT license.
+project's BSD 3-Clause license.

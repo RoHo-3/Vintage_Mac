@@ -49,5 +49,5 @@ regularly on a real Mac Plus — the slowest target is the performance baseline.
 
 ## License
 
-Code: [MIT](LICENSE). Fonts are distributed under their own license — see
+Code: [BSD 3-Clause](LICENSE). Fonts are distributed under their own license — see
 [fonts/README.md](fonts/README.md).
