@@ -12,6 +12,7 @@
 
 #define kPauseTicks    120               /* 2 s without typing */
 #define kThreshold     250               /* weighted characters */
+#define kIdleSaveTicks (10L * 60)  /* a 10 s pause saves any change */
 #define kMaxAgeTicks   (3L * 60 * 60)    /* 3 minutes */
 #define kCreator       'MMDW'
 #define kFileType      'TEXT'
@@ -267,13 +268,22 @@ void Doc_Open(void)
 void Doc_Idle(void)
 {
     unsigned long now;
-    if (!gHasFile || Ed_ChangeWeight() == 0)
+    if (Ed_ChangeWeight() == 0)
         return;
     now = TickCount();
     if (now - Ed_LastEditTick() < kPauseTicks)
         return;                          /* still typing */
     if (Ed_ChangeWeight() >= kThreshold
-        || now - Ed_FirstChangeTick() >= kMaxAgeTicks) {
+        || now - Ed_FirstChangeTick() >= kMaxAgeTicks
+        || now - Ed_LastEditTick() >= kIdleSaveTicks) {
+        if (!gHasFile) {                 /* first save names it in place */
+            static unsigned long failedAt;
+            if (failedAt == Ed_FirstChangeTick())
+                return;                  /* failed for these edits: no beep loop */
+            if (!Doc_Save())
+                failedAt = Ed_FirstChangeTick();
+            return;
+        }
         /* one small append to the journal; the .md waits for Cmd-S,
            quit, suspend or switching documents */
         Chrome_SetSaveState(kSaveSaving);
