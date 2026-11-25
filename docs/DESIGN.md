@@ -133,7 +133,8 @@ there.** It is the keyboard layer over the same command set, and it doubles
 as discoverable help: type what you want, see the command and its shortcut.
 
 In code, one **command table** drives everything: each entry has a name,
-search keywords, shortcut, the surface it lives on, and an availability
+search keywords (hand-coded synonyms, e.g. Stop Focus Timer also matches
+"cancel", "end", "turn off" — so "cancel focus timer" finds it), shortcut, the surface it lives on, and an availability
 test (e.g. "Next section" only when the document has headings). Drawer
 rows, shortcuts and the palette all read from it, so they cannot drift.
 
@@ -196,8 +197,12 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 | `Settings ›` | Settings | App preferences: Session clock on/off, Word count on/off |
 
 **History** is a single timeline per document. Every autosave checkpoint is
-a version; `+ Mark this version…` names the current one (e.g. "Draft 2") so
-it is easy to find and return to. Marked versions show bold with ◆.
+a version, stamped with date and time by the system. `+ Mark this version…`
+lets the writer name the current one: an inline field appears at the top of
+the blade, prefilled with the next "Draft N" and selected, so typing replaces
+it — Return marks, Esc cancels (nothing is marked). The name is stored as
+the checkpoint's label in the journal (STORAGE.md). Marked versions show
+bold with ◆ beside their time.
 Restoring a version never deletes anything newer: the restored text becomes
 the newest version, so it can always be undone. (Parallel, separately
 editable drafts — the Ellipsus "connected drafts" idea — are in the parking
@@ -300,4 +305,15 @@ Ideas kept for later, deliberately not built yet:
   the right command — action-oriented help, not a conversation. On a 68000
   with 4 MB this means something small: a hand-built synonym/keyword table
   per command, possibly scored with a few-KB naive Bayes model, not a
-  neural network. The command table's keywords field is the hook for it.
+  neural network. Version 1 ships the hand-coded synonym table; the
+  command table's keywords field is the hook for anything smarter.
+
+## Questions for beta users
+
+Decisions made now that real-user feedback should confirm or overturn
+(per "one way to do a thing": change the one way, never add a second).
+
+- **Where does Quit live?** Currently in the drawer (Quit, Cmd-Q). The
+  classic menu bar shows only the Apple menu (About, desk accessories), so
+  Quit has exactly one mouse path. Ask: do long-time Mac users look for a
+  File › Quit menu first?
