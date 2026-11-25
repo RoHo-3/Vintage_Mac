@@ -114,7 +114,7 @@ interface is visually distinct from the prose.
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
-- **Floating format pill** on selection: `[ B | I | H1 | Note ]`.
+- **Selection pill** (mouse selections only): see §4a.
 - **Find (Cmd+F):** slim inline bar, not a modal dialog.
 - **No blocking alerts** for routine events (see Principle: a quiet app).
 - **Mouse and keyboard parity:** every command can be clicked, and frequent ones have a shortcut shown beside them (an accelerator, not a second way).
@@ -154,6 +154,104 @@ rows, shortcuts and the palette all read from it, so they cannot drift.
 | Focus | Start Focus Timer (15/25/45/60/custom) · Stop Focus Timer |
 | View | Text size 10 / 12 px · Show/hide session clock · Show/hide word count |
 | App | About Mac MD Write · Quit |
+
+## 4a. Selection pill and Markdown behavior
+
+### The pill
+
+Modeled on iPhone text selection: a multi-level pill that drills down like
+the drawer's blades. The old Mac has no right-click or context menus; the
+pill is this app's context menu.
+
+| Level | Contents | Acts on |
+|---|---|---|
+| 1 | Cut · Copy · Paste · Format › | the selection |
+| Format | ‹ · B · I · S · Code · Link · Note · Paragraph › | the selected text |
+| Paragraph | ‹ · H1–H6 · • List · 1. List · ☐ Task · “ Quote | the whole paragraph(s) |
+
+- **Placement:** centered just above the selection, clamped to the text
+  column; flips below when the selection is near the top of the screen.
+- **Timing:** appears on mouse-up (never during the drag); disappears on
+  typing, clicking elsewhere, or Esc.
+- **Mouse selections only.** Keyboard selections (Shift-arrows) never show
+  the pill — the keyboard path is shortcuts and the Cmd-K palette.
+- **Not supported:** superscript and subscript (not standard Markdown, so
+  they would not round-trip, and unreadable at 10 px). Footnotes are parked.
+
+### Formatting rules
+
+- **Paragraph formats always apply to the whole paragraph** containing the
+  selection; they never split a paragraph or insert line breaks. Selecting
+  two words and choosing H2 makes the whole paragraph an H2 (Cmd-Z undoes).
+- A selection spanning several paragraphs formats each one (three lines →
+  three list items).
+- Inline formats crossing a paragraph break are applied within each
+  paragraph separately (Markdown emphasis cannot span blocks).
+- Toggling: if all of the selection already has the format, the button
+  removes it; if only part does, it applies to all.
+
+### Keyboard path (shortcuts; everything is also in Cmd-K)
+
+| Format | Keys | Paragraph | Keys |
+|---|---|---|---|
+| Bold | Cmd-B | Heading 1–6 | Cmd-Opt-1 … 6 |
+| Italic | Cmd-I | Normal paragraph | Cmd-Opt-0 |
+| Strikethrough | Cmd-Shift-X | Bulleted list | Cmd-Shift-8 |
+| Code | Cmd-E | Numbered list | Cmd-Shift-7 |
+| Link… | Cmd-L | Task list | Cmd-Shift-9 |
+| Note | Cmd-Opt-M | Quote | Cmd-Shift-' |
+
+Modeled on Google Docs where possible. Cmd-K stays the palette, so Link is
+Cmd-L; Cmd-E is Code, so Export as Markdown has no shortcut (it is rare and
+lives in the drawer and palette). Every shortcut works on the Mac Plus
+keyboard (Command and Option, no Control needed).
+
+### Notes
+
+Notes to self, stored as HTML comments: `<!-- note: … -->` (hidden by
+other Markdown viewers, visible in plain-text editors). Choosing Note
+inserts one right after the selection.
+
+- **Closed:** text hidden; an 8×8 speech-bubble mark sits in the right
+  margin beside the line.
+- **Open:** click the mark, or put the cursor on that line. The note opens
+  inline below the line in a dotted-border box set in the 9 px UI font —
+  border and typeface separate it from the prose without gray. The mark
+  fills black while open.
+- Notes never count toward the word count.
+
+### Images
+
+The app never loads or decodes images (no practical PNG/JPEG decoding on a
+68000; color photos don't survive 1-bit anyway).
+
+- An image line shows as a two-line dotted placeholder: picture glyph, alt
+  text, filename. On the cursor line the raw `![alt](path)` shows instead.
+- Image lines are saved byte-for-byte, so images added on a modern machine
+  survive. No Insert Image command in v1 (type the syntax by hand).
+- **Links whose target is an image or any non-Markdown file** render as
+  links; their pill offers Copy Path instead of Open.
+- The Library and the project blade show non-Markdown files (images, PDFs)
+  dimmed with a generic icon: visible so nothing seems missing, not
+  openable. Renaming or trashing them stays in the Finder.
+
+### Links
+
+- Targets: any document, or any section of any document, **in the same
+  project** — written as standard relative links
+  (`[the letter](Day%20Two.md#the-letter)`) so they work in GitHub,
+  Obsidian, iA Writer. No `[[wiki-links]]`.
+- **Creating:** Link (pill or Cmd-L) opens the drawer in **Link to…** mode
+  over the project: clicking a document's name links to the document; its
+  › opens its sections (plus "Whole document"). Esc cancels. One navigator
+  for moving around and for linking.
+- **Appearance:** dotted underline (H4 uses a solid underline).
+- **Following:** clicking a link places the cursor in it and shows the
+  link pill: Open · Edit Link · Remove Link. Web addresses offer Copy
+  instead of Open (no browser).
+- **Renames:** renaming in the Library rewrites links to that document
+  across the project. A link broken by a rename made elsewhere shows a
+  small "missing" mark.
 
 ### Session timer
 
@@ -309,6 +407,9 @@ Ideas kept for later, deliberately not built yet:
   (a common-words dictionary of a few hundred KB, checked on pause, never
   while typing, and shown quietly — e.g. a dotted underline). Grammar
   checking is much heavier and likely out of reach on a 68000.
+- **Footnotes** (`[^1]`), the main reason writers want superscript.
+- **1-bit image previews:** a dithered thumbnail instead of the placeholder.
+- **Insert Image command** (v1 only shows images that are already linked).
 - **Focus Timer celebration animation.** To be designed (see to-do list).
 - **Parallel drafts** (Ellipsus-style connected drafts you can switch
   between and edit separately). Replaced for now by marked versions in a
@@ -330,3 +431,6 @@ Decisions made now that real-user feedback should confirm or overturn
   classic menu bar shows only the Apple menu (About, desk accessories), so
   Quit has exactly one mouse path. Ask: do long-time Mac users look for a
   File › Quit menu first?
+- **Formatting shortcuts.** Modeled on Google Docs (Cmd-Opt-1…6 headings,
+  Cmd-Shift-7/8/9 lists). Ask: do writers expect other conventions
+  (e.g. iA Writer or Word)?
