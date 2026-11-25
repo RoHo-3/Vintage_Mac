@@ -17,4 +17,6 @@ void    Doc_Idle(void);          /* autosave on pause */
 void    Doc_Suspend(void);       /* switching to another app */
 Boolean Doc_CanQuit(void);       /* saves first; false = stay open */
 
+void    Doc_ToggleMarks(void);  /* Markdown markers shown/hidden */
+
 #endif

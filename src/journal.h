@@ -11,6 +11,7 @@
  *   'E' edit batch  time (4) + ops { pos (4), deleted (4), inserted (4), bytes }
  *   'C' checkpoint  time (4) + text length (4) + text hash (4) + caret (4)
  *                   + label length (1) + label
+ *   'P' settings    flags (1): kPrefShowMarks
  * Text is the in-memory form (MacRoman + escapes, '\r' paragraphs).
  */
 #ifndef JOURNAL_H
@@ -37,6 +38,12 @@ Boolean JR_Checkpoint(long caret, const char *label);
    in the text buffer. If the journal is newer it is left in the text
    buffer (returns kRecoverJournalNewer). */
 short   JR_Recover(void);
+
+/* Per-document settings, kept in the journal ('P' record: one flag byte).
+   JR_Attach resets them; JR_Recover reads the latest. */
+enum { kPrefShowMarks = 1 };
+void          JR_SetPrefs(unsigned char prefs);
+unsigned char JR_Prefs(void);
 
 unsigned long JR_Hash(void);     /* hash of the whole text buffer */
 

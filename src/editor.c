@@ -30,6 +30,7 @@ static const short kSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
 static short gAsc[7], gLH[7], gCW[7], gCols[7];
 
 static WindowPtr gWin;
+static Boolean   gShowMarks;            /* per document: Markdown markers visible */
 static long  gTop;                       /* first visible line */
 static long  gAnchor, gCaret;            /* selection = [min, max) */
 static short gGoalX = -1;                /* pixel column kept on up/down */
@@ -132,7 +133,7 @@ static void GetLine(long line, LineInfo *li)
         pl--;
     li->ps = LY_Start(pl);
     li->pe = MD_ParaEnd(li->s);
-    li->active = gCaret >= li->ps && gCaret <= li->pe;
+    li->active = gShowMarks;
     li->sty = MD_Parse(li->ps, li->pe, li->active, &lvl);
     li->level = lvl;
     li->prefixEnd = li->ps;
@@ -392,28 +393,33 @@ static Boolean ScrollToCaret(void)
     return false;
 }
 
-/* Re-wrap the paragraph holding pos (its markers may have shown/hidden). */
-static void Rewrap(long pos)
-{
-    long first, oldCount, newCount;
-    if (!LY_Update(pos, 0, 0, &first, &oldCount, &newCount))
-        return;
-    if (oldCount == newCount)
-        DrawLines(first, first + newCount);
-    else
-        DrawLines(first, kToEnd);
-}
-
 /* The cursor moved from oldPos: if it changed paragraph, the old one hides
    its Markdown markers and the new one shows them. */
 static void Activate(long oldPos)
 {
+    (void)oldPos;                        /* markers no longer follow the cursor */
     LY_SetCaret(gCaret);
-    if (MD_ParaStart(oldPos) == MD_ParaStart(gCaret))
-        return;
-    Rewrap(oldPos);
-    Rewrap(gCaret);
 }
+
+/* A Markdown marker the writer can't see (markers hidden): the cursor
+   steps over it and delete never removes it by accident. Escapes are
+   excluded; they move and delete as one character already. */
+static Boolean Skippable(long pos)
+{
+    long ps, pe;
+    short lvl;
+    const unsigned char *sty;
+    if (gShowMarks || pos < 0 || pos >= TB_Len()) return false;
+    if (Enc_EscapeStart(pos) != pos) return false;
+    ps = MD_ParaStart(pos);
+    pe = MD_ParaEnd(pos);
+    if (pos >= pe) return false;
+    sty = MD_Parse(ps, pe, false, &lvl);
+    return sty && (sty[pos - ps] & MD_HIDDEN);
+}
+
+static long SkipLeft(long p)  { while (p > 0 && Skippable(p - 1)) p--; return p; }
+static long SkipRight(long p) { while (p < TB_Len() && Skippable(p)) p++; return p; }
 
 /* ---- selection --------------------------------------------------------- */
 
@@ -473,8 +479,6 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
         else
             DrawLines(first, kToEnd);    /* lines below moved */
     }
-    if (MD_ParaStart(oldCaret) != MD_ParaStart(gCaret))
-        Rewrap(oldCaret);                /* it no longer shows its markers */
     ShowCaret();
     return true;
 }
@@ -682,13 +686,19 @@ void Ed_Key(EventRecord *ev)
         if (HasSel() && !shift) pos = SelStart();
         else if (cmd) pos = LY_Start(line);
         else if (opt) pos = WordLeft(gCaret);
-        else pos = Enc_EscapeStart(gCaret - 1 < 0 ? 0 : gCaret - 1);
+        else {
+            pos = SkipLeft(gCaret);
+            if (pos > 0) pos = Enc_EscapeStart(pos - 1);
+        }
         break;
     case 0x1D:                                           /* right */
         if (HasSel() && !shift) pos = SelEnd();
         else if (cmd) pos = LY_End(line);
         else if (opt) pos = WordRight(gCaret);
-        else pos = gCaret < TB_Len() ? Enc_EscapeEnd(gCaret + 1) : gCaret;
+        else {
+            pos = SkipRight(gCaret);
+            if (pos < TB_Len()) pos = Enc_EscapeEnd(pos + 1);
+        }
         break;
     case 0x1E:                                           /* up */
         pos = cmd ? 0 : VerticalMove(-1);
@@ -707,7 +717,10 @@ void Ed_Key(EventRecord *ev)
         if (HasSel()) DeleteRange(SelStart(), SelEnd());
         else if (cmd) DeleteRange(LY_Start(line), gCaret);
         else if (opt) DeleteRange(WordLeft(gCaret), gCaret);
-        else if (gCaret > 0) {
+        else if (SkipLeft(gCaret) < gCaret) {
+            pos = SkipLeft(gCaret);      /* hidden markers just behind: keep them */
+            if (pos > 0) DeleteRange(pos - 1, pos);
+        } else if (gCaret > 0) {
             if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                 && gUndo[gUndoN - 1].len > 0
                 && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret) {
@@ -721,7 +734,10 @@ void Ed_Key(EventRecord *ev)
         return;
     case 0x7F:                                           /* forward delete */
         if (HasSel()) DeleteRange(SelStart(), SelEnd());
-        else DeleteRange(gCaret, gCaret + 1 <= TB_Len() ? gCaret + 1 : gCaret);
+        else {
+            pos = SkipRight(gCaret);
+            if (pos < TB_Len()) DeleteRange(pos, pos + 1);
+        }
         return;
     case 0x0D: case 0x03:                                /* return, enter */
         ch = '\r';
@@ -830,6 +846,19 @@ void Ed_Idle(void)
 }
 
 Boolean Ed_UsingFallbackFont(void) { return gFallbackFont; }
+
+void Ed_SetShowMarks(Boolean on)
+{
+    if (on == gShowMarks) return;
+    gShowMarks = on;
+    LY_SetShowMarks(on);
+    MD_Invalidate();
+    LY_Rebuild();
+    if (!ScrollToCaret())
+        Ed_DrawAll();
+}
+
+Boolean Ed_ShowMarks(void) { return gShowMarks; }
 
 Boolean Ed_SetText(const char *text, long len)
 {

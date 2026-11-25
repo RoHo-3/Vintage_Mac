@@ -10,6 +10,7 @@ static unsigned char *gPara;      /* kParaBit | heading level */
 static long           gN, gCapLines;
 static short          gCols[7];
 static long           gCaret;
+static Boolean gShowMarks;
 
 static long          *gTmpStart;  /* scratch for re-wrapped lines */
 static unsigned char *gTmpPara;
@@ -110,7 +111,7 @@ static Boolean Generate(long s, long stop)
         if (newPara) {                   /* parse each paragraph once */
             ps = s;
             pe = MD_ParaEnd(s);
-            sty = MD_Parse(ps, pe, gCaret >= ps && gCaret <= pe, &level);
+            sty = MD_Parse(ps, pe, gShowMarks, &level);
         }
         if (!TmpAdd(s, (unsigned char)((newPara ? kParaBit : 0) | level)))
             return false;
@@ -137,6 +138,7 @@ Boolean LY_Init(const short *cols)
 }
 
 void LY_SetCaret(long pos) { gCaret = pos; }
+void LY_SetShowMarks(Boolean on) { gShowMarks = on; }
 
 Boolean LY_Rebuild(void)
 {

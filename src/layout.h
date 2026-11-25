@@ -12,6 +12,7 @@
 /* cols[level] = characters per line for body (0) and headings 1-6. */
 Boolean LY_Init(const short *cols);
 Boolean LY_Rebuild(void);
+void    LY_SetShowMarks(Boolean on);   /* markers shown in every paragraph */
 
 /* The paragraph holding this position shows its Markdown markers. */
 void    LY_SetCaret(long pos);

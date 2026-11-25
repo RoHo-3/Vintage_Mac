@@ -36,4 +36,8 @@ long          Ed_Caret(void);
 /* Replace the whole document (no undo). */
 Boolean Ed_SetText(const char *text, long len);
 
+/* Markdown markers shown or hidden (a per-document setting). */
+void    Ed_SetShowMarks(Boolean on);
+Boolean Ed_ShowMarks(void);
+
 #endif

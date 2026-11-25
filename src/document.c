@@ -21,6 +21,8 @@ static Str63      gName;
 static short      gVRef;
 static FileFormat gFmt;
 static Boolean    gMdBehind;            /* journal has text the .md lacks */
+static short      gDefaultVRef;         /* where new documents go: the app's folder */
+static Boolean    gHaveDefault;
 
 static void CopyPString(const unsigned char *src, unsigned char *dst)
 {
@@ -39,6 +41,10 @@ static Point DialogSpot(void)
 
 void Doc_Init(void)
 {
+    if (!gHaveDefault) {
+        GetVol(NULL, &gDefaultVRef);     /* the folder the app was launched from */
+        gHaveDefault = true;
+    }
     gHasFile = false;
     gFmt.lineEnding = kEndLF;            /* new files: the modern default */
     gFmt.bom = false;
@@ -72,6 +78,33 @@ static void SuggestName(unsigned char *name)
     }
     name[++n] = '.'; name[++n] = 'm'; name[++n] = 'd';
     name[0] = (unsigned char)n;
+}
+
+/* SuggestName, made unique in the default folder: "Day Two 2.md", ... */
+static Boolean UniqueName(unsigned char *name)
+{
+    FInfo fi;
+    unsigned char base[40];
+    short n, k, i;
+
+    SuggestName(name);
+    if (GetFInfo(name, gDefaultVRef, &fi) == fnfErr)
+        return true;
+    CopyPString(name, base);
+    base[0] -= 3;                        /* without ".md" */
+    if (base[0] > 24) base[0] = 24;      /* room for " 99" + journal's limit */
+    for (k = 2; k < 100; k++) {
+        n = 0;
+        for (i = 1; i <= base[0]; i++) name[++n] = base[i];
+        name[++n] = ' ';
+        if (k >= 10) name[++n] = (unsigned char)('0' + k / 10);
+        name[++n] = (unsigned char)('0' + k % 10);
+        name[++n] = '.'; name[++n] = 'm'; name[++n] = 'd';
+        name[0] = (unsigned char)n;
+        if (GetFInfo(name, gDefaultVRef, &fi) == fnfErr)
+            return true;
+    }
+    return false;
 }
 
 static Boolean WriteFile(void)
@@ -115,26 +148,28 @@ static Boolean WriteFile(void)
 
 Boolean Doc_Save(void)
 {
-    SFReply reply;
     unsigned char suggested[40];
     OSErr err;
 
-    if (!gHasFile) {                     /* stand-in until the Library */
-        SuggestName(suggested);
-        SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave as:", suggested,
-                  NULL, &reply);
-        if (!reply.good)
-            return false;
-        err = Create(reply.fName, reply.vRefNum, kCreator, kFileType);
-        if (err != noErr && err != dupFNErr) {
+    if (!gHasFile) {
+        /* Naming happens in place (DESIGN.md): the first line names the
+           file, in the app's folder until the Library exists. No dialog. */
+        unsigned char prefs = JR_Prefs();
+        if (!UniqueName(suggested)) {
             SysBeep(1);
             return false;
         }
-        CopyPString(reply.fName, gName);
-        gVRef = reply.vRefNum;
+        err = Create(suggested, gDefaultVRef, kCreator, kFileType);
+        if (err != noErr) {
+            SysBeep(1);
+            return false;
+        }
+        CopyPString(suggested, gName);
+        gVRef = gDefaultVRef;
         gHasFile = true;
         Chrome_SetTitle(gName);
         JR_Attach(gName, gVRef);
+        JR_SetPrefs(prefs);              /* keep what was chosen while untitled */
         JR_Reset();                      /* the journal starts with a snapshot */
     }
     JR_Checkpoint(Ed_Caret(), NULL);     /* journal first, then the .md */
@@ -157,6 +192,7 @@ void Doc_New(void)
     gHasFile = false;
     JR_Detach();
     Doc_Init();
+    Ed_SetShowMarks(false);
     Ed_SetText("", 0);
     Chrome_SetTitle((const unsigned char *)"\pUntitled");
     Chrome_TextChanged();
@@ -203,6 +239,8 @@ void Doc_Open(void)
             TB_Copy(0, len, text);
         } else
             len = -1;
+        if (len >= 0)
+            Ed_SetShowMarks((JR_Prefs() & kPrefShowMarks) != 0);
         if (len >= 0 && Ed_SetText(text, len)) {
             CopyPString(reply.fName, gName);
             gVRef = reply.vRefNum;
@@ -259,4 +297,15 @@ void Doc_Suspend(void)
 Boolean Doc_CanQuit(void)
 {
     return SaveIfNeeded();
+}
+
+/* Markdown markers on or off for this document (Cmd-M for now; it moves
+   to the document drawer). Saved in the journal with the next checkpoint. */
+void Doc_ToggleMarks(void)
+{
+    unsigned char p = JR_Prefs() ^ kPrefShowMarks;
+    JR_SetPrefs(p);
+    Ed_SetShowMarks((p & kPrefShowMarks) != 0);
+    if (gHasFile && Ed_ChangeWeight() == 0)
+        JR_Checkpoint(Ed_Caret(), NULL); /* nothing else pending: write it now */
 }

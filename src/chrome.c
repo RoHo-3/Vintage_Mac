@@ -16,7 +16,8 @@
 #define LM_GrayRgn    (*(RgnHandle *)0x09EE)
 
 static WindowPtr gWin;
-static Boolean   gShown;
+static Boolean   gShown;                 /* footer */
+static Boolean   gStripShown;            /* top strip */
 static Point     gLastMouse;
 static unsigned long gClockStart, gLastKey;
 static long      gShownSeconds = -1;
@@ -176,32 +177,55 @@ void Chrome_Init(WindowPtr w)
 
 void Chrome_Draw(void)
 {
-    if (!gShown || !gWin) return;
+    if (!gWin) return;
     SetPort(gWin);
-    DrawStrip();
-    DrawStatus();
-    DrawDot();
+    if (gStripShown) DrawStrip();
+    if (gShown) { DrawStatus(); DrawDot(); }
 }
 
-static void Show(void)
+/* The footer (words / clock / save dot) appears when the writer pauses or
+   moves the mouse. The top strip (hamburger, title) appears only while the
+   mouse is in it: a pause alone never brings it up. */
+static void ShowFooter(void)
 {
 #if defined(DIAG_NO_CHROME) || defined(DIAG_MINIMAL)
     return;
 #endif
     if (gShown || !gWin) return;
     gShown = true;
-    Chrome_Draw();
+    SetPort(gWin);
+    DrawStatus();
+    DrawDot();
+}
+
+static void EraseStrip(void)
+{
+    Rect r;
+    SetPort(gWin);
+    SetRect(&r, 0, 0, gWin->portRect.right, kStripH);
+    EraseRect(&r);
+}
+
+static void SetStrip(Boolean on)
+{
+#if defined(DIAG_NO_CHROME) || defined(DIAG_MINIMAL)
+    return;
+#endif
+    if (on == gStripShown || !gWin) return;
+    gStripShown = on;
+    if (on) { SetPort(gWin); DrawStrip(); }
+    else EraseStrip();
 }
 
 void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
-    if (!gShown || !gWin) return;
+    if (!gWin) return;
+    SetStrip(false);
+    if (!gShown) return;
     gShown = false;
     SetPort(gWin);
-    SetRect(&r, 0, 0, gWin->portRect.right, kStripH);
-    EraseRect(&r);
     SetRect(&r, 0, gWin->portRect.bottom - kFooterH,
             gWin->portRect.right, gWin->portRect.bottom);
     EraseRect(&r);
@@ -210,13 +234,17 @@ void Chrome_KeyPressed(void)
 void Chrome_Idle(void)
 {
     Point m;
+    Boolean moved;
     if (!gWin) return;
+    SetPort(gWin);
     GetMouse(&m);
-    if (m.h != gLastMouse.h || m.v != gLastMouse.v) {
+    moved = m.h != gLastMouse.h || m.v != gLastMouse.v;
+    if (moved) {
         gLastMouse = m;
-        Show();                          /* the mouse moved */
+        ShowFooter();
+        SetStrip(m.v >= 0 && m.v < kStripH);
     } else if (TickCount() - gLastKey >= kPauseTicks)
-        Show();                          /* the writer paused */
+        ShowFooter();                    /* the writer paused */
     if (gShown && (long)((TickCount() - gClockStart) / 60) != gShownSeconds) {
         SetPort(gWin);                   /* tick the clock: one small redraw */
         DrawStatus();
@@ -231,7 +259,7 @@ void Chrome_SetTitle(const unsigned char *t)
     if (n > 63) n = 63;                  /* gTitle is a Str63 */
     for (i = 1; i <= n; i++) gTitle[i] = t[i];
     gTitle[0] = (unsigned char)n;
-    if (gShown) { SetPort(gWin); DrawStrip(); }
+    if (gStripShown) { SetPort(gWin); DrawStrip(); }
 }
 
 void Chrome_SetSaveState(short state)

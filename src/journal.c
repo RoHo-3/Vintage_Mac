@@ -17,6 +17,8 @@ static Ptr     gOps;                      /* pending edit ops */
 static long    gOpsLen, gOpsCap;
 static Boolean gNeedSnapshot = true;
 static short   gSinceSnapshot;
+static unsigned char gPrefs;              /* per-document settings */
+static Boolean gPrefsDirty;
 
 /* ---- helpers ------------------------------------------------------------ */
 
@@ -92,9 +94,20 @@ void JR_Attach(const unsigned char *md, short vRef)
     gName[0] = (unsigned char)k;
     gVRef = vRef;
     gAttached = true;
+    gPrefs = 0;                           /* until the journal says otherwise */
+    gPrefsDirty = false;
 }
 
-void JR_Detach(void) { gAttached = false; JR_Reset(); }
+void JR_Detach(void) { gAttached = false; JR_Reset(); gPrefs = 0; gPrefsDirty = false; }
+
+void JR_SetPrefs(unsigned char p)
+{
+    if (p == gPrefs) return;
+    gPrefs = p;
+    gPrefsDirty = true;                   /* written with the next checkpoint */
+}
+
+unsigned char JR_Prefs(void) { return gPrefs; }
 
 void JR_Reset(void)
 {
@@ -152,7 +165,7 @@ Boolean JR_Checkpoint(long caret, const char *label)
     if (label) while (label[labelLen] && labelLen < 63) labelLen++;
     snapshot = gNeedSnapshot || gSinceSnapshot >= kSnapshotEvery;
 
-    size = 16 + (snapshot ? 7 + 4 + TB_Len() : 7 + 4 + gOpsLen) + 7 + 17 + labelLen;
+    size = 16 + (snapshot ? 7 + 4 + TB_Len() : 7 + 4 + gOpsLen) + 7 + 17 + labelLen + 8;
     buf = (unsigned char *)NewPtr(size);
     if (!buf) return false;
 
@@ -175,6 +188,8 @@ Boolean JR_Checkpoint(long caret, const char *label)
         Record(buf, &n, 'S', head, 4, 0, TB_Len(), true);
     else if (gOpsLen > 0)
         Record(buf, &n, 'E', head, 4, gOps, gOpsLen, false);
+    if (snapshot || gPrefsDirty)          /* every segment carries the settings */
+        Record(buf, &n, 'P', &gPrefs, 1, 0, 0, false);
     Put32(head + 4, TB_Len());
     Put32(head + 8, JR_Hash());
     Put32(head + 12, caret);
@@ -191,6 +206,7 @@ Boolean JR_Checkpoint(long caret, const char *label)
 
     gOpsLen = 0;
     gNeedSnapshot = false;
+    gPrefsDirty = false;
     gSinceSnapshot = snapshot ? 0 : gSinceSnapshot + 1;
     return true;
 }
@@ -249,6 +265,9 @@ short JR_Recover(void)
                 }
                 k += 12 + ins;
             }
+            break;
+        case 'P':
+            if (len >= 1) gPrefs = payload[0];
             break;
         case 'C':
             if (len >= 12 && nHashes < 64)

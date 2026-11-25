@@ -41,9 +41,10 @@ static const char kWelcome[] =
     "# Mac MD Write 0.01 alpha\r"
     "\r"
     "This build adds **live Markdown**: headings at their own sizes, "
-    "**bold**, *italic* and `code`. Click into a paragraph and its markers "
-    "appear; move away and they hide. A heading's # signs hang in the left "
-    "margin so the text never shifts.\r"
+    "**bold**, *italic* and `code`. The markers are hidden; Command-M "
+    "shows them for this document (a heading's # signs hang in the left "
+    "margin) and hides them again. The arrow keys and Delete step over "
+    "hidden markers.\r"
     "\r"
     "## Things to try\r"
     "\r"
@@ -59,15 +60,16 @@ static const char kWelcome[] =
     "\r"
     "## Quiet chrome\r"
     "\r"
-    "The menu bar is gone. Pause or move the mouse and a title strip and a "
-    "footer appear: word count, session clock, and the save dot (a ring "
-    "means unsaved, dithered means saving, solid means saved). Type and "
-    "they vanish.\r"
+    "The menu bar is gone. Pause or move the mouse and a footer appears: "
+    "word count, session clock, and the save dot (a ring means unsaved, "
+    "dithered means saving, solid means saved). Move the mouse to the top "
+    "edge for the title strip. Type and they vanish.\r"
     "\r"
     "## Files\r"
     "\r"
     "Command-O opens a .md file and Command-S saves; Command-N starts a new "
-    "document. Once a document has a file it saves itself when you pause "
+    "document. A new document is named from its first line and saved in "
+    "the app's folder, with no dialog. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
     "original line endings, so they round-trip with modern editors. "
     "Characters the Mac can't show appear as a box and are kept exactly.\r"
@@ -155,6 +157,7 @@ static void DoCommandKey(EventRecord *ev)
     case 'n': Doc_New(); break;
     case 'o': Doc_Open(); break;
     case 's': Doc_Save(); break;
+    case 'm': Doc_ToggleMarks(); break;
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
     case 'x': Ed_Cut(); break;
     case 'c': Ed_Copy(); break;
