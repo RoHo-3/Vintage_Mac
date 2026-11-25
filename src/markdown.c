@@ -12,7 +12,17 @@ static long    gCStart = -1, gCEnd = -1;   /* cached parse */
 static Boolean gCActive;
 static short   gCLevel;
 
+static long    gCaretAbs = -1;             /* where the writer is typing */
+
 void MD_Invalidate(void) { gCStart = -1; }
+
+void MD_SetCaret(long pos)
+{
+    if (pos != gCaretAbs) {
+        gCaretAbs = pos;
+        gCStart = -1;                    /* open markers depend on it */
+    }
+}
 
 long MD_ParaStart(long pos)
 {
@@ -100,6 +110,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                               short *level)
 {
     long len = end - start, i, j, p;
+    long cpos = (gCaretAbs >= start && gCaretAbs <= end) ? gCaretAbs - start : -1;
     unsigned char mark = MD_MARK | (active ? 0 : MD_HIDDEN);
     char c;
 
@@ -146,6 +157,10 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 Mark(j, 1, mark);
                 ApplyStyle(i + 1, j, MD_CODE);
                 i = j;
+            } else if (j >= len && cpos > i) {   /* typing after an open ` */
+                Mark(i, 1, mark);
+                ApplyStyle(i + 1, len, MD_CODE);
+                i = len;
             }
         } else if ((c == '*' || c == '_') && i + 1 < len && gTxt[i + 1] == c) {
             j = FindClose(i + 3, 2, c, len);
@@ -153,6 +168,10 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 Mark(i, 2, mark);
                 Mark(j, 2, mark);
                 ApplyStyle(i + 2, j, MD_BOLD);
+                i++;
+            } else if (cpos >= i + 2) {  /* typing after an open ** */
+                Mark(i, 2, mark);
+                ApplyStyle(i + 2, len, MD_BOLD);
                 i++;
             }
         } else if (c == '*' || c == '_') {
@@ -165,6 +184,9 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 Mark(i, 1, mark);
                 Mark(j, 1, mark);
                 ApplyStyle(i + 1, j, MD_ITALIC);
+            } else if (cpos > i) {       /* typing after an open * or _ */
+                Mark(i, 1, mark);
+                ApplyStyle(i + 1, len, MD_ITALIC);
             }
         }
     }

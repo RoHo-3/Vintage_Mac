@@ -23,6 +23,11 @@
 /* Styles for the paragraph [start, end) (end = its '\r' or text end).
    *level is 0 for body text, 1-6 for headings. The returned array is
    valid until the next call. Returns NULL if out of memory. */
+/* Where the writer is typing. In that paragraph an unclosed **, *, _ or `
+   before the caret styles the rest of the paragraph right away (its marker
+   hides like a closed one); elsewhere an unclosed marker is plain text. */
+void MD_SetCaret(long pos);
+
 const unsigned char *MD_Parse(long start, long end, Boolean active,
                               short *level);
 

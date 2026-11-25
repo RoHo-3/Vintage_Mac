@@ -137,7 +137,7 @@ Boolean LY_Init(const short *cols)
     return LY_Rebuild();
 }
 
-void LY_SetCaret(long pos) { gCaret = pos; }
+void LY_SetCaret(long pos) { gCaret = pos; MD_SetCaret(pos); }
 void LY_SetShowMarks(Boolean on) { gShowMarks = on; }
 
 Boolean LY_Rebuild(void)

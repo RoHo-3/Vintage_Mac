@@ -393,12 +393,28 @@ static Boolean ScrollToCaret(void)
     return false;
 }
 
+/* Re-wrap the paragraph holding pos (an open marker may have started or
+   ended there). Unchanged lines redraw in place, off screen: no shift. */
+static void Rewrap(long pos)
+{
+    long first, oldCount, newCount;
+    if (!LY_Update(pos, 0, 0, &first, &oldCount, &newCount))
+        return;
+    if (oldCount == newCount)
+        DrawLines(first, first + newCount);
+    else
+        DrawLines(first, kToEnd);
+}
+
 /* The cursor moved from oldPos: if it changed paragraph, the old one hides
    its Markdown markers and the new one shows them. */
 static void Activate(long oldPos)
 {
-    (void)oldPos;                        /* markers no longer follow the cursor */
     LY_SetCaret(gCaret);
+    if (MD_ParaStart(oldPos) == MD_ParaStart(gCaret))
+        return;
+    Rewrap(oldPos);                      /* an unclosed marker there ends */
+    Rewrap(gCaret);
 }
 
 /* A Markdown marker the writer can't see (markers hidden): the cursor
@@ -495,6 +511,8 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
         else
             DrawLines(first, kToEnd);    /* lines below moved */
     }
+    if (MD_ParaStart(oldCaret) != MD_ParaStart(gCaret))
+        Rewrap(oldCaret);                /* its open marker, if any, ends */
     ShowCaret();
     return true;
 }
