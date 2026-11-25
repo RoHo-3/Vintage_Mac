@@ -59,7 +59,8 @@ interface is visually distinct from the prose.
 - **Draft switcher pill:** popover to branch / switch / compare drafts (future).
 - **Floating format pill** on selection: `[ B | I | H1 | Note ]`.
 - **Find (Cmd+F):** slim inline bar, not a modal dialog.
-- **No blocking alerts** for routine events; toasts instead.
+- **No blocking alerts** for routine events. Toasts are reserved for rare
+  moments (e.g. the writing-timer celebration); routine saves never toast.
 - **Mouse and keyboard parity:** every action reachable both ways.
 
 ### Keyboard
@@ -125,4 +126,4 @@ See [STORAGE.md](STORAGE.md). Summary:
   characters** changed — or the oldest unsaved change is **>3 min** old.
   Paste / selection-delete / heading change count as ≥50.
 - Always save on quit, close, draft switch, suspend, and Cmd+S.
-- Save state shown by the footer's three-state dot (see §4, Save state); "Saved" toast after each save.
+- Save state shown only by the footer's three-state dot (see §4, Save state) — no "Saved" toast.
