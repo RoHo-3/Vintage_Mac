@@ -167,8 +167,10 @@ pill is this app's context menu.
 |---|---|---|
 | 1 | Cut · Copy · Paste · Format › | the selection |
 | Format | ‹ · B · I · S · Code · Link · Note · Paragraph › | the selected text |
-| Paragraph | ‹ · H1–H6 · • List · 1. List · ☐ Task · “ Quote | the whole paragraph(s) |
+| Paragraph (two rows) | ‹ beside: row 1 H1–H6 · row 2 • List · 1. List · ☐ Task · “ Quote | the whole paragraph(s) |
 
+- **Shape:** a single row, except Paragraph, which stacks two rows
+  (headings, then blocks) to keep the pill compact (~200 px wide).
 - **Placement:** centered just above the selection, clamped to the text
   column; flips below when the selection is near the top of the screen.
 - **Timing:** appears on mouse-up (never during the drag); disappears on
