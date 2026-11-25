@@ -3,6 +3,7 @@
 #include "layout.h"
 #include "markdown.h"
 #include "encoding.h"
+#include "chrome.h"
 
 #include <Fonts.h>
 #include <Memory.h>
@@ -306,7 +307,7 @@ static void DrawLines(long from, long to)
         y += LineH(from);
     }
     if (from >= LY_Count() && y < bottom) {  /* clear below the last line */
-        SetRect(&r, 0, y, gWin->portRect.right - 2, bottom + kBottomPad);
+        SetRect(&r, 0, y, gWin->portRect.right - 2, gWin->portRect.bottom - kFooterH);
         EraseRect(&r);
     }
 }
@@ -315,9 +316,11 @@ static void DrawLines(long from, long to)
 
 void Ed_DrawAll(void)
 {
+    Rect r;
     gCaretOn = false;
     SetPort(gWin);
-    EraseRect(&gWin->portRect);
+    SetRect(&r, 0, kStripH, gWin->portRect.right, gWin->portRect.bottom - kFooterH);
+    EraseRect(&r);                       /* the text area; chrome draws itself */
     DrawLines(gTop, kToEnd);
     ShowCaret();
 }
@@ -474,6 +477,7 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
 
 static void Touch(long weight)
 {
+    Chrome_TextChanged();
     if (gWeight == 0)
         gFirstChange = TickCount();
     gWeight += weight;

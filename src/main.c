@@ -18,6 +18,7 @@
 
 #include "editor.h"
 #include "document.h"
+#include "chrome.h"
 
 #define kWaitNextEventTrap 0xA860
 #define kUnimplementedTrap 0xA89F
@@ -55,6 +56,13 @@ static const char kWelcome[] =
     "##### Heading five\r"
     "###### Heading six\r"
     "\r"
+    "## Quiet chrome\r"
+    "\r"
+    "The menu bar is gone. Pause or move the mouse and a title strip and a "
+    "footer appear: word count, session clock, and the save dot (a ring "
+    "means unsaved, dithered means saving, solid means saved). Type and "
+    "they vanish.\r"
+    "\r"
     "## Files\r"
     "\r"
     "Command-O opens a .md file and Command-S saves; Command-N starts a new "
@@ -87,8 +95,9 @@ static Boolean HasWaitNextEvent(void)
 
 static void OpenCanvas(void)
 {
-    Rect r = qd.screenBits.bounds;
-    r.top += GetMBarHeight();   /* menu-bar hiding comes in a later alpha */
+    Rect r = qd.screenBits.bounds;      /* the whole screen: no menu bar */
+
+    Chrome_HideMenuBar();
 
     gWindow = NewWindow(NULL, &r, PSTR("\p"), true, plainDBox,
                         (WindowPtr)-1, false, 0);
@@ -140,10 +149,6 @@ static void DoMouseDown(EventRecord *ev)
     Point pt;
 
     switch (part) {
-    case inMenuBar:
-        MenuSelect(ev->where);
-        HiliteMenu(0);
-        break;
     case inSysWindow:
         SystemClick(ev, w);
         break;
@@ -167,6 +172,7 @@ static void HandleEvent(EventRecord *ev)
     case keyDown:
     case autoKey:
         ObscureCursor();
+        Chrome_KeyPressed();
         if (ev->modifiers & cmdKey)
             DoCommandKey(ev);
         else
@@ -176,6 +182,7 @@ static void HandleEvent(EventRecord *ev)
         if ((WindowPtr)ev->message == gWindow) {
             BeginUpdate(gWindow);
             Ed_DrawAll();
+            Chrome_Draw();
             EndUpdate(gWindow);
         }
         break;
@@ -186,8 +193,14 @@ static void HandleEvent(EventRecord *ev)
     case osEvt:
         /* suspend / resume under MultiFinder: bit 0 of message = resume */
         if (((ev->message >> 24) & 0xFF) == 1) {
-            if (!(ev->message & 1))
+            if (!(ev->message & 1)) {
                 Doc_Suspend();           /* save before another app runs */
+                Chrome_ShowMenuBar();    /* other apps need the menu bar */
+            } else {
+                Chrome_HideMenuBar();
+                SetPort(gWindow);
+                InvalRect(&gWindow->portRect);
+            }
             Ed_Activate((ev->message & 1) != 0);
         }
         break;
@@ -229,6 +242,8 @@ int main(void)
         UpdateCursor();
         Ed_Idle();
         Doc_Idle();
+        Chrome_Idle();
     }
+    Chrome_ShowMenuBar();
     return 0;
 }

@@ -12,6 +12,7 @@ add_application(MacMDWrite
     src/markdown.c
     src/encoding.c
     src/document.c
+    src/chrome.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r

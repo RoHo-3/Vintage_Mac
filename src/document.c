@@ -2,6 +2,7 @@
 #include "editor.h"
 #include "encoding.h"
 #include "textbuf.h"
+#include "chrome.h"
 
 #include <Files.h>
 #include <StandardFile.h>
@@ -80,6 +81,7 @@ static Boolean WriteFile(void)
     FInfo fi;
 
     if (!buf) { SysBeep(1); return false; }
+    Chrome_SetSaveState(kSaveSaving);    /* dithered dot until the write ends */
     n = Enc_Encode(buf, max, &gFmt);
     err = (n < 0) ? -1 : FSOpen(gName, gVRef, &ref);
     if (err == noErr) {
@@ -91,6 +93,7 @@ static Boolean WriteFile(void)
     }
     DisposePtr(buf);
     if (err != noErr) {
+        Chrome_SetSaveState(kSaveUnsaved);
         SysBeep(1);
         return false;
     }
@@ -103,6 +106,7 @@ static Boolean WriteFile(void)
     }
     FlushVol(NULL, gVRef);
     Ed_ClearChanges();
+    Chrome_SetSaveState(kSaveSaved);
     return true;
 }
 
@@ -126,6 +130,7 @@ Boolean Doc_Save(void)
         CopyPString(reply.fName, gName);
         gVRef = reply.vRefNum;
         gHasFile = true;
+        Chrome_SetTitle(gName);
     }
     return WriteFile();
 }
@@ -144,6 +149,9 @@ void Doc_New(void)
     gHasFile = false;
     Doc_Init();
     Ed_SetText("", 0);
+    Chrome_SetTitle((const unsigned char *)"\pUntitled");
+    Chrome_TextChanged();
+    Chrome_ResetClock();
 }
 
 void Doc_Open(void)
@@ -183,6 +191,10 @@ void Doc_Open(void)
             gVRef = reply.vRefNum;
             gFmt = fmt;
             gHasFile = true;
+            Chrome_SetTitle(gName);
+            Chrome_TextChanged();
+            Chrome_SetSaveState(kSaveSaved);
+            Chrome_ResetClock();
         } else
             SysBeep(1);                  /* too big for the text buffer */
     } else

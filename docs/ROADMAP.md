@@ -18,8 +18,11 @@
      once 250 weighted characters changed or 3 min passed; save on suspend
      and quit. Classic Open/Save dialogs stand in for the Library. ✅ build 3
    - 4b. Append-only journal for crash recovery and History.
-5. **Quiet chrome** — hidden menu bar, top strip on pause, footer with word
-   count, session clock and three-state save dot.
+5. **Quiet chrome** — hidden menu bar (restored on suspend and quit), top
+   strip (hamburger, title) and footer (word count / session clock, save
+   dot: ring, dithered, solid) shown on pause or mouse move, hidden on the
+   next keystroke; the clock redraws only its own rectangle. ✅ build 4
+   (the hamburger does nothing until the drawer arrives)
 
 ## Later alphas
 
