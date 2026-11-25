@@ -169,6 +169,10 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 Mark(j, 2, mark);
                 ApplyStyle(i + 2, j, MD_BOLD);
                 i++;
+            } else if (cpos == i + 2 && i + 3 < len
+                       && gTxt[i + 2] == c && gTxt[i + 3] == c) {
+                Mark(i, 4, mark);        /* empty pair, cursor inside: **|** */
+                i += 3;
             } else if (cpos >= i + 2) {  /* typing after an open ** */
                 Mark(i, 2, mark);
                 ApplyStyle(i + 2, len, MD_BOLD);

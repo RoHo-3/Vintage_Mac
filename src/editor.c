@@ -756,7 +756,8 @@ void Ed_Key(EventRecord *ev)
             if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
                 DeleteRange(pos, PrefixEnd(pos));
             else                         /* a hidden ** or * just typed or passed: */
-                DeleteRange(pos, gCaret);   /* it goes as one unit, so a misplaced
+                DeleteRange(pos, SkipRight(gCaret));   /* one unit (with an empty
+                                               pair's close, **|**), so a misplaced
                                                close can be removed and retyped */
         } else if (gCaret > 0) {
             if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
