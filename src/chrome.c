@@ -33,7 +33,7 @@ static Boolean   gMenuHidden;
 void Chrome_HideMenuBar(void)
 {
     Rect r;
-#ifdef DIAG_NO_MENUHIDE
+#if defined(DIAG_NO_MENUHIDE) || defined(DIAG_MINIMAL)
     return;
 #endif
     if (gMenuHidden) return;
@@ -185,7 +185,7 @@ void Chrome_Draw(void)
 
 static void Show(void)
 {
-#ifdef DIAG_NO_CHROME
+#if defined(DIAG_NO_CHROME) || defined(DIAG_MINIMAL)
     return;
 #endif
     if (gShown) return;

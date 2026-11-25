@@ -117,7 +117,7 @@ static void OpenCanvas(void)
     Rect r = qd.screenBits.bounds;      /* the whole screen: no menu bar */
 
     Chrome_HideMenuBar();
-#ifdef DIAG_NO_MENUHIDE
+#if defined(DIAG_NO_MENUHIDE) || defined(DIAG_MINIMAL)
     r.top += GetMBarHeight();
 #endif
 

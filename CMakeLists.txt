@@ -26,7 +26,7 @@ set_target_properties(MacMDWrite PROPERTIES LINK_FLAGS "-Wl,-gc-sections")
 # -DDIAGNOSTICS=ON (CI does) to narrow down a crash in one test pass.
 option(DIAGNOSTICS "Build diagnostic variants" OFF)
 if(DIAGNOSTICS)
-    foreach(V NO_MENUHIDE NO_CHROME NO_OFFSCREEN)
+    foreach(V NO_MENUHIDE NO_CHROME NO_OFFSCREEN NO_MDWFONT MINIMAL)
         add_application(Diag_${V} ${SOURCES} TYPE "APPL" CREATOR "MMDW")
         target_compile_definitions(Diag_${V} PRIVATE DIAG_${V})
         set_target_properties(Diag_${V} PROPERTIES LINK_FLAGS "-Wl,-gc-sections")

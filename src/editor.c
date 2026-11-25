@@ -857,6 +857,9 @@ Boolean Ed_Init(WindowPtr w)
     gWin = w;
     SetPort(w);
     gFallbackFont = !RealFont(kFontMDW, kSize[0]);
+#if defined(DIAG_NO_MDWFONT) || defined(DIAG_MINIMAL)
+    gFallbackFont = true;
+#endif
     for (i = 0; i < 7; i++) {            /* measure body and each heading */
         SetFont(i, false, false);
         GetFontInfo(&fi);
@@ -873,7 +876,7 @@ Boolean Ed_Init(WindowPtr w)
         for (i = 0; i < 7; i++)
             if (gLH[i] > maxH) maxH = gLH[i];
         gOffBits.baseAddr = NewPtr((long)rowBytes * maxH);
-#ifdef DIAG_NO_OFFSCREEN
+#if defined(DIAG_NO_OFFSCREEN) || defined(DIAG_MINIMAL)
         gOffBits.baseAddr = 0;
 #endif
         if (gOffBits.baseAddr) {
