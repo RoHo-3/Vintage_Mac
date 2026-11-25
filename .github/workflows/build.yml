@@ -21,7 +21,22 @@ jobs:
           cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
 
       - name: Build
-        run: make -C build
+        shell: bash
+        run: |
+          set -o pipefail
+          make -C build 2>&1 | tee build.log
+
+      - name: Report compiler errors as annotations
+        if: failure()
+        shell: bash
+        run: |
+          # Annotations show on the run's summary page without signing in.
+          grep -E "error|Error" build.log | head -25 | while IFS= read -r line; do
+            echo "::error::${line}"
+          done
+          grep -E "warning:" build.log | head -10 | while IFS= read -r line; do
+            echo "::warning::${line}"
+          done
 
       - name: Upload app
         uses: actions/upload-artifact@v4
