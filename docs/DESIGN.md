@@ -383,9 +383,9 @@ Full-screen browser that replaces the classic Open dialog and handles both
 new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
 
 1. **Templates** — ordinary `.md` files in a Templates folder (users can
-   add their own): Blank, Outline, Journal Entry, Short Story, Novel
-   Project (a folder template: chapter files + notes), Article, Meeting
-   Notes, Letter, Poem. `Open` on a template creates a new untitled document from it; the
+   add their own). Default set (by 0.05 alpha): Blank, Outline, Research,
+   Meeting Notes, Article, Short Story, Novel Project (a folder template:
+   chapter files + notes), Script. `Open` on a template creates a new untitled document from it; the
    template itself is never changed (edit templates in the Finder — a
    power-user feature). Cmd-N skips the Library and opens Blank.
 2. **My Files** — real folder hierarchy inside a "Mac MD Write" documents

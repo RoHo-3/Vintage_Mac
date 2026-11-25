@@ -3,11 +3,15 @@ project(MacMDWrite C)
 
 # Optimize for size: on a 68000 smaller code is usually faster too,
 # and section GC strips unused library code.
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -Wall")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Os -ffunction-sections -fdata-sections -Wall -Wno-multichar")
 
 add_application(MacMDWrite
     src/main.c
+    src/editor.c
+    src/layout.c
+    src/textbuf.c
     src/MacMDWrite.r
+    src/fonts.r
     TYPE "APPL"
     CREATOR "MMDW"
 )

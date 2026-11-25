@@ -29,22 +29,31 @@ to feel like a modern writing app rather than a 1984 one.
 
 ## Building
 
-Requires the [Retro68](https://github.com/autc04/Retro68) cross-compiler.
+**Download a build:** every push is built by GitHub Actions with Retro68's
+Docker image. Open the repo's **Actions** tab, pick the latest run, and
+download the `MacMDWrite-…` artifact (`MacMDWrite.dsk` disk image and
+`MacMDWrite.bin` MacBinary).
+
+**Build locally** with the [Retro68](https://github.com/autc04/Retro68)
+cross-compiler:
 
 ```sh
-mkdir build && cd build
-cmake .. -DCMAKE_TOOLCHAIN_FILE=<path-to-Retro68-build>/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
-make
+./build.sh          # assumes ~/Developer/Retro68-build; set RETRO68 to override
 ```
 
-The build produces `MacMDWrite.bin` (MacBinary), `MacMDWrite.dsk` (disk image)
-and `MacMDWrite.APPL`. Test in an emulator (Mini vMac, Basilisk II) and
-regularly on a real Mac Plus — the slowest target is the performance baseline.
+The disk image lands in `build/MacMDWrite.dsk`. Test in an emulator (Snow,
+Mini vMac) and regularly on a real Mac Plus — the slowest target is the
+performance baseline.
+
+**Fonts:** `src/fonts.r` is generated from the TTFs in
+`fonts/ibm-plex-mono/` by `python3 tools/make_fonts.py` (needs Pillow and
+fontTools). It is committed, so a normal build doesn't need Python.
 
 ## Documentation
 
 - [Design overview](docs/DESIGN.md)
 - [Storage & journal format](docs/STORAGE.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Fonts](fonts/README.md)
 
 ## License

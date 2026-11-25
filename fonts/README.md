@@ -1,20 +1,29 @@
 # Fonts
 
-The writing canvas uses hand-tuned 1-bit bitmap strikes derived from the
-iA Writer Mono family (itself based on IBM Plex Mono).
+## Current placeholder: MDW Mono
 
-**Pending:** confirm the font license terms. The iA Writer fonts are under the
-SIL Open Font License; if a Reserved Font Name applies, the modified bitmap
-fonts must ship under a different name. Until resolved, no font files are
-committed here.
+Until hand-tuned strikes exist, the app uses **MDW Mono**: an automatic
+1-bit rasterization of **IBM Plex Mono** (Regular and Bold) at 10, 12, 14,
+16 and 20 px, built as classic Mac `FONT` resources by
+`tools/make_fonts.py` into `src/fonts.r`.
 
-## Pipeline (planned)
+| Family | Font number | Source |
+|---|---|---|
+| MDW Mono | 200 (resource IDs 25600 + size) | IBMPlexMono-Regular.ttf |
+| MDW Mono Bold | 201 (resource IDs 25728 + size) | IBMPlexMono-Bold.ttf |
 
-1. Open the Regular and Bold `.ttf` files in FontForge.
-2. Element → Bitmap Strikes Available: 10, 12, 14, 16, 20 px.
-3. Hand-clean each strike in the bitmap editor (every counter keeps ≥1 white
-   pixel; fixed integer advance per size: 6/7/8/10/12 px).
-4. Export as NFNT + FOND and embed in the app's resource fork.
+Metrics: 10 px → ascent 11, descent 3, 6 px advance (70 columns in the
+420 px column, 14 px lines); 12 → 7 px; 14 → 8 px; 16 → 10 px; 20 → 12 px.
 
-Font files in this directory remain under the SIL Open Font License, not the
-project's BSD 3-Clause license.
+**License:** IBM Plex is under the SIL Open Font License with Reserved
+Font Name "Plex", so the modified bitmap versions may not use that name —
+hence "MDW Mono". The original TTFs and `LICENSE.txt` are in
+`ibm-plex-mono/`. These files stay under the OFL, not the project's BSD
+license.
+
+## Later: hand-tuned strikes
+
+The long-term plan (pending the iA Writer license check on the to-do list)
+is hand-cleaned strikes in FontForge or Bits'N'Picas: every counter keeps
+at least one white pixel, fixed integer advance per size, Bold drawn from
+the real Bold face.

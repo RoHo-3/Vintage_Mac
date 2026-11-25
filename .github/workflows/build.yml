@@ -1,0 +1,33 @@
+name: Build
+
+# Builds Mac MD Write with the Retro68 68k toolchain from its published
+# Docker image, then uploads the disk image and MacBinary app.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-68k:
+    runs-on: ubuntu-latest
+    container: ghcr.io/autc04/retro68:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+
+      - name: Build
+        run: make -C build
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacMDWrite-${{ github.sha }}
+          path: |
+            build/MacMDWrite.dsk
+            build/MacMDWrite.bin
+          if-no-files-found: error
