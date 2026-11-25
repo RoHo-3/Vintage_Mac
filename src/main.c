@@ -78,6 +78,22 @@ static const char kWelcome[] =
 static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
 static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load. Build " STR(BUILD_NUMBER) ".";
 
+#define kExtraStack (32L * 1024)
+#define LM_ApplLimit (*(Ptr *)0x0130)
+
+/* Classic startup: give the stack room to grow (the 68000 default is
+   only ~8 KB and Toolbox calls like CopyBits and styled DrawText use a lot
+   of it), then grow the heap to its limit and pre-allocate master
+   pointers so handles don't fragment it. */
+static void InitMemory(void)
+{
+    short i;
+    SetApplLimit(LM_ApplLimit - kExtraStack);
+    MaxApplZone();
+    for (i = 0; i < 4; i++)
+        MoreMasters();
+}
+
 static void InitToolbox(void)
 {
     InitGraf(&qd.thePort);
@@ -218,6 +234,7 @@ int main(void)
     EventRecord ev;
     Boolean gotEvent;
 
+    InitMemory();
     InitToolbox();
     gHasWNE = HasWaitNextEvent();
     OpenCanvas();
@@ -229,7 +246,7 @@ int main(void)
         /* welcome text + which font is in use */
         const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
         long n1 = sizeof(kWelcome) - 1, n2 = 0, i;
-        char buf[sizeof(kWelcome) + 64];
+        static char buf[sizeof(kWelcome) + 128];   /* not on the stack */
         while (f[n2]) n2++;
         for (i = 0; i < n1; i++) buf[i] = kWelcome[i];
         for (i = 0; i < n2; i++) buf[n1 + i] = f[i];
