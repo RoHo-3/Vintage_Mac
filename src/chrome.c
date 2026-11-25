@@ -176,7 +176,7 @@ void Chrome_Init(WindowPtr w)
 
 void Chrome_Draw(void)
 {
-    if (!gShown) return;
+    if (!gShown || !gWin) return;
     SetPort(gWin);
     DrawStrip();
     DrawStatus();
@@ -188,7 +188,7 @@ static void Show(void)
 #if defined(DIAG_NO_CHROME) || defined(DIAG_MINIMAL)
     return;
 #endif
-    if (gShown) return;
+    if (gShown || !gWin) return;
     gShown = true;
     Chrome_Draw();
 }
@@ -197,7 +197,7 @@ void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
-    if (!gShown) return;
+    if (!gShown || !gWin) return;
     gShown = false;
     SetPort(gWin);
     SetRect(&r, 0, 0, gWin->portRect.right, kStripH);
@@ -210,6 +210,7 @@ void Chrome_KeyPressed(void)
 void Chrome_Idle(void)
 {
     Point m;
+    if (!gWin) return;
     GetMouse(&m);
     if (m.h != gLastMouse.h || m.v != gLastMouse.v) {
         gLastMouse = m;
@@ -227,6 +228,7 @@ void Chrome_SetTitle(const unsigned char *t)
     short i, n = t[0];
     if (n > 3 && t[n - 2] == '.' && t[n - 1] == 'm' && t[n] == 'd')
         n -= 3;                          /* "Day Two.md" → "Day Two" */
+    if (n > 63) n = 63;                  /* gTitle is a Str63 */
     for (i = 1; i <= n; i++) gTitle[i] = t[i];
     gTitle[0] = (unsigned char)n;
     if (gShown) { SetPort(gWin); DrawStrip(); }

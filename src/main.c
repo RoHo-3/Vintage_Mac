@@ -238,6 +238,7 @@ int main(void)
     InitToolbox();
     gHasWNE = HasWaitNextEvent();
     OpenCanvas();
+    Chrome_Init(gWindow);
     if (!Ed_Init(gWindow)) {
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
