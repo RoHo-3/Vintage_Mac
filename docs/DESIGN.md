@@ -57,8 +57,9 @@ When a new feature arrives, it goes on the surface whose job it matches.
 - Full-screen borderless canvas. The system menu bar is hidden while writing
   and reappears when the cursor touches the top edge (so classic users can
   still find commands).
-- Optional 20 px top strip: hamburger (16×16) left, document title centered,
-  `[ Draft 2 ▾ ]` pill right. Shown on launch / mouse movement; hidden on
+- Optional 20 px top strip: hamburger (16×16) left, `Project › Document`
+  title centered (just the document name for a standalone file). Drafts are
+  reached only through the drawer's Drafts blade (one mouse path). Shown on launch / mouse movement; hidden on
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
@@ -104,7 +105,6 @@ interface is visually distinct from the prose.
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
-- **Draft switcher pill:** popover to branch / switch / compare drafts (future).
 - **Floating format pill** on selection: `[ B | I | H1 | Note ]`.
 - **Find (Cmd+F):** slim inline bar, not a modal dialog.
 - **No blocking alerts** for routine events (see Principle: a quiet app).
