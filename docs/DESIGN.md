@@ -150,6 +150,20 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    breadcrumb (`MY FILES › THE KEEPER'S LOG`) with an up tile.
 3. **Recent** — recently opened files.
 
+**Project structure (max three levels):**
+
+| Level | Can contain |
+|---|---|
+| My Files (top level) | Documents and projects |
+| Project | Documents and folders |
+| Folder inside a project | Documents only |
+
+- `New Folder` is offered only inside a project.
+- A document named "Outline" is pinned first in its project.
+- Deeper folders created in the Finder are still shown (files never seem to
+  vanish), but the app never creates them. This is a documented power-user
+  feature: "Want folders of folders? Make them in the Finder."
+
 `Other location…` falls back to the classic Standard File dialog for files
 elsewhere on disk. Return opens, Esc returns to writing.
 
