@@ -1,0 +1,6 @@
+build/
+*.bin
+*.dsk
+*.APPL
+*.o
+.DS_Store
