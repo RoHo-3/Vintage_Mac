@@ -4,7 +4,6 @@
 
 #include <Fonts.h>
 #include <Memory.h>
-#include <Scrap.h>
 #include <ToolUtils.h>
 #include <OSUtils.h>
 
