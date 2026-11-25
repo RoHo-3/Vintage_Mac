@@ -29,7 +29,7 @@ FAMILIES = [(200, 'MDW Mono', 'IBMPlexMono-Regular.ttf'),
             (201, 'MDW Mono Bold', 'IBMPlexMono-Bold.ttf'),
             (202, 'MDW Mono Italic', 'IBMPlexMono-Italic.ttf'),
             (203, 'MDW Mono Bold Italic', 'IBMPlexMono-BoldItalic.ttf')]
-SIZES = [10, 12, 14, 16, 20]
+SIZES = [12, 14, 16, 20]   # 10 px dropped: a 6 px cell turns m, w, a into blobs
 FIRST, LAST = 0x20, 0xFF
 
 
