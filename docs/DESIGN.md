@@ -83,8 +83,8 @@ license/rename check — see fonts/README.md), hand-tuned bitmap strikes.
 
 | Element | Size | Style |
 |---|---|---|
-| Body | 12 px | Regular — 7 px advance, ~60 chars/line (10 px was tried in Build 15: a 6 px cell turns m, w, a into blobs) |
-| H6 | 12 px | Bold + all caps |
+| Body | 10 px | Regular — 6 px advance, ~70 chars/line |
+| H6 | 10 px | Bold + all caps |
 | H5 | 12 px | Bold |
 | H4 | 12 px | Bold + underline |
 | H3 | 14 px | Bold |
@@ -135,7 +135,7 @@ interface is visually distinct from the prose.
 | Cmd+Shift+D | Drafts |
 | Cmd+F | Find |
 | Cmd+S | Save now |
-| Cmd+= / Cmd+- | Body size (parked: 10 px needs a hand-drawn strike) |
+| Cmd+= / Cmd+- | Body 10 px ↔ 12 px |
 
 ### Command palette (Cmd-K)
 

@@ -26,7 +26,7 @@
 #define kRunMax       256
 
 /* body (0) and heading levels 1-6: size, then metrics measured at init */
-static const short kSize[7] = { 12, 20, 16, 14, 12, 12, 12 };  /* body 12: even strokes */
+static const short kSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
 static short gAsc[7], gLH[7], gCW[7], gCols[7];
 
 static WindowPtr gWin;

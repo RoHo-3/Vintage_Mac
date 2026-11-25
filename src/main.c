@@ -77,8 +77,8 @@ static const char kWelcome[] =
     "Font: ";
 #define STR2(x) #x
 #define STR(x) STR2(x)
-static const char kFontOK[] = "MDW Mono 12 (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
-static const char kFontFallback[] = "Monaco 12 - MDW Mono did not load. Build " STR(BUILD_NUMBER) ".";
+static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
+static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load. Build " STR(BUILD_NUMBER) ".";
 
 #define kExtraStack (32L * 1024)
 #define LM_ApplLimit (*(Ptr *)0x0130)
