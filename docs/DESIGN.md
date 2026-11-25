@@ -15,6 +15,29 @@ The app stays silent by default so writing stays distraction-free.
 - System-initiated messages are kept to the bare minimum; when one is
   unavoidable it is non-modal and never takes focus from the text.
 
+## Principle: each surface has one job
+
+- **The writing view** is for writing. Nothing else lives on the canvas.
+- **The hamburger drawer is the document explorer:** it navigates the
+  document you are in and the project it belongs to (project files, headings
+  on this page, drafts). It exists only in the writing view.
+- **The Library** manages files: new, open, duplicate, rename, export,
+  trash. It has its own actions and no hamburger.
+
+When a new feature arrives, it goes on the surface whose job it matches.
+
+## Principle: one way to do a thing
+
+- Every task has exactly one way to do it. No cluttered UI with many routes
+  to the same result.
+- If feedback shows the one way is wrong, we **change** it; we do not add a
+  second way alongside it.
+- If feedback is split (60/40, 50/50), we leave it alone until there is a
+  necessary reason to change it.
+- A keyboard shortcut is an accelerator for that same command, shown next to
+  it, not a second way. (The Cmd-K palette is the shortcut list made
+  searchable, not a parallel menu.)
+
 ## 1. Platform
 
 | Decision | Value |
@@ -72,7 +95,7 @@ interface is visually distinct from the prose.
 - **Floating format pill** on selection: `[ B | I | H1 | Note ]`.
 - **Find (Cmd+F):** slim inline bar, not a modal dialog.
 - **No blocking alerts** for routine events (see Principle: a quiet app).
-- **Mouse and keyboard parity:** every action reachable both ways.
+- **Mouse and keyboard parity:** every command can be clicked, and frequent ones have a shortcut shown beside them (an accelerator, not a second way).
 
 ### Keyboard
 
