@@ -67,7 +67,8 @@ leaves things as they were. There are no naming dialogs or pop-ups.
   still find commands).
 - Optional 20 px top strip: hamburger (16×16) left, `Project › Document`
   title centered (just the document name for a standalone file).
-  Nothing in the strip is a control besides the hamburger. Shown on launch / mouse movement; hidden on
+  The only controls in the strip are the hamburger and, after a jump, the
+  back chip (see Going back). Shown on launch / mouse movement; hidden on
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
@@ -102,7 +103,7 @@ interface is visually distinct from the prose.
   markers (`#`, `**`, `_`) visible only on the caret's line.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
   drawer is headed with the current document's name and lists:
-  `<Project name> ›`, `Sections ›`, `Focus Timer ›`, `History ›`,
+  `<Project name> ›`, `Sections ›`, `Links ›`, `Focus Timer ›`, `History ›`,
   `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
@@ -154,6 +155,23 @@ rows, shortcuts and the palette all read from it, so they cannot drift.
 | Focus | Start Focus Timer (15/25/45/60/custom) · Stop Focus Timer |
 | View | Text size 10 / 12 px · Show/hide session clock · Show/hide word count |
 | App | About Mac MD Write · Quit |
+
+### Going back
+
+Any jump pushes the place you left onto a **back stack**: following a link,
+a backlink, a Links/Sections entry, or switching files in the project
+blade. An entry is document + cursor position + scroll position, so going
+back returns you exactly where you were — no closing, no Library. (The
+current document is autosaved on every switch.)
+
+- **Mouse:** a `‹ Day Two` chip appears in the top strip, right of the
+  hamburger, naming where Back goes. Click to go back; repeat to walk
+  further back. **Press and hold** the chip for a classic Mac pop-up menu
+  of recent places (like holding a browser's Back button).
+- **Keyboard:** Cmd-[ back, Cmd-] forward.
+- The chip disappears when the stack is empty. Up to 20 places are kept for
+  the session (a few hundred bytes); the stack is not saved on quit.
+- Not to be confused with **History**, which is versions of a document.
 
 ## 4a. Selection pill and Markdown behavior
 
@@ -299,6 +317,7 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 |---|---|---|
 | `<Project name> ›` | the project's name | Project documents (Outline pinned first) and folders › |
 | `Sections ›` | Sections | Headings of the current document, indented by level |
+| `Links ›` | Links | Links in this document (target, ⚠ if broken, web links marked) and **Linking here** — backlinks from other project documents. Clicking goes there; editing/removing stays in the link pill |
 | `Focus Timer ›` | Focus Timer | 15 · 25 · 45 · 60 min · Custom… · Off |
 | `History ›` | History | One timeline of versions (see below) |
 | `Export ›` | Export | Markdown… · Print… · Template… |
