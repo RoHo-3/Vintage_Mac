@@ -34,9 +34,13 @@ When a new feature arrives, it goes on the surface whose job it matches.
   second way alongside it.
 - If feedback is split (60/40, 50/50), we leave it alone until there is a
   necessary reason to change it.
-- A keyboard shortcut is an accelerator for that same command, shown next to
-  it, not a second way. (The Cmd-K palette is the shortcut list made
-  searchable, not a parallel menu.)
+- "One way" means **one path per input method**. With the mouse there is
+  exactly one path to each task. Keyboard input (shortcuts, typed Markdown,
+  the Cmd-K palette) is an interaction-support and accessibility layer for
+  the same commands, not a second way. Example: the selection pill's **B**
+  is the mouse path to bold; typing `**` or Cmd-B is the keyboard path.
+- Within the keyboard layer, each command still has one shortcut (no
+  aliases — e.g. Cmd-W does not duplicate Cmd-O).
 
 ## 1. Platform
 
@@ -87,7 +91,16 @@ interface is visually distinct from the prose.
 
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
   markers (`#`, `**`, `_`) visible only on the caret's line.
-- **Hamburger drawer:** 180 px left drawer — File (`Files…`, `Quit`), chapters, drafts, export, settings (session timer, writing timer). 50%
+- **Hamburger drawer = document explorer, built from blades.** The 180 px
+  drawer is a short list of rows: `Project ›`, `On This Page ›`, `Drafts ›`,
+  `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
+  full-height blade over the drawer; a 14 px strip of the panel underneath
+  stays visible with `‹` as the back target (no vertical labels — QuickDraw
+  can't rotate text). Max stack: drawer → Project → one folder, matching the
+  three-level project rule. The drawer reopens to the last blade used, so
+  switching files stays one click. Keys: ↑↓ move, → opens, ← / Esc back.
+  `Project` is hidden for standalone documents. Blade slide is a few frames
+  on an SE/30, instant on a Plus. 50%
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
@@ -155,11 +168,25 @@ keeps the whole 1 MB partition available to one text buffer and its undo).
 - **No Close command.** Opening another file from the Library autosaves the
   current one and switches; nothing ever asks "Save changes?".
 - **Quit (Cmd-Q)** saves and exits.
-- **Cmd-W** opens the Library (muscle-memory alias, not a close).
 - **On launch** the app reopens the last document at the caret where you
   left off; with no previous document it opens the Library.
 
-### Library (Cmd-O, drawer → Files…)
+### Naming documents
+
+No naming step before writing. A new document (Cmd-N, or a template in the
+Library) is named automatically from its first line:
+
+- Markdown markers are stripped (`# The Keeper's Log` → `The Keeper's Log`),
+  the name is cut at a word boundary to fit HFS's 31-character limit with
+  `.md` (≤ 28 characters), and `:` (illegal in HFS) becomes `-`.
+- A clash gets a number: `Day Two 2.md`.
+- The name follows the first line until the writer renames the document in
+  the Library; after a manual rename it stays fixed.
+- Cmd-N inside a project creates the document in that project.
+- A new project starts as "Untitled Project" with its name field already
+  selected for typing, as in the Finder.
+
+### Library (Cmd-O, drawer → Library…)
 
 Full-screen browser that replaces the classic Open dialog and handles both
 new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
