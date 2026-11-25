@@ -418,6 +418,22 @@ static Boolean Skippable(long pos)
     return sty && (sty[pos - ps] & MD_HIDDEN);
 }
 
+/* End of the hidden heading prefix ("### ") that starts at p, or p. */
+static long PrefixEnd(long p)
+{
+    long ps, pe, q;
+    short lvl;
+    const unsigned char *sty;
+    if (gShowMarks || p >= TB_Len() || MD_ParaStart(p) != p) return p;
+    ps = p;
+    pe = MD_ParaEnd(p);
+    sty = MD_Parse(ps, pe, false, &lvl);
+    if (!sty) return p;
+    for (q = p; q < pe && (sty[q - ps] & MD_PREFIX); q++)
+        ;
+    return q;
+}
+
 static long SkipLeft(long p)  { while (p > 0 && Skippable(p - 1)) p--; return p; }
 static long SkipRight(long p) { while (p < TB_Len() && Skippable(p)) p++; return p; }
 
@@ -718,8 +734,11 @@ void Ed_Key(EventRecord *ev)
         else if (cmd) DeleteRange(LY_Start(line), gCaret);
         else if (opt) DeleteRange(WordLeft(gCaret), gCaret);
         else if (SkipLeft(gCaret) < gCaret) {
-            pos = SkipLeft(gCaret);      /* hidden markers just behind: keep them */
-            if (pos > 0) DeleteRange(pos - 1, pos);
+            pos = SkipLeft(gCaret);
+            if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
+                DeleteRange(pos, PrefixEnd(pos));
+            else if (pos > 0)            /* other hidden markers: keep them */
+                DeleteRange(pos - 1, pos);
         } else if (gCaret > 0) {
             if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                 && gUndo[gUndoN - 1].len > 0
@@ -736,7 +755,10 @@ void Ed_Key(EventRecord *ev)
         if (HasSel()) DeleteRange(SelStart(), SelEnd());
         else {
             pos = SkipRight(gCaret);
-            if (pos < TB_Len()) DeleteRange(pos, pos + 1);
+            if (pos < TB_Len() && TB_Char(pos) == '\r' && PrefixEnd(pos + 1) > pos + 1)
+                DeleteRange(pos, PrefixEnd(pos + 1));   /* join; the heading's "### " goes too */
+            else if (pos < TB_Len())
+                DeleteRange(pos, pos + 1);
         }
         return;
     case 0x0D: case 0x03:                                /* return, enter */
