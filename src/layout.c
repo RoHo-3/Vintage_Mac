@@ -1,10 +1,15 @@
 #include "layout.h"
 #include "textbuf.h"
+#include "markdown.h"
+
+#define kParaBit  0x80             /* gPara: line starts a paragraph */
+#define kLevelMask 0x07            /* gPara: heading level 0-6 */
 
 static long          *gStart;     /* first char of each line */
-static unsigned char *gPara;      /* 1 if the line starts a paragraph */
+static unsigned char *gPara;      /* kParaBit | heading level */
 static long           gN, gCapLines;
-static short          gCols;
+static short          gCols[7];
+static long           gCaret;
 
 static long          *gTmpStart;  /* scratch for re-wrapped lines */
 static unsigned char *gTmpPara;
@@ -39,9 +44,11 @@ static Boolean Grow(long **starts, unsigned char **paras, long *cap, long need)
     return true;
 }
 
-/* Returns the start of the line after the one starting at s.
-   *hard is true when the line ended with a paragraph break. */
-static long WrapLine(long s, long len, Boolean *hard)
+/* Returns the start of the line after the one starting at s, within the
+   paragraph [ps, pe) whose styles are sty. Hidden characters take no
+   column. *hard is true when the line ended with a paragraph break. */
+static long WrapLine(long s, long len, long ps, long pe,
+                     const unsigned char *sty, short cols, Boolean *hard)
 {
     long p = s, lastBreak = -1;
     short col = 0;
@@ -49,14 +56,21 @@ static long WrapLine(long s, long len, Boolean *hard)
 
     *hard = false;
     while (p < len) {
-        c = TB_Char(p);
-        if (c == '\r') {
-            *hard = true;
-            return p + 1;
+        if (p == pe) {                   /* the paragraph's '\r' (or text end) */
+            if (p < len) {
+                *hard = true;
+                return p + 1;
+            }
+            return len;
         }
-        if (col >= gCols) {
+        if (sty && (sty[p - ps] & MD_HIDDEN)) {
+            p++;
+            continue;
+        }
+        c = TB_Char(p);
+        if (col >= cols) {
             if (c == ' ') {              /* trailing spaces hang past the edge */
-                while (p < len && TB_Char(p) == ' ')
+                while (p < pe && TB_Char(p) == ' ')
                     p++;
                 return p;
             }
@@ -72,7 +86,7 @@ static long WrapLine(long s, long len, Boolean *hard)
     return len;
 }
 
-static Boolean TmpAdd(long start, Boolean para)
+static Boolean TmpAdd(long start, unsigned char para)
 {
     if (!Grow(&gTmpStart, &gTmpPara, &gTmpCap, gTmpN + 1))
         return false;
@@ -86,32 +100,43 @@ static Boolean TmpAdd(long start, Boolean para)
    position stop (a later paragraph start), or at the end when stop < 0. */
 static Boolean Generate(long s, long stop)
 {
-    long len = TB_Len(), next;
-    Boolean para = true, hard;
+    long len = TB_Len(), next, ps = s, pe = 0;
+    const unsigned char *sty = 0;
+    short level = 0;
+    Boolean newPara = true, hard;
 
     gTmpN = 0;
     for (;;) {
-        if (!TmpAdd(s, para))
+        if (newPara) {                   /* parse each paragraph once */
+            ps = s;
+            pe = MD_ParaEnd(s);
+            sty = MD_Parse(ps, pe, gCaret >= ps && gCaret <= pe, &level);
+        }
+        if (!TmpAdd(s, (unsigned char)((newPara ? kParaBit : 0) | level)))
             return false;
-        next = WrapLine(s, len, &hard);
+        next = WrapLine(s, len, ps, pe, sty, gCols[level], &hard);
         if (stop >= 0 && next >= stop)   /* reached an untouched paragraph */
             break;
         if (next >= len) {
-            if (hard && !TmpAdd(len, true))   /* empty last line after '\r' */
+            if (hard && !TmpAdd(len, kParaBit))  /* empty last line after '\r' */
                 return false;
             break;
         }
-        para = hard;
+        newPara = hard;
         s = next;
     }
     return true;
 }
 
-Boolean LY_Init(short cols)
+Boolean LY_Init(const short *cols)
 {
-    gCols = cols;
+    short i;
+    for (i = 0; i < 7; i++)
+        gCols[i] = cols[i];
     return LY_Rebuild();
 }
+
+void LY_SetCaret(long pos) { gCaret = pos; }
 
 Boolean LY_Rebuild(void)
 {
@@ -133,11 +158,11 @@ Boolean LY_Update(long from, long oldLen, long newLen,
 
     /* first affected line: the paragraph start at or before `from` */
     a = LY_LineOf(from);
-    while (a > 0 && !gPara[a])
+    while (a > 0 && !(gPara[a] & kParaBit))
         a--;
     /* first untouched paragraph after the edited range (old positions) */
     b = a + 1;
-    while (b < gN && !(gPara[b] && gStart[b] > from + oldLen))
+    while (b < gN && !((gPara[b] & kParaBit) && gStart[b] > from + oldLen))
         b++;
     stop = (b < gN) ? gStart[b] + delta : -1;
 
@@ -164,8 +189,9 @@ Boolean LY_Update(long from, long oldLen, long newLen,
     return true;
 }
 
-short LY_Cols(void)  { return gCols; }
 long  LY_Count(void) { return gN; }
+short LY_Level(long line) { return gPara[line] & kLevelMask; }
+Boolean LY_IsParaStart(long line) { return (gPara[line] & kParaBit) != 0; }
 
 long LY_Start(long line)
 {

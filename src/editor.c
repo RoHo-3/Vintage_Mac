@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "textbuf.h"
 #include "layout.h"
+#include "markdown.h"
 
 #include <Fonts.h>
 #include <Memory.h>
@@ -9,9 +10,8 @@
 
 /* ---- geometry (see docs/DESIGN.md) ------------------------------------ */
 
-#define kFontMDW      200        /* MDW Mono (bitmap Plex Mono) */
+#define kFontMDW      200        /* MDW Mono; +1 bold, +2 italic, +3 both */
 #define kFontMonaco   4          /* fallback if our font is missing */
-#define kBodySize     10
 #define kLeft         46         /* left margin */
 #define kColumnW      420        /* text column width */
 #define kTopPad       24
@@ -20,21 +20,35 @@
 #define kDoubleTicks  30
 #define kBufferSize   (384L * 1024)
 #define kMaxUndo      64
+#define kRunMax       256
+
+/* body (0) and heading levels 1-6: size, then metrics measured at init */
+static const short kSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
+static short gAsc[7], gLH[7], gCW[7], gCols[7];
 
 static WindowPtr gWin;
-static short gCW, gLH, gAsc, gCols, gVis;
 static long  gTop;                       /* first visible line */
 static long  gAnchor, gCaret;            /* selection = [min, max) */
-static long  gGoalCol = -1;              /* column kept on up/down */
+static short gGoalX = -1;                /* pixel column kept on up/down */
 static Boolean gCaretOn, gActive = true;
 static unsigned long gCaretTick, gLastClick;
 static long  gLastClickPos = -1;
 static Boolean gTyping;                  /* coalesce typing into one undo */
 static Boolean gFallbackFont;
+static char  gRun[kRunMax];
+
+/* Offscreen strip one line tall: each line is drawn here, then copied to
+   the screen in one CopyBits, so lines never flash blank while typing. */
+static GrafPort gOffPort;
+static BitMap   gOffBits;
+static Boolean  gOffOK;
 
 #define SelStart() (gAnchor < gCaret ? gAnchor : gCaret)
 #define SelEnd()   (gAnchor < gCaret ? gCaret : gAnchor)
 #define HasSel()   (gAnchor != gCaret)
+
+static short Bottom(void) { return gWin->portRect.bottom - kBottomPad; }
+static void ShowCaret(void);
 
 /* ---- undo -------------------------------------------------------------- */
 
@@ -87,24 +101,250 @@ static Boolean MakeRec(UndoRec *r, char kind, long pos, long len, const char *sr
     return true;
 }
 
+/* ---- lines and their Markdown styles ----------------------------------- */
+
+typedef struct {
+    long  s, e;          /* line text [s, e) */
+    long  ps, pe;        /* its paragraph */
+    long  prefixEnd;     /* end of a heading's "## " (== ps if none) */
+    short level;
+    Boolean active;      /* paragraph holds the cursor: markers shown */
+    const unsigned char *sty;   /* styles, indexed from ps */
+} LineInfo;
+
+static short LineH(long line)
+{
+    return gLH[line < LY_Count() ? LY_Level(line) : 0];
+}
+
+static void GetLine(long line, LineInfo *li)
+{
+    long pl = line;
+    short lvl;
+    li->s = LY_Start(line);
+    li->e = LY_End(line);
+    while (pl > 0 && !LY_IsParaStart(pl))
+        pl--;
+    li->ps = LY_Start(pl);
+    li->pe = MD_ParaEnd(li->s);
+    li->active = gCaret >= li->ps && gCaret <= li->pe;
+    li->sty = MD_Parse(li->ps, li->pe, li->active, &lvl);
+    li->level = lvl;
+    li->prefixEnd = li->ps;
+    if (li->sty)
+        while (li->prefixEnd < li->pe && (li->sty[li->prefixEnd - li->ps] & MD_PREFIX))
+            li->prefixEnd++;
+}
+
+static unsigned char StyleAt(LineInfo *li, long p)
+{
+    return li->sty ? li->sty[p - li->ps] : 0;
+}
+
+/* Pixel x of position p on this line (prefix positions hang left). */
+static short XOf(LineInfo *li, long p)
+{
+    short cw = gCW[li->level], n = 0;
+    long q;
+    if (p < li->prefixEnd)
+        return kLeft - (short)(li->prefixEnd - p) * cw;
+    for (q = li->s; q < p && q < li->e; q++)
+        if (!(StyleAt(li, q) & MD_HIDDEN) && n < gCols[li->level])
+            n++;
+    return kLeft + n * cw;
+}
+
+/* Text position nearest pixel x on this line. */
+static long PosAt(LineInfo *li, short x)
+{
+    short cw = gCW[li->level], col, n = 0;
+    long p;
+    col = (x - kLeft + (x >= kLeft ? cw / 2 : -cw / 2)) / cw;
+    if (col < 0) {
+        if (li->active && li->prefixEnd > li->ps && li->s == li->ps) {
+            p = li->prefixEnd + col;     /* click into the hanging "##" */
+            return p < li->ps ? li->ps : p;
+        }
+        col = 0;
+    }
+    for (p = li->s; p < li->e; p++) {
+        if (StyleAt(li, p) & MD_HIDDEN)
+            continue;
+        if (n >= col)
+            return p;
+        n++;
+    }
+    return li->e;
+}
+
 /* ---- drawing ----------------------------------------------------------- */
 
-static short LineTop(long line) { return kTopPad + (short)(line - gTop) * gLH; }
+static short LineTop(long line)
+{
+    short y = kTopPad;
+    long i;
+    for (i = gTop; i < line; i++)
+        y += LineH(i);
+    return y;
+}
+
+static void SetFont(short level, Boolean bold, Boolean italic)
+{
+    short f;
+    Style face = 0;
+    if (level > 0) bold = true;
+    if (gFallbackFont) {
+        f = kFontMonaco;
+        if (bold) face |= bold;
+        if (italic) face |= italic;
+    } else
+        f = kFontMDW + (bold ? 1 : 0) + (italic ? 2 : 0);
+    if (level == 4)
+        face |= underline;
+    TextFont(f);
+    TextSize(kSize[level]);
+    TextFace(face);
+}
+
+static void DrawRun(short level, unsigned char style, short x, short base, short n)
+{
+    if (n <= 0) return;
+    SetFont(level, (style & MD_BOLD) != 0, (style & MD_ITALIC) != 0);
+    MoveTo(x, base);
+    DrawText(gRun, 0, n);
+}
+
+static void DrawLine(long line, short y)
+{
+    Rect r, dst;
+    LineInfo li;
+    short h = LineH(line), base, x, runX, n = 0, cols, vis = 0;
+    short screenY = y;
+    long p, a, b, next;
+    unsigned char st, runSt = 0;
+    char c;
+
+    if (gOffOK) {                        /* compose offscreen at y = 0 */
+        SetPort(&gOffPort);
+        y = 0;
+    }
+    SetRect(&r, 0, y, gWin->portRect.right - 2, y + h);
+    EraseRect(&r);
+    if (line >= LY_Count())
+        goto done;
+
+    GetLine(line, &li);
+    base = y + gAsc[li.level];
+    cols = gCols[li.level];
+
+    /* the heading prefix hangs in the margin while the cursor is here */
+    if (li.active && li.s == li.ps && li.prefixEnd > li.ps) {
+        n = (short)(li.prefixEnd - li.ps);
+        if (n > kRunMax) n = kRunMax;
+        TB_Copy(li.ps, n, gRun);
+        DrawRun(li.level, 0, kLeft - n * gCW[li.level], base, n);
+        n = 0;
+    }
+
+    x = runX = kLeft;
+    for (p = li.s; p < li.e && vis < cols; p++) {
+        st = StyleAt(&li, p);
+        if (st & MD_HIDDEN)
+            continue;
+        st &= (MD_BOLD | MD_ITALIC);
+        if (n > 0 && (st != runSt || n == kRunMax)) {
+            DrawRun(li.level, runSt, runX, base, n);
+            runX = x;
+            n = 0;
+        }
+        c = (char)TB_Char(p);
+        if (li.level == 6 && c >= 'a' && c <= 'z')
+            c -= 'a' - 'A';              /* H6: small caps stand-in */
+        gRun[n++] = c;
+        runSt = st;
+        x += gCW[li.level];
+        vis++;
+    }
+    DrawRun(li.level, runSt, runX, base, n);
+
+    if (HasSel()) {                      /* reverse the selected part */
+        next = (line + 1 < LY_Count()) ? LY_Start(line + 1) : TB_Len() + 1;
+        a = SelStart() > li.s ? SelStart() : li.s;
+        b = SelEnd() < next ? SelEnd() : next;
+        if (a < b) {
+            short x1 = XOf(&li, a);
+            short x2 = (b >= next && line + 1 < LY_Count())
+                       ? kLeft + cols * gCW[li.level]       /* past line end */
+                       : XOf(&li, b);
+            if (x2 > x1) {
+                SetRect(&r, x1, y, x2, y + h);
+                InvertRect(&r);
+            }
+        }
+    }
+done:
+    if (gOffOK) {
+        SetPort(gWin);
+        SetRect(&r, 0, 0, gWin->portRect.right - 2, h);
+        SetRect(&dst, 0, screenY, gWin->portRect.right - 2, screenY + h);
+        CopyBits(&gOffPort.portBits, &gWin->portBits, &r, &dst, srcCopy, NULL);
+    }
+}
+
+/* Draw lines [from, to) that are on screen. */
+static void DrawLines(long from, long to)
+{
+    short y, bottom = Bottom();
+    Rect r;
+    if (from < gTop) from = gTop;
+    y = LineTop(from);
+    for (; from < to && y < bottom; from++) {
+        DrawLine(from, y);
+        y += LineH(from);
+    }
+    if (from >= LY_Count() && y < bottom) {  /* clear below the last line */
+        SetRect(&r, 0, y, gWin->portRect.right - 2, bottom + kBottomPad);
+        EraseRect(&r);
+    }
+}
+
+#define kToEnd 0x7FFFFFFFL
+
+void Ed_DrawAll(void)
+{
+    gCaretOn = false;
+    SetPort(gWin);
+    EraseRect(&gWin->portRect);
+    DrawLines(gTop, kToEnd);
+    ShowCaret();
+}
+
+/* last line that fits entirely on screen */
+static long LastVisible(void)
+{
+    short y = kTopPad, bottom = Bottom();
+    long i = gTop;
+    while (i < LY_Count() - 1 && y + LineH(i) + LineH(i + 1) <= bottom) {
+        y += LineH(i);
+        i++;
+    }
+    return i;
+}
 
 static void CaretRect(Rect *r)
 {
+    LineInfo li;
     long line = LY_LineOf(gCaret);
-    long col = gCaret - LY_Start(line);
-    short x;
-    if (col > gCols) col = gCols;
-    x = kLeft + (short)col * gCW;
-    SetRect(r, x - 1, LineTop(line), x, LineTop(line) + gLH);
+    short x, y = LineTop(line);
+    GetLine(line, &li);
+    x = XOf(&li, gCaret);
+    SetRect(r, x - 1, y, x, y + LineH(line));
 }
 
 static Boolean CaretVisible(void)
 {
     long line = LY_LineOf(gCaret);
-    return line >= gTop && line < gTop + gVis;
+    return line >= gTop && line <= LastVisible();
 }
 
 static void ToggleCaret(void)
@@ -129,73 +369,15 @@ static void ShowCaret(void)
     gCaretTick = TickCount();
 }
 
-static void DrawLine(long line)
-{
-    Rect r;
-    short y = LineTop(line);
-    long s, e, n, next, a, b;
-    const char *p1, *p2;
-    long n1, n2;
-
-    SetRect(&r, 0, y, gWin->portRect.right - 2, y + gLH);
-    EraseRect(&r);
-    if (line >= LY_Count())
-        return;
-
-    s = LY_Start(line);
-    e = LY_End(line);
-    n = e - s;
-    if (n > gCols) n = gCols;
-    if (n > 0) {
-        TB_Runs(s, n, &p1, &n1, &p2, &n2);
-        MoveTo(kLeft, y + gAsc);
-        if (n1) DrawText(p1, 0, (short)n1);
-        if (n2) DrawText(p2, 0, (short)n2);
-    }
-
-    if (HasSel()) {                      /* reverse the selected part */
-        next = (line + 1 < LY_Count()) ? LY_Start(line + 1) : TB_Len() + 1;
-        a = SelStart() > s ? SelStart() : s;
-        b = SelEnd() < next ? SelEnd() : next;
-        if (a < b) {
-            short x1 = kLeft + (short)((a - s > gCols) ? gCols : a - s) * gCW;
-            short x2 = (b >= next && line + 1 < LY_Count())
-                       ? kLeft + gCols * gCW                 /* runs past line end */
-                       : kLeft + (short)((b - s > gCols) ? gCols : b - s) * gCW;
-            if (x2 > x1) {
-                SetRect(&r, x1, y, x2, y + gLH);
-                InvertRect(&r);
-            }
-        }
-    }
-}
-
-static void DrawLines(long from, long to)   /* [from, to), visible part */
-{
-    long i;
-    if (from < gTop) from = gTop;
-    if (to > gTop + gVis) to = gTop + gVis;
-    for (i = from; i < to; i++)
-        DrawLine(i);
-}
-
-void Ed_DrawAll(void)
-{
-    gCaretOn = false;
-    SetPort(gWin);
-    EraseRect(&gWin->portRect);
-    DrawLines(gTop, gTop + gVis);
-    ShowCaret();
-}
-
 /* Scroll so the caret line is on screen; returns true if it redrew. */
 static Boolean ScrollToCaret(void)
 {
     long line = LY_LineOf(gCaret), old = gTop;
     if (line < gTop)
         gTop = line;
-    else if (line >= gTop + gVis)
-        gTop = line - gVis + 1;
+    else
+        while (line > LastVisible() && gTop < line)
+            gTop++;
     if (gTop != old) {
         Ed_DrawAll();
         return true;
@@ -203,11 +385,34 @@ static Boolean ScrollToCaret(void)
     return false;
 }
 
+/* Re-wrap the paragraph holding pos (its markers may have shown/hidden). */
+static void Rewrap(long pos)
+{
+    long first, oldCount, newCount;
+    if (!LY_Update(pos, 0, 0, &first, &oldCount, &newCount))
+        return;
+    if (oldCount == newCount)
+        DrawLines(first, first + newCount);
+    else
+        DrawLines(first, kToEnd);
+}
+
+/* The cursor moved from oldPos: if it changed paragraph, the old one hides
+   its Markdown markers and the new one shows them. */
+static void Activate(long oldPos)
+{
+    LY_SetCaret(gCaret);
+    if (MD_ParaStart(oldPos) == MD_ParaStart(gCaret))
+        return;
+    Rewrap(oldPos);
+    Rewrap(gCaret);
+}
+
 /* ---- selection --------------------------------------------------------- */
 
 static void SetSel(long anchor, long caret)
 {
-    long oldS = SelStart(), oldE = SelEnd(), lo, hi;
+    long oldS = SelStart(), oldE = SelEnd(), oldCaret = gCaret, lo, hi;
     long len = TB_Len();
     if (anchor < 0) anchor = 0;
     if (caret < 0) caret = 0;
@@ -217,6 +422,7 @@ static void SetSel(long anchor, long caret)
     HideCaret();
     gAnchor = anchor;
     gCaret = caret;
+    Activate(oldCaret);
     lo = oldS < SelStart() ? oldS : SelStart();
     hi = oldE > SelEnd() ? oldE : SelEnd();
     if (!ScrollToCaret())
@@ -230,13 +436,20 @@ static void SetSel(long anchor, long caret)
 static Boolean Replace(long from, long oldLen, const char *src, long newLen,
                        long newCaret)
 {
-    long first, oldCount, newCount;
+    long first, oldCount, newCount, oldCaret = gCaret;
 
     HideCaret();
     if (!TB_Replace(from, oldLen, src, newLen)) {
         SysBeep(1);                      /* document full */
         return false;
     }
+    MD_Invalidate();
+    /* where the old cursor sits in the new text */
+    if (oldCaret >= from + oldLen) oldCaret += newLen - oldLen;
+    else if (oldCaret > from) oldCaret = from;
+
+    gAnchor = gCaret = newCaret;
+    LY_SetCaret(gCaret);
     if (!LY_Update(from, oldLen, newLen, &first, &oldCount, &newCount)) {
         SysBeep(1);
         LY_Rebuild();
@@ -244,13 +457,14 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
         oldCount = 0;
         newCount = 1;
     }
-    gAnchor = gCaret = newCaret;
     if (!ScrollToCaret()) {
         if (oldCount == newCount)
             DrawLines(first, first + newCount);
         else
-            DrawLines(first, gTop + gVis);   /* lines below moved */
+            DrawLines(first, kToEnd);    /* lines below moved */
     }
+    if (MD_ParaStart(oldCaret) != MD_ParaStart(gCaret))
+        Rewrap(oldCaret);                /* it no longer shows its markers */
     ShowCaret();
     return true;
 }
@@ -291,7 +505,7 @@ static void Edit(long from, long oldLen, const char *src, long newLen,
     }
     ClearRedo();
     gTyping = typing;
-    gGoalCol = -1;
+    gGoalX = -1;
     Replace(from, oldLen, src, newLen, from + newLen);
 }
 
@@ -410,15 +624,17 @@ static long WordRight(long p)
 
 static long VerticalMove(long lines)
 {
-    long line = LY_LineOf(gCaret), target, s, e;
-    if (gGoalCol < 0)
-        gGoalCol = gCaret - LY_Start(line);
+    LineInfo li;
+    long line = LY_LineOf(gCaret), target;
+    if (gGoalX < 0) {
+        GetLine(line, &li);
+        gGoalX = XOf(&li, gCaret);
+    }
     target = line + lines;
     if (target < 0) return 0;
     if (target >= LY_Count()) return TB_Len();
-    s = LY_Start(target);
-    e = LY_End(target);
-    return (s + gGoalCol < e) ? s + gGoalCol : e;
+    GetLine(target, &li);
+    return PosAt(&li, gGoalX);
 }
 
 void Ed_Key(EventRecord *ev)
@@ -454,8 +670,8 @@ void Ed_Key(EventRecord *ev)
         break;
     case 0x01: pos = 0; break;                           /* home */
     case 0x04: pos = TB_Len(); break;                    /* end */
-    case 0x0B: pos = VerticalMove(-gVis); vertical = true; break;  /* page up */
-    case 0x0C: pos = VerticalMove(gVis); vertical = true; break;   /* page down */
+    case 0x0B: pos = VerticalMove(gTop - LastVisible()); vertical = true; break;  /* page up */
+    case 0x0C: pos = VerticalMove(LastVisible() - gTop); vertical = true; break;  /* page down */
 
     case 0x08:                                           /* delete */
         if (HasSel()) DeleteRange(SelStart(), SelEnd());
@@ -496,7 +712,7 @@ void Ed_Key(EventRecord *ev)
     /* movement */
     gTyping = false;
     if (!vertical)
-        gGoalCol = -1;
+        gGoalX = -1;
     if (shift)
         SetSel(gAnchor, pos);
     else
@@ -507,18 +723,20 @@ void Ed_Key(EventRecord *ev)
 
 static long HitTest(Point pt)
 {
-    long line, s, e, col;
+    LineInfo li;
+    long line = gTop;
+    short y = kTopPad;
     if (pt.v < kTopPad)
         line = gTop - 1;
     else
-        line = gTop + (pt.v - kTopPad) / gLH;
+        while (line < LY_Count() - 1 && y + LineH(line) <= pt.v) {
+            y += LineH(line);
+            line++;
+        }
     if (line < 0) return 0;
     if (line >= LY_Count()) return TB_Len();
-    col = (pt.h - kLeft + gCW / 2) / gCW;
-    if (col < 0) col = 0;
-    s = LY_Start(line);
-    e = LY_End(line);
-    return (s + col < e) ? s + col : e;
+    GetLine(line, &li);
+    return PosAt(&li, pt.h);
 }
 
 void Ed_Click(Point pt, EventRecord *ev)
@@ -526,10 +744,10 @@ void Ed_Click(Point pt, EventRecord *ev)
     long pos = HitTest(pt), wordA = 0, wordB = 0, p, a, b;
     Boolean word = false;
     unsigned long lastScroll = 0;
-    long bottom = gWin->portRect.bottom - kBottomPad;
+    short bottom = Bottom();
 
     gTyping = false;
-    gGoalCol = -1;
+    gGoalX = -1;
     if (ev->when - gLastClick < kDoubleTicks && pos == gLastClickPos) {
         word = true;                     /* double-click: select the word */
         wordA = (pos > 0 && IsWord(pos - 1)) ? WordLeft(pos) : pos;
@@ -547,7 +765,7 @@ void Ed_Click(Point pt, EventRecord *ev)
         if ((pt.v < kTopPad || pt.v > bottom) && TickCount() - lastScroll > 4) {
             long old = gTop;             /* drag past an edge: autoscroll */
             if (pt.v < kTopPad && gTop > 0) gTop--;
-            if (pt.v > bottom && gTop + gVis < LY_Count()) gTop++;
+            if (pt.v > bottom && LastVisible() < LY_Count() - 1) gTop++;
             if (gTop != old) Ed_DrawAll();
             lastScroll = TickCount();
         }
@@ -585,6 +803,9 @@ Boolean Ed_SetText(const char *text, long len)
 {
     if (!TB_Replace(0, TB_Len(), text, len))
         return false;
+    MD_Invalidate();
+    gAnchor = gCaret = 0;
+    LY_SetCaret(0);
     LY_Rebuild();
     while (gUndoN > 0) FreeRec(&gUndo[--gUndoN]);
     ClearRedo();
@@ -597,22 +818,40 @@ Boolean Ed_SetText(const char *text, long len)
 Boolean Ed_Init(WindowPtr w)
 {
     FontInfo fi;
+    short i;
 
     gWin = w;
     SetPort(w);
-    TextFont(kFontMDW);
-    TextSize(kBodySize);
-    if (!RealFont(kFontMDW, kBodySize)) {
-        TextFont(kFontMonaco);           /* our font didn't load */
-        TextSize(9);
-        gFallbackFont = true;
+    gFallbackFont = !RealFont(kFontMDW, kSize[0]);
+    for (i = 0; i < 7; i++) {            /* measure body and each heading */
+        SetFont(i, false, false);
+        GetFontInfo(&fi);
+        gAsc[i] = fi.ascent;
+        gLH[i] = fi.ascent + fi.descent + fi.leading;
+        gCW[i] = CharWidth('m');
+        gCols[i] = kColumnW / gCW[i];
     }
-    GetFontInfo(&fi);
-    gAsc = fi.ascent;
-    gLH = fi.ascent + fi.descent + fi.leading;
-    gCW = CharWidth('m');
-    gCols = kColumnW / gCW;
-    gVis = (w->portRect.bottom - kTopPad - kBottomPad) / gLH;
+    SetFont(0, false, false);
+
+    {   /* offscreen line strip, as tall as the tallest line */
+        short maxH = 0, rowBytes = ((w->portRect.right + 15) / 16) * 2;
+        Rect b;
+        for (i = 0; i < 7; i++)
+            if (gLH[i] > maxH) maxH = gLH[i];
+        gOffBits.baseAddr = NewPtr((long)rowBytes * maxH);
+        if (gOffBits.baseAddr) {
+            gOffBits.rowBytes = rowBytes;
+            SetRect(&b, 0, 0, w->portRect.right, maxH);
+            gOffBits.bounds = b;
+            OpenPort(&gOffPort);
+            SetPortBits(&gOffBits);
+            PortSize(b.right, b.bottom);
+            RectRgn(gOffPort.visRgn, &b);
+            ClipRect(&b);
+            gOffOK = true;
+            SetPort(w);
+        }
+    }
 
     if (!TB_Init(kBufferSize))
         return false;

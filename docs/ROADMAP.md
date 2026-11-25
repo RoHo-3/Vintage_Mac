@@ -8,8 +8,9 @@
    clipboard. ✅ first build
 2. **Fonts** — MDW Mono (bitmap IBM Plex Mono) 10/12/14/16/20 px, Regular
    and Bold, built into the app. ✅ first build
-3. **Live Markdown** — heading sizes, bold/italic, markers hidden except on
-   the cursor line.
+3. **Live Markdown** — heading sizes, bold/italic/code, markers hidden
+   outside the cursor's paragraph; heading # signs hang in the left
+   margin. Flicker-free line drawing (offscreen strip). ✅ build 2
 4. **Files** — open/save `.md` (UTF-8 ↔ MacRoman, line endings preserved),
    change-threshold autosave, append-only journal for crash recovery.
    Classic Open dialog as a stand-in until the Library exists.
@@ -32,3 +33,5 @@
 - No saving yet; text is lost on quit.
 - Tab inserts four spaces; tab characters in pasted text show as a box.
 - Fonts are automatic rasterizations, not hand-tuned.
+- H6 uses capitals as a stand-in for small caps; testing focuses on System
+  7.1 until a full System 6.0.8 pass later.

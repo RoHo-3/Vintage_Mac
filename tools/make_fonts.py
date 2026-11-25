@@ -4,8 +4,10 @@
 Output: src/fonts.r (Rez source), included in the app's resource fork.
 
 Families (renamed per the OFL Reserved Font Name "Plex"):
-  200  MDW Mono       (from IBMPlexMono-Regular.ttf)
-  201  MDW Mono Bold  (from IBMPlexMono-Bold.ttf)
+  200  MDW Mono              (IBMPlexMono-Regular.ttf)
+  201  MDW Mono Bold         (IBMPlexMono-Bold.ttf)
+  202  MDW Mono Italic       (IBMPlexMono-Italic.ttf)
+  203  MDW Mono Bold Italic  (IBMPlexMono-BoldItalic.ttf)
 Resource IDs follow the classic scheme: family * 128 + point size; the
 size-0 resource carries only the family name.
 
@@ -24,7 +26,9 @@ SRC = os.path.join(ROOT, 'fonts', 'ibm-plex-mono')
 OUT = os.path.join(ROOT, 'src', 'fonts.r')
 
 FAMILIES = [(200, 'MDW Mono', 'IBMPlexMono-Regular.ttf'),
-            (201, 'MDW Mono Bold', 'IBMPlexMono-Bold.ttf')]
+            (201, 'MDW Mono Bold', 'IBMPlexMono-Bold.ttf'),
+            (202, 'MDW Mono Italic', 'IBMPlexMono-Italic.ttf'),
+            (203, 'MDW Mono Bold Italic', 'IBMPlexMono-BoldItalic.ttf')]
 SIZES = [10, 12, 14, 16, 20]
 FIRST, LAST = 0x20, 0xFF
 

@@ -100,7 +100,10 @@ interface is visually distinct from the prose.
 ## 4. Interaction patterns
 
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
-  markers (`#`, `**`, `_`) visible only on the caret's line.
+  markers (`**`, `_`, `` ` ``) visible only in the paragraph holding the
+  cursor (that paragraph re-wraps as they appear). A heading's `#` prefix
+  never takes inline space: when shown it hangs in the left margin (every
+  prefix up to `###### ` fits in 46 px), so headings never shift.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
   drawer is headed with the current document's name and lists:
   `<Project name> ›`, `Sections ›`, `Links ›`, `Find ›`, `Focus Timer ›`, `History ›`,

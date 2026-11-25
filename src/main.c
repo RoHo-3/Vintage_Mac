@@ -1,5 +1,5 @@
 /*
- * Mac MD Write — 0.01 alpha.
+ * Mac MD Write — 0.01 alpha (text engine, fonts, live Markdown).
  *
  * Toolbox setup, the full-screen writing window and the event loop.
  * Works on System 6 (with or without MultiFinder) and System 7.
@@ -35,15 +35,25 @@ static Boolean   gHasWNE = false;
 static Boolean   gIBeam = false;
 
 static const char kWelcome[] =
-    "Mac MD Write 0.01 alpha\r"
+    "# Mac MD Write 0.01 alpha\r"
     "\r"
-    "This build tests the text engine and the MDW Mono font. Type anywhere. "
-    "Lines wrap at 70 characters. Try Option-arrows to move by word, "
-    "Command-arrows to jump to the start or end of a line, Shift to "
-    "select, double-click to select a word, and Command-Z / Shift-Command-Z "
-    "to undo and redo.\r"
+    "This build adds **live Markdown**: headings at their own sizes, "
+    "**bold**, *italic* and `code`. Click into a paragraph and its markers "
+    "appear; move away and they hide. A heading's # signs hang in the left "
+    "margin so the text never shifts.\r"
     "\r"
-    "Cut, Copy and Paste use the Mac clipboard. Command-A selects all. "
+    "## Things to try\r"
+    "\r"
+    "Start a new line with # and a space to make a heading. Select with the "
+    "mouse or Shift-arrows; double-click selects a word. Command-Z and "
+    "Shift-Command-Z undo and redo. Cut, Copy and Paste use the Mac "
+    "clipboard.\r"
+    "\r"
+    "### Heading three\r"
+    "#### Heading four\r"
+    "##### Heading five\r"
+    "###### Heading six\r"
+    "\r"
     "Command-Q quits. There is no saving yet: this build forgets your text "
     "when it quits.\r"
     "\r"

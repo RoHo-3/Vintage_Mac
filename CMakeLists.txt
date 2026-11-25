@@ -9,6 +9,7 @@ add_application(MacMDWrite
     src/main.c
     src/editor.c
     src/layout.c
+    src/markdown.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r
