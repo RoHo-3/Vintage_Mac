@@ -19,6 +19,7 @@
 #include "editor.h"
 #include "document.h"
 #include "chrome.h"
+#include "build_number.h"
 
 #define kWaitNextEventTrap 0xA860
 #define kUnimplementedTrap 0xA89F
@@ -72,8 +73,10 @@ static const char kWelcome[] =
     "Characters the Mac can't show appear as a box and are kept exactly.\r"
     "\r"
     "Font: ";
-static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono).";
-static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load.";
+#define STR2(x) #x
+#define STR(x) STR2(x)
+static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
+static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load. Build " STR(BUILD_NUMBER) ".";
 
 static void InitToolbox(void)
 {

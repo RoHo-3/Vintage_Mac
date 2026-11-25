@@ -1,4 +1,5 @@
 name: Build
+run-name: "Build ${{ github.run_number }}"
 
 # Builds Mac MD Write with the Retro68 68k toolchain from its published
 # Docker image, then uploads the disk image and MacBinary app.
@@ -16,6 +17,7 @@ jobs:
 
       - name: Configure
         run: |
+          echo "#define BUILD_NUMBER ${{ github.run_number }}" > src/build_number.h
           mkdir -p build
           cd build
           cmake .. -DDIAGNOSTICS=ON -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
@@ -42,25 +44,37 @@ jobs:
         if: success()
         shell: bash
         run: |
+          set +e +o pipefail
+          GDB=$(ls build/*.gdb 2>/dev/null | grep -v Diag_ | head -1)
           {
-            echo "## Symbol map (MacMDWrite)"
+            echo "## Build ${{ github.run_number }}"
+            echo "Commit: ${{ github.sha }}"
+            echo
+            echo "### Files"
             echo '```'
-            m68k-apple-macos-nm -n build/MacMDWrite.gdb | grep -i " t " | head -400
+            ls build
             echo '```'
-            echo "## 68020+ instructions found (must be none for the Plus/SE)"
+            echo "### Compiler target"
             echo '```'
-            m68k-apple-macos-objdump -d build/MacMDWrite.gdb | grep -E "extb|mulsl|mulul|divsl|divul|bfext|bfins|cas |\(%[ad][0-7],%[ad][0-7]:[lw]:[248]\)" | head -40 || true
+            m68k-apple-macos-gcc -Q --help=target 2>/dev/null | grep -E "^ +-m(68000|68020|cpu|arch|tune)"
             echo '```'
-            echo "## Compiler target"
-            echo '```'
-            m68k-apple-macos-gcc -Q --help=target 2>/dev/null | grep -E "^ +-m(68000|68020|cpu|arch|tune)" || true
-            echo '```'
+            if [ -n "$GDB" ]; then
+              echo "### 68020+ instructions (must be none for the Plus/SE)"
+              echo '```'
+              m68k-apple-macos-objdump -d "$GDB" | grep -cE "\b(extb|mulsl|mulul|divsl|divul|bfextu|bfins|cas)\b"
+              echo '```'
+              echo "### Symbol map ($GDB)"
+              echo '```'
+              m68k-apple-macos-nm -n "$GDB" | grep -iE " [tT] " | head -400
+              echo '```'
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
 
       - name: Upload app
         uses: actions/upload-artifact@v4
         with:
-          name: MacMDWrite-${{ github.sha }}
+          name: MacMDWrite-build-${{ github.run_number }}
           path: |
             build/MacMDWrite.dsk
             build/MacMDWrite.bin
