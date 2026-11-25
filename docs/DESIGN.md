@@ -24,8 +24,8 @@ Living record of design decisions. Pixel values assume the 512×342, 72 ppi,
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
 - Status footer (10 px): fades in after ~2 s idle. Left: word count and
-  session time, separated by a slash — `1,284 words / 5:45 minutes this
-  session`. Right: saved state.
+  session time, separated by a slash — `1,284 words / 5:45`. Right: the
+  6 px save dot (see Save state).
 
 ## 3. Typography
 
@@ -52,7 +52,7 @@ interface is visually distinct from the prose.
 
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
   markers (`#`, `**`, `_`) visible only on the caret's line.
-- **Hamburger drawer:** 180 px left drawer — chapters, drafts, export. 50%
+- **Hamburger drawer:** 180 px left drawer — chapters, drafts, export, settings (session timer, writing timer). 50%
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
@@ -79,13 +79,38 @@ interface is visually distinct from the prose.
 
 ### Session timer
 
-The footer shows how long the current writing session has run (from app
-launch / document open, via `TickCount`).
+The footer shows how long the current writing session has run (from document
+open), e.g. `5:45`. It can be turned off in the drawer's Settings.
 
-**Future feature — writing goal timer:** the user sets how long they want to
-write (e.g. 25 min). The footer counts down instead of up, and when the time
-is reached the app celebrates with a brief, non-blocking 1-bit animation and a
-toast — it never interrupts typing or forces a dialog.
+**Real-time updates, cheaply:** the footer is only visible while the user is
+paused, so nothing is redrawn while typing. While visible, the idle branch
+of the event loop compares `TickCount() / 60` with the last second drawn and,
+when it changes, erases and redraws only the timer's own small rectangle
+(~30×10 px) with `EraseRect` + `DrawString`. `WaitNextEvent`'s sleep is
+capped at 30 ticks while the footer shows so the clock never lags more than
+half a second. Cost: one tiny redraw per second.
+
+**Writing timer (drawer → Settings):**
+- `Session timer` checkbox turns the footer clock on or off.
+- When on, `Set writing timer…` sets a goal (e.g. 25 min). The footer clock
+  then counts down instead of up.
+- When the countdown reaches zero, the app celebrates with a brief,
+  non-blocking 1-bit animation and a toast; it never interrupts typing or
+  forces a dialog. (Celebration animation: still to be designed.)
+
+### Save state
+
+A 6 px dot at the footer's bottom right replaces any save text:
+
+| State | Dot | When |
+|---|---|---|
+| Unsaved changes | empty ring | after any edit not yet journaled |
+| Saving | dithered (50% checkerboard) | drawn just before the write starts |
+| Saved | solid | drawn once the write completes |
+
+No progress bar: each save is one blocking `FSWrite`, so the screen cannot
+redraw mid-write and a bar would only flash. The dithered dot is an honest
+"saving" signal and stays visible during slower full `.md` rewrites.
 
 ## 5. Text engine
 
@@ -100,4 +125,4 @@ See [STORAGE.md](STORAGE.md). Summary:
   characters** changed — or the oldest unsaved change is **>3 min** old.
   Paste / selection-delete / heading change count as ≥50.
 - Always save on quit, close, draft switch, suspend, and Cmd+S.
-- Unsaved-changes dot in the top strip; "Saved" toast after each save.
+- Save state shown by the footer's three-state dot (see §4, Save state); "Saved" toast after each save.
