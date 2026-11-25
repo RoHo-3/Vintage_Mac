@@ -4,6 +4,7 @@
 #include "markdown.h"
 #include "encoding.h"
 #include "chrome.h"
+#include "journal.h"
 
 #include <Fonts.h>
 #include <Memory.h>
@@ -445,7 +446,10 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
     long first, oldCount, newCount, oldCaret = gCaret;
 
     HideCaret();
+    if (oldLen > 0 || newLen > 0)        /* journal sees the change first */
+        JR_Op(from, oldLen, src, newLen);
     if (!TB_Replace(from, oldLen, src, newLen)) {
+        JR_Reset();                      /* keep the journal consistent */
         SysBeep(1);                      /* document full */
         return false;
     }
@@ -488,6 +492,7 @@ long          Ed_ChangeWeight(void)    { return gWeight; }
 unsigned long Ed_FirstChangeTick(void) { return gFirstChange; }
 unsigned long Ed_LastEditTick(void)    { return gLastEdit; }
 void          Ed_ClearChanges(void)    { gWeight = 0; }
+long          Ed_Caret(void)           { return gCaret; }
 
 /* A user edit: records undo, then replaces. */
 static void Edit(long from, long oldLen, const char *src, long newLen,

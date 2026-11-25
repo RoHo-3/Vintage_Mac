@@ -10,14 +10,14 @@ Each document is two sibling files:
 | File | Purpose |
 |---|---|
 | `Name.md` | Plain Markdown, readable by any app. Regenerated from the journal. |
-| `Name.history` | Append-only journal — the source of truth. Data fork only. |
+| `Name.history` | Append-only journal — the source of truth. Data fork only. The base name is cut to 23 characters so `.history` fits HFS's 31. Type `MDWJ`, creator `MMDW`. |
 
 If a user moves the `.md` without its `.history`, they keep the text but lose
 the history.
 
 ## Journal records
 
-Every record: `type (1) · length (4) · payload · checksum (2)`. A torn final
+Every record: `type (1) · payload length (4) · payload · checksum (2)` (checksum = 16-bit sum of the payload bytes). Text is stored in the in-memory form (MacRoman + escapes, `\r` paragraphs). The checkpoint hash is a 32-bit djb2 of the whole text. A torn final
 record (bad length/checksum) is discarded on recovery.
 
 | Type | Payload |
@@ -39,9 +39,20 @@ one checkpoint** in a single write.
 
 ## Recovery
 
-On open: load latest snapshot → replay records to the last valid checkpoint.
-If the result differs from the `.md`, show a non-modal banner offering to
-restore.
+On open: replay snapshot + edit batches up to the first damaged or torn
+record, then compare with the `.md`:
+
+- same text → nothing to do;
+- the `.md` matches an earlier checkpoint → the journal is newer (a crash
+  happened before the `.md` was rewritten): the journal's text is restored
+  quietly, checkpointed as "Recovered after a crash", and the `.md`
+  rewritten;
+- the `.md` matches nothing the journal saw → it was edited elsewhere: the
+  file's text wins and starts a new snapshot labeled "Edited on another
+  computer".
+
+(A non-modal banner may be added later; per the quiet-app principle a
+successful recovery doesn't announce itself.)
 
 ## Write-performance rules
 

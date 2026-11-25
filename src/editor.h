@@ -31,6 +31,7 @@ long          Ed_ChangeWeight(void);
 unsigned long Ed_FirstChangeTick(void);
 unsigned long Ed_LastEditTick(void);
 void          Ed_ClearChanges(void);
+long          Ed_Caret(void);
 
 /* Replace the whole document (no undo). */
 Boolean Ed_SetText(const char *text, long len);

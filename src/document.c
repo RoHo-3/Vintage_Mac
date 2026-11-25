@@ -3,6 +3,7 @@
 #include "encoding.h"
 #include "textbuf.h"
 #include "chrome.h"
+#include "journal.h"
 
 #include <Files.h>
 #include <StandardFile.h>
@@ -19,6 +20,7 @@ static Boolean    gHasFile;
 static Str63      gName;
 static short      gVRef;
 static FileFormat gFmt;
+static Boolean    gMdBehind;            /* journal has text the .md lacks */
 
 static void CopyPString(const unsigned char *src, unsigned char *dst)
 {
@@ -106,6 +108,7 @@ static Boolean WriteFile(void)
     }
     FlushVol(NULL, gVRef);
     Ed_ClearChanges();
+    gMdBehind = false;
     Chrome_SetSaveState(kSaveSaved);
     return true;
 }
@@ -131,13 +134,18 @@ Boolean Doc_Save(void)
         gVRef = reply.vRefNum;
         gHasFile = true;
         Chrome_SetTitle(gName);
+        JR_Attach(gName, gVRef);
+        JR_Reset();                      /* the journal starts with a snapshot */
     }
+    JR_Checkpoint(Ed_Caret(), NULL);     /* journal first, then the .md */
     return WriteFile();
 }
 
+/* Before quitting or switching: the .md must hold the latest text, even
+   if autosave only reached the journal. */
 static Boolean SaveIfNeeded(void)
 {
-    if (Ed_ChangeWeight() == 0)
+    if (Ed_ChangeWeight() == 0 && !gMdBehind)
         return true;
     return Doc_Save();
 }
@@ -147,6 +155,7 @@ void Doc_New(void)
     if (!SaveIfNeeded())
         return;
     gHasFile = false;
+    JR_Detach();
     Doc_Init();
     Ed_SetText("", 0);
     Chrome_SetTitle((const unsigned char *)"\pUntitled");
@@ -186,6 +195,14 @@ void Doc_Open(void)
     if (err == noErr || err == eofErr) {
         FileFormat fmt;
         long len = Enc_Decode((unsigned char *)raw, n, text, TB_Capacity(), &fmt);
+        short recovered = kRecoverNone;
+        if (len >= 0 && TB_Replace(0, TB_Len(), text, len)) {
+            JR_Attach(reply.fName, reply.vRefNum);
+            recovered = JR_Recover();    /* may leave newer text in the buffer */
+            len = TB_Len();
+            TB_Copy(0, len, text);
+        } else
+            len = -1;
         if (len >= 0 && Ed_SetText(text, len)) {
             CopyPString(reply.fName, gName);
             gVRef = reply.vRefNum;
@@ -195,6 +212,12 @@ void Doc_Open(void)
             Chrome_TextChanged();
             Chrome_SetSaveState(kSaveSaved);
             Chrome_ResetClock();
+            if (recovered == kRecoverJournalNewer) {
+                /* work lost in a crash: quietly bring the .md up to date */
+                JR_Checkpoint(Ed_Caret(), "Recovered after a crash");
+                WriteFile();
+            } else if (recovered == kRecoverEditedElsewhere)
+                JR_Checkpoint(Ed_Caret(), "Edited on another computer");
         } else
             SysBeep(1);                  /* too big for the text buffer */
     } else
@@ -212,14 +235,25 @@ void Doc_Idle(void)
     if (now - Ed_LastEditTick() < kPauseTicks)
         return;                          /* still typing */
     if (Ed_ChangeWeight() >= kThreshold
-        || now - Ed_FirstChangeTick() >= kMaxAgeTicks)
-        WriteFile();
+        || now - Ed_FirstChangeTick() >= kMaxAgeTicks) {
+        /* one small append to the journal; the .md waits for Cmd-S,
+           quit, suspend or switching documents */
+        Chrome_SetSaveState(kSaveSaving);
+        if (JR_Checkpoint(Ed_Caret(), NULL)) {
+            Ed_ClearChanges();
+            gMdBehind = true;
+            Chrome_SetSaveState(kSaveSaved);
+        } else
+            WriteFile();                 /* no journal: write the file */
+    }
 }
 
 void Doc_Suspend(void)
 {
-    if (gHasFile && Ed_ChangeWeight() > 0)
+    if (gHasFile && (Ed_ChangeWeight() > 0 || gMdBehind)) {
+        JR_Checkpoint(Ed_Caret(), NULL);
         WriteFile();
+    }
 }
 
 Boolean Doc_CanQuit(void)

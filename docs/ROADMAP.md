@@ -17,7 +17,11 @@
      kept as escapes (fuzz-tested byte-for-byte). Autosave after a 2 s pause
      once 250 weighted characters changed or 3 min passed; save on suspend
      and quit. Classic Open/Save dialogs stand in for the Library. ✅ build 3
-   - 4b. Append-only journal for crash recovery and History.
+   - 4b. Append-only journal (`<name>.history`): autosave appends one
+     small record; the .md is rewritten on Cmd-S, quit, suspend and
+     switching documents. Opening replays it: work lost in a crash is
+     restored quietly; a file edited on another computer becomes a new
+     segment. Fuzz-tested with 300 simulated crashes. ✅ build 5
 5. **Quiet chrome** — hidden menu bar (restored on suspend and quit), top
    strip (hamburger, title) and footer (word count / session clock, save
    dot: ring, dithered, solid) shown on pause or mouse move, hidden on the
