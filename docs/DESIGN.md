@@ -42,6 +42,14 @@ When a new feature arrives, it goes on the surface whose job it matches.
 - Within the keyboard layer, each command still has one shortcut (no
   aliases — e.g. Cmd-W does not duplicate Cmd-O).
 
+## Principle: naming happens in place
+
+Every naming task — renaming a file or project in the Library, naming a new
+project, marking a version in History — works like renaming in the Finder:
+the name becomes an editable field right where it sits, its text already
+selected so typing replaces it. **Return** confirms, **Esc** cancels and
+leaves things as they were. There are no naming dialogs or pop-ups.
+
 ## 1. Platform
 
 | Decision | Value |
