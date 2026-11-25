@@ -20,7 +20,7 @@ jobs:
           echo "#define BUILD_NUMBER ${{ github.run_number }}" > src/build_number.h
           mkdir -p build
           cd build
-          cmake .. -DDIAGNOSTICS=ON -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+          cmake .. -DFONT_TEST=ON -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
 
       - name: Build
         shell: bash
@@ -45,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set +e +o pipefail
-          GDB=$(ls build/*.gdb 2>/dev/null | grep -v Diag_ | head -1)
+          GDB=$(ls build/*.gdb 2>/dev/null | grep -v FittedFont | head -1)
           {
             echo "## Build ${{ github.run_number }}"
             echo "Commit: ${{ github.sha }}"
@@ -78,5 +78,5 @@ jobs:
           path: |
             build/MacMDWrite.dsk
             build/MacMDWrite.bin
-            build/Diag_*.dsk
+            build/MacMDWrite_FittedFont.dsk
           if-no-files-found: error

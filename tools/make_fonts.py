@@ -15,15 +15,18 @@ Glyphs are rendered with FreeType's monochrome (hinted) mode via Pillow,
 one fixed-width cell per character, MacRoman 0x20-0xFF. These are automatic
 rasterizations - placeholders until hand-tuned strikes exist.
 
-Usage: python3 tools/make_fonts.py   (needs Pillow)
+Usage: python3 tools/make_fonts.py [--fitted]   (needs Pillow; --fitted needs numpy)
+  --fitted writes src/fonts_fitted.r: grid-fitted strikes for even stems.
 """
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont
 from fontTools.ttLib import TTFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'fonts', 'ibm-plex-mono')
-OUT = os.path.join(ROOT, 'src', 'fonts.r')
+FITTED = '--fitted' in sys.argv          # grid-fitted strikes (tools/fontfit.py)
+OUT = os.path.join(ROOT, 'src', 'fonts_fitted.r' if FITTED else 'fonts.r')
 
 FAMILIES = [(200, 'MDW Mono', 'IBMPlexMono-Regular.ttf'),
             (201, 'MDW Mono Bold', 'IBMPlexMono-Bold.ttf'),
@@ -47,7 +50,14 @@ def build(path, size):
         ch = bytes([code]).decode('mac_roman')
         img = Image.new('1', (w, h), 0)
         present = ord(ch) in cmap
-        if present:
+        arr = None
+        if present and FITTED:
+            import numpy as np
+            from fontfit import fitted
+            arr = fitted(path, size, ch, w, asc, h)
+            if arr is not None:
+                img = Image.fromarray((arr * 255).astype('uint8')).convert('1')
+        if present and (not FITTED or arr is None):
             d = ImageDraw.Draw(img)
             d.fontmode = '1'
             d.text((0, asc), ch, font=font, fill=1, anchor='ls')
