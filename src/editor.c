@@ -755,8 +755,9 @@ void Ed_Key(EventRecord *ev)
             pos = SkipLeft(gCaret);
             if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
                 DeleteRange(pos, PrefixEnd(pos));
-            else if (pos > 0)            /* other hidden markers: keep them */
-                DeleteRange(pos - 1, pos);
+            else                         /* a hidden ** or * just typed or passed: */
+                DeleteRange(pos, gCaret);   /* it goes as one unit, so a misplaced
+                                               close can be removed and retyped */
         } else if (gCaret > 0) {
             if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                 && gUndo[gUndoN - 1].len > 0
@@ -775,6 +776,8 @@ void Ed_Key(EventRecord *ev)
             pos = SkipRight(gCaret);
             if (pos < TB_Len() && TB_Char(pos) == '\r' && PrefixEnd(pos + 1) > pos + 1)
                 DeleteRange(pos, PrefixEnd(pos + 1));   /* join; the heading's "### " goes too */
+            else if (pos > gCaret)
+                DeleteRange(gCaret, pos);       /* hidden marker ahead: one unit */
             else if (pos < TB_Len())
                 DeleteRange(pos, pos + 1);
         }
