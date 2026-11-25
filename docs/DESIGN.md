@@ -304,6 +304,11 @@ Ideas kept for later, deliberately not built yet:
   to the document as a whole.
 - **Merge documents.** On hold; Export project (one combined file) covers
   the main need.
+- **Writing support: spell-check and grammar.** Future consideration. A
+  spell-checker is feasible on 4 MB if the word list is compressed
+  (a common-words dictionary of a few hundred KB, checked on pause, never
+  while typing, and shown quietly — e.g. a dotted underline). Grammar
+  checking is much heavier and likely out of reach on a 68000.
 - **Focus Timer celebration animation.** To be designed (see to-do list).
 - **Parallel drafts** (Ellipsus-style connected drafts you can switch
   between and edit separately). Replaced for now by marked versions in a
