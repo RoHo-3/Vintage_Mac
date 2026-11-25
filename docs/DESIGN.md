@@ -58,8 +58,10 @@ When a new feature arrives, it goes on the surface whose job it matches.
   and reappears when the cursor touches the top edge (so classic users can
   still find commands).
 - Optional 20 px top strip: hamburger (16×16) left, `Project › Document`
-  title centered (just the document name for a standalone file). Drafts are
-  reached only through the drawer's Drafts blade (one mouse path). Shown on launch / mouse movement; hidden on
+  title centered (just the document name for a standalone file). When a
+  document has more than one draft the title adds it as plain status text:
+  `The Keeper's Log › Day Two · Draft 2`. Nothing in the strip is a control
+  besides the hamburger. Shown on launch / mouse movement; hidden on
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
@@ -94,8 +96,8 @@ interface is visually distinct from the prose.
   markers (`#`, `**`, `_`) visible only on the caret's line.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
   drawer is a short list of rows: `Project ›`, `On This Page ›`,
-  `Focus Timer ›`, `Drafts ›`,
-  `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
+  `Focus Timer ›`, `History ›`, `Export ›`, `Settings ›`, then `Library…`
+  and `Quit`. A `›` row slides a
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
   can't rotate text). Max stack: drawer → Project → one folder, matching the
@@ -164,6 +166,21 @@ No progress bar: each save is one blocking `FSWrite`, so the screen cannot
 redraw mid-write and a bar would only flash. The dithered dot is an honest
 "saving" signal and stays visible during slower full `.md` rewrites.
 
+### Drawer blades
+
+| Blade | Contents |
+|---|---|
+| Project › | Project documents (Outline pinned first) and folders › |
+| On This Page › | Headings of the current file, indented by level |
+| Focus Timer › | 15 · 25 · 45 · 60 min · Custom… · Off |
+| History › | Drafts (intentional branches) › each opens its versions (automatic journal checkpoints); `+ New draft from here` |
+| Export › | Markdown… · Print… · Template… (save this document as a template) |
+| Settings › | App preferences only, e.g. Session clock on/off |
+
+History replaces the earlier "Draft 2 ▾" pill and Drafts list: drafts and
+versions are one place, two blade levels deep (same depth as Project ›
+folder).
+
 ### One document at a time
 
 The app keeps exactly one document open — a deliberate focus choice (it also
@@ -220,6 +237,10 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
   vanish), but the app never creates them. This is a documented power-user
   feature: "Want folders of folders? Make them in the Finder."
 
+**Export** on a project writes one combined `.md` (documents in project
+order) — the way to assemble a manuscript. A destructive Merge command is
+deliberately on hold; combining is covered by this export.
+
 `Other location…` falls back to the classic Standard File dialog for files
 elsewhere on disk. Return opens, Esc returns to writing.
 
@@ -237,3 +258,15 @@ See [STORAGE.md](STORAGE.md). Summary:
   Paste / selection-delete / heading change count as ≥50.
 - Always save on quit, close, draft switch, suspend, and Cmd+S.
 - Save state shown only by the footer's three-state dot (see §4, Save state) — no "Saved" toast.
+
+## Parking lot
+
+Ideas kept for later, deliberately not built yet:
+
+- **A document-level UX element.** The top strip's right side once held a
+  "Draft 2 ▾" pill. It was repurposed (drafts → History blade), but that
+  slot is reserved should we find a genuine need for a control that belongs
+  to the document as a whole.
+- **Merge documents.** On hold; Export project (one combined file) covers
+  the main need.
+- **Focus Timer celebration animation.** To be designed (see to-do list).
