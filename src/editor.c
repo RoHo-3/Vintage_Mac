@@ -188,17 +188,17 @@ static short LineTop(long line)
     return y;
 }
 
-static void SetFont(short level, Boolean bold, Boolean italic)
+static void SetFont(short level, Boolean isBold, Boolean isItalic)
 {
     short f;
     Style face = 0;
-    if (level > 0) bold = true;
-    if (gFallbackFont) {
+    if (level > 0) isBold = true;
+    if (gFallbackFont) {                 /* Monaco: let QuickDraw style it */
         f = kFontMonaco;
-        if (bold) face |= bold;
-        if (italic) face |= italic;
+        if (isBold) face |= bold;
+        if (isItalic) face |= italic;
     } else
-        f = kFontMDW + (bold ? 1 : 0) + (italic ? 2 : 0);
+        f = kFontMDW + (isBold ? 1 : 0) + (isItalic ? 2 : 0);
     if (level == 4)
         face |= underline;
     TextFont(f);

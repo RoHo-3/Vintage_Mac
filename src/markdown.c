@@ -89,7 +89,7 @@ static void Mark(long a, long n, unsigned char m)
         gSty[a++] |= m;
 }
 
-static void Style(long a, long b, unsigned char s)
+static void ApplyStyle(long a, long b, unsigned char s)
 {
     for (; a < b; a++)
         gSty[a] |= s;
@@ -135,7 +135,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
             if (j < len && j > i + 1) {
                 Mark(i, 1, mark);
                 Mark(j, 1, mark);
-                Style(i + 1, j, MD_CODE);
+                ApplyStyle(i + 1, j, MD_CODE);
                 i = j;
             }
         } else if ((c == '*' || c == '_') && i + 1 < len && gTxt[i + 1] == c) {
@@ -143,7 +143,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
             if (j > 0) {
                 Mark(i, 2, mark);
                 Mark(j, 2, mark);
-                Style(i + 2, j, MD_BOLD);
+                ApplyStyle(i + 2, j, MD_BOLD);
                 i++;
             }
         } else if (c == '*' || c == '_') {
@@ -155,7 +155,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
             if (j > 0) {
                 Mark(i, 1, mark);
                 Mark(j, 1, mark);
-                Style(i + 1, j, MD_ITALIC);
+                ApplyStyle(i + 1, j, MD_ITALIC);
             }
         }
     }
