@@ -58,10 +58,8 @@ When a new feature arrives, it goes on the surface whose job it matches.
   and reappears when the cursor touches the top edge (so classic users can
   still find commands).
 - Optional 20 px top strip: hamburger (16×16) left, `Project › Document`
-  title centered (just the document name for a standalone file). When a
-  document has more than one draft the title adds it as plain status text:
-  `The Keeper's Log › Day Two · Draft 2`. Nothing in the strip is a control
-  besides the hamburger. Shown on launch / mouse movement; hidden on
+  title centered (just the document name for a standalone file).
+  Nothing in the strip is a control besides the hamburger. Shown on launch / mouse movement; hidden on
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
 - Scroll position: 2 px hairline on the right edge instead of a scrollbar.
@@ -95,15 +93,15 @@ interface is visually distinct from the prose.
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
   markers (`#`, `**`, `_`) visible only on the caret's line.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
-  drawer is a short list of rows: `Project ›`, `On This Page ›`,
-  `Focus Timer ›`, `History ›`, `Export ›`, `Settings ›`, then `Library…`
-  and `Quit`. A `›` row slides a
+  drawer is headed with the current document's name and lists:
+  `<Project name> ›`, `Sections ›`, `Focus Timer ›`, `History ›`,
+  `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
   can't rotate text). Max stack: drawer → Project → one folder, matching the
   three-level project rule. The drawer reopens to the last blade used, so
   switching files stays one click. Keys: ↑↓ move, → opens, ← / Esc back.
-  `Project` is hidden for standalone documents. Blade slide is a few frames
+  The project row is hidden for standalone documents. Blade slide is a few frames
   on an SE/30, instant on a Plus. 50%
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
@@ -127,6 +125,26 @@ interface is visually distinct from the prose.
 | Cmd+F | Find |
 | Cmd+S | Save now |
 | Cmd+= / Cmd+- | Body 10 px ↔ 12 px |
+
+### Command palette (Cmd-K)
+
+The palette lists **every command in the app, and nothing that exists only
+there.** It is the keyboard layer over the same command set, and it doubles
+as discoverable help: type what you want, see the command and its shortcut.
+
+In code, one **command table** drives everything: each entry has a name,
+search keywords, shortcut, the surface it lives on, and an availability
+test (e.g. "Next section" only when the document has headings). Drawer
+rows, shortcuts and the palette all read from it, so they cannot drift.
+
+| Group | Commands |
+|---|---|
+| Navigate | Go to file… (current project) · Go to section… · Next / previous section · Library… · Find… · Find next |
+| Write | Bold · Italic · Heading 1–6 · Note · Undo · Redo · Cut · Copy · Paste · Select all |
+| Document | New document · Mark this version… · History… · Export as Markdown… · Export as template… · Export project as one file · Print… |
+| Focus | Start Focus Timer (15/25/45/60/custom) · Stop Focus Timer |
+| View | Text size 10 / 12 px · Show/hide session clock · Show/hide word count |
+| App | About Mac MD Write · Quit |
 
 ### Session timer
 
@@ -168,18 +186,22 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 
 ### Drawer blades
 
-| Blade | Contents |
-|---|---|
-| Project › | Project documents (Outline pinned first) and folders › |
-| On This Page › | Headings of the current file, indented by level |
-| Focus Timer › | 15 · 25 · 45 · 60 min · Custom… · Off |
-| History › | Drafts (intentional branches) › each opens its versions (automatic journal checkpoints); `+ New draft from here` |
-| Export › | Markdown… · Print… · Template… (save this document as a template) |
-| Settings › | App preferences only, e.g. Session clock on/off |
+| Blade (row label) | Blade title | Contents |
+|---|---|---|
+| `<Project name> ›` | the project's name | Project documents (Outline pinned first) and folders › |
+| `Sections ›` | Sections | Headings of the current document, indented by level |
+| `Focus Timer ›` | Focus Timer | 15 · 25 · 45 · 60 min · Custom… · Off |
+| `History ›` | History | One timeline of versions (see below) |
+| `Export ›` | Export | Markdown… · Print… · Template… |
+| `Settings ›` | Settings | App preferences: Session clock on/off, Word count on/off |
 
-History replaces the earlier "Draft 2 ▾" pill and Drafts list: drafts and
-versions are one place, two blade levels deep (same depth as Project ›
-folder).
+**History** is a single timeline per document. Every autosave checkpoint is
+a version; `+ Mark this version…` names the current one (e.g. "Draft 2") so
+it is easy to find and return to. Marked versions show bold with ◆.
+Restoring a version never deletes anything newer: the restored text becomes
+the newest version, so it can always be undone. (Parallel, separately
+editable drafts — the Ellipsus "connected drafts" idea — are in the parking
+lot.)
 
 ### One document at a time
 
@@ -270,3 +292,12 @@ Ideas kept for later, deliberately not built yet:
 - **Merge documents.** On hold; Export project (one combined file) covers
   the main need.
 - **Focus Timer celebration animation.** To be designed (see to-do list).
+- **Parallel drafts** (Ellipsus-style connected drafts you can switch
+  between and edit separately). Replaced for now by marked versions in a
+  single History timeline.
+- **Intent-aware help in the palette (future version).** A tiny local model
+  that maps what the writer types ("make text bigger", "count words") to
+  the right command — action-oriented help, not a conversation. On a 68000
+  with 4 MB this means something small: a hand-built synonym/keyword table
+  per command, possibly scored with a few-KB naive Bayes model, not a
+  neural network. The command table's keywords field is the hook for it.
