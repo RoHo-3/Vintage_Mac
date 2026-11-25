@@ -3,6 +3,18 @@
 Living record of design decisions. Pixel values assume the 512×342, 72 ppi,
 1-bit screen of the compact Macs (1 pt = 1 px).
 
+## Principle: a quiet app
+
+The app stays silent by default so writing stays distraction-free.
+
+- Status is ambient, never announced: the save dot, the footer clock and
+  other indicators appear only when the writer pauses, and change in place.
+- Toasts are for truly important events only — most often ones the writer
+  asked for (e.g. their writing timer finishing). Routine system events
+  (saves, autosaves, recoveries that succeed) never toast.
+- System-initiated messages are kept to the bare minimum; when one is
+  unavoidable it is non-modal and never takes focus from the text.
+
 ## 1. Platform
 
 | Decision | Value |
@@ -59,8 +71,7 @@ interface is visually distinct from the prose.
 - **Draft switcher pill:** popover to branch / switch / compare drafts (future).
 - **Floating format pill** on selection: `[ B | I | H1 | Note ]`.
 - **Find (Cmd+F):** slim inline bar, not a modal dialog.
-- **No blocking alerts** for routine events. Toasts are reserved for rare
-  moments (e.g. the writing-timer celebration); routine saves never toast.
+- **No blocking alerts** for routine events (see Principle: a quiet app).
 - **Mouse and keyboard parity:** every action reachable both ways.
 
 ### Keyboard
