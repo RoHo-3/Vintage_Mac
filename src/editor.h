@@ -25,6 +25,13 @@ void    Ed_SelectAll(void);
 /* True if MDW Mono didn't load and Monaco is being used instead. */
 Boolean Ed_UsingFallbackFont(void);
 
+/* Change tracking for autosave: weighted characters changed since the
+   last Ed_ClearChanges (paste, cut, undo count at least 50). */
+long          Ed_ChangeWeight(void);
+unsigned long Ed_FirstChangeTick(void);
+unsigned long Ed_LastEditTick(void);
+void          Ed_ClearChanges(void);
+
 /* Replace the whole document (no undo). */
 Boolean Ed_SetText(const char *text, long len);
 

@@ -11,9 +11,13 @@
 3. **Live Markdown** — heading sizes, bold/italic/code, markers hidden
    outside the cursor's paragraph; heading # signs hang in the left
    margin. Flicker-free line drawing (offscreen strip). ✅ build 2
-4. **Files** — open/save `.md` (UTF-8 ↔ MacRoman, line endings preserved),
-   change-threshold autosave, append-only journal for crash recovery.
-   Classic Open dialog as a stand-in until the Library exists.
+4. **Files**
+   - 4a. Open/save `.md` (Cmd-O / Cmd-S / Cmd-N) with an exact round trip:
+     UTF-8 ↔ MacRoman, original line endings and BOM, unshowable characters
+     kept as escapes (fuzz-tested byte-for-byte). Autosave after a 2 s pause
+     once 250 weighted characters changed or 3 min passed; save on suspend
+     and quit. Classic Open/Save dialogs stand in for the Library. ✅ build 3
+   - 4b. Append-only journal for crash recovery and History.
 5. **Quiet chrome** — hidden menu bar, top strip on pause, footer with word
    count, session clock and three-state save dot.
 
@@ -30,7 +34,9 @@
 
 ## Known limits in the first build
 
-- No saving yet; text is lost on quit.
+- A new document needs one Save (dialog) before autosave takes over; the
+  Library will remove that step.
+- Mixed line endings in one file are normalized to the first one found.
 - Tab inserts four spaces; tab characters in pasted text show as a box.
 - Fonts are automatic rasterizations, not hand-tuned.
 - H6 uses capitals as a stand-in for small caps; testing focuses on System

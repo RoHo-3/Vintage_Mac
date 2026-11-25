@@ -17,6 +17,7 @@
 #include <ToolUtils.h>
 
 #include "editor.h"
+#include "document.h"
 
 #define kWaitNextEventTrap 0xA860
 #define kUnimplementedTrap 0xA89F
@@ -54,8 +55,13 @@ static const char kWelcome[] =
     "##### Heading five\r"
     "###### Heading six\r"
     "\r"
-    "Command-Q quits. There is no saving yet: this build forgets your text "
-    "when it quits.\r"
+    "## Files\r"
+    "\r"
+    "Command-O opens a .md file and Command-S saves; Command-N starts a new "
+    "document. Once a document has a file it saves itself when you pause "
+    "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
+    "original line endings, so they round-trip with modern editors. "
+    "Characters the Mac can't show appear as a box and are kept exactly.\r"
     "\r"
     "Font: ";
 static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono).";
@@ -114,7 +120,10 @@ static void DoCommandKey(EventRecord *ev)
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
     switch (c) {
-    case 'q': gQuit = true; break;
+    case 'q': if (Doc_CanQuit()) gQuit = true; break;
+    case 'n': Doc_New(); break;
+    case 'o': Doc_Open(); break;
+    case 's': Doc_Save(); break;
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
     case 'x': Ed_Cut(); break;
     case 'c': Ed_Copy(); break;
@@ -176,8 +185,11 @@ static void HandleEvent(EventRecord *ev)
         break;
     case osEvt:
         /* suspend / resume under MultiFinder: bit 0 of message = resume */
-        if (((ev->message >> 24) & 0xFF) == 1)
+        if (((ev->message >> 24) & 0xFF) == 1) {
+            if (!(ev->message & 1))
+                Doc_Suspend();           /* save before another app runs */
             Ed_Activate((ev->message & 1) != 0);
+        }
         break;
     }
 }
@@ -216,6 +228,7 @@ int main(void)
             HandleEvent(&ev);
         UpdateCursor();
         Ed_Idle();
+        Doc_Idle();
     }
     return 0;
 }

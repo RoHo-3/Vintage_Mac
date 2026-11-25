@@ -1,5 +1,6 @@
 #include "markdown.h"
 #include "textbuf.h"
+#include "encoding.h"
 
 #define kSearchLimit 2000          /* how far to look for a closing marker */
 
@@ -123,6 +124,14 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         Mark(0, p, MD_PREFIX | MD_HIDDEN);
     } else
         p = 0;
+
+    for (i = 0; i < len; i++)            /* escapes: one placeholder box */
+        if (gTxt[i] == kEscStart)
+            for (j = i + 1; j < len && j < i + 8; j++) {
+                gSty[j] |= MD_HIDDEN | MD_MARK;
+                if (gTxt[j] == kEscEnd)
+                    break;
+            }
 
     for (i = p; i < len; i++) {
         if (gSty[i] & (MD_MARK | MD_CODE))

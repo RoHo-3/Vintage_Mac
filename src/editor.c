@@ -2,6 +2,7 @@
 #include "textbuf.h"
 #include "layout.h"
 #include "markdown.h"
+#include "encoding.h"
 
 #include <Fonts.h>
 #include <Memory.h>
@@ -35,6 +36,8 @@ static unsigned long gCaretTick, gLastClick;
 static long  gLastClickPos = -1;
 static Boolean gTyping;                  /* coalesce typing into one undo */
 static Boolean gFallbackFont;
+static long    gWeight;                 /* autosave change tracking */
+static unsigned long gFirstChange, gLastEdit;
 static char  gRun[kRunMax];
 
 /* Offscreen strip one line tall: each line is drawn here, then copied to
@@ -469,6 +472,19 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
     return true;
 }
 
+static void Touch(long weight)
+{
+    if (gWeight == 0)
+        gFirstChange = TickCount();
+    gWeight += weight;
+    gLastEdit = TickCount();
+}
+
+long          Ed_ChangeWeight(void)    { return gWeight; }
+unsigned long Ed_FirstChangeTick(void) { return gFirstChange; }
+unsigned long Ed_LastEditTick(void)    { return gLastEdit; }
+void          Ed_ClearChanges(void)    { gWeight = 0; }
+
 /* A user edit: records undo, then replaces. */
 static void Edit(long from, long oldLen, const char *src, long newLen,
                  Boolean typing)
@@ -506,11 +522,14 @@ static void Edit(long from, long oldLen, const char *src, long newLen,
     ClearRedo();
     gTyping = typing;
     gGoalX = -1;
+    Touch(typing ? newLen : (oldLen + newLen < 50 ? 50 : oldLen + newLen));
     Replace(from, oldLen, src, newLen, from + newLen);
 }
 
 static void DeleteRange(long a, long b)
 {
+    a = Enc_EscapeStart(a);              /* escapes delete as one character */
+    b = Enc_EscapeEnd(b);
     if (b > a)
         Edit(a, b - a, 0, 0, false);
 }
@@ -537,6 +556,7 @@ void Ed_Undo(void)
         PushRec(gRedo, &gRedoN, &r);
     }
     gTyping = false;
+    Touch(50);
 }
 
 void Ed_Redo(void)
@@ -554,6 +574,7 @@ void Ed_Redo(void)
         PushRec(gUndo, &gUndoN, &r);
     }
     gTyping = false;
+    Touch(50);
 }
 
 /* ---- clipboard --------------------------------------------------------- */
@@ -652,13 +673,13 @@ void Ed_Key(EventRecord *ev)
         if (HasSel() && !shift) pos = SelStart();
         else if (cmd) pos = LY_Start(line);
         else if (opt) pos = WordLeft(gCaret);
-        else pos = gCaret - 1;
+        else pos = Enc_EscapeStart(gCaret - 1 < 0 ? 0 : gCaret - 1);
         break;
     case 0x1D:                                           /* right */
         if (HasSel() && !shift) pos = SelEnd();
         else if (cmd) pos = LY_End(line);
         else if (opt) pos = WordRight(gCaret);
-        else pos = gCaret + 1;
+        else pos = gCaret < TB_Len() ? Enc_EscapeEnd(gCaret + 1) : gCaret;
         break;
     case 0x1E:                                           /* up */
         pos = cmd ? 0 : VerticalMove(-1);
@@ -683,6 +704,7 @@ void Ed_Key(EventRecord *ev)
                 && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret) {
                 /* backspacing over just-typed text: shrink the record */
                 gUndo[gUndoN - 1].len--;
+                Touch(1);
                 Replace(gCaret - 1, 1, 0, 0, gCaret - 1);
             } else
                 DeleteRange(gCaret - 1, gCaret);
@@ -713,6 +735,7 @@ void Ed_Key(EventRecord *ev)
     gTyping = false;
     if (!vertical)
         gGoalX = -1;
+    pos = Enc_EscapeStart(pos);          /* never land inside an escape */
     if (shift)
         SetSel(gAnchor, pos);
     else
@@ -809,6 +832,8 @@ Boolean Ed_SetText(const char *text, long len)
     LY_Rebuild();
     while (gUndoN > 0) FreeRec(&gUndo[--gUndoN]);
     ClearRedo();
+    gWeight = 0;
+    gTyping = false;
     gTop = 0;
     gAnchor = gCaret = 0;
     Ed_DrawAll();
