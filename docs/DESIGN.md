@@ -10,7 +10,7 @@ The app stays silent by default so writing stays distraction-free.
 - Status is ambient, never announced: the save dot, the footer clock and
   other indicators appear only when the writer pauses, and change in place.
 - Toasts are for truly important events only — most often ones the writer
-  asked for (e.g. their writing timer finishing). Routine system events
+  asked for (e.g. their Focus Timer finishing). Routine system events
   (saves, autosaves, recoveries that succeed) never toast.
 - System-initiated messages are kept to the bare minimum; when one is
   unavoidable it is non-modal and never takes focus from the text.
@@ -93,7 +93,8 @@ interface is visually distinct from the prose.
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
   markers (`#`, `**`, `_`) visible only on the caret's line.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
-  drawer is a short list of rows: `Project ›`, `On This Page ›`, `Drafts ›`,
+  drawer is a short list of rows: `Project ›`, `On This Page ›`,
+  `Focus Timer ›`, `Drafts ›`,
   `Export ›`, `Settings ›`, then `Library…` and `Quit`. A `›` row slides a
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
@@ -130,6 +131,9 @@ interface is visually distinct from the prose.
 The footer shows how long the current writing session has run (from document
 open), e.g. `5:45`. It can be turned off in the drawer's Settings.
 
+Naming: **Focus Timer** is the countdown you set; the **session clock** is
+the always-counting-up time. One term each, used everywhere.
+
 **Real-time updates, cheaply:** the footer is only visible while the user is
 paused, so nothing is redrawn while typing. While visible, the idle branch
 of the event loop compares `TickCount() / 60` with the last second drawn and,
@@ -138,10 +142,10 @@ when it changes, erases and redraws only the timer's own small rectangle
 capped at 30 ticks while the footer shows so the clock never lags more than
 half a second. Cost: one tiny redraw per second.
 
-**Writing timer (drawer → Settings):**
-- `Session timer` checkbox turns the footer clock on or off.
-- When on, `Set writing timer…` sets a goal (e.g. 25 min). The footer clock
-  then counts down instead of up.
+**Focus Timer (drawer → Focus Timer ›, top level):**
+- Sets a focus goal (e.g. 25 min); the footer clock then counts down
+  instead of up.
+- The session clock itself is turned on or off in Settings.
 - When the countdown reaches zero, the app celebrates with a brief,
   non-blocking 1-bit animation and a toast; it never interrupts typing or
   forces a dialog. (Celebration animation: still to be designed.)
@@ -194,7 +198,9 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
 1. **Templates** — ordinary `.md` files in a Templates folder (users can
    add their own): Blank, Outline, Journal Entry, Short Story, Novel
    Project (a folder template: chapter files + notes), Article, Meeting
-   Notes, Letter, Poem. Cmd-N skips the Library and opens Blank.
+   Notes, Letter, Poem. `Open` on a template creates a new untitled document from it; the
+   template itself is never changed (edit templates in the Finder — a
+   power-user feature). Cmd-N skips the Library and opens Blank.
 2. **My Files** — real folder hierarchy inside a "Mac MD Write" documents
    folder, read with HFS catalog calls (`PBGetCatInfo`). The row label is a
    breadcrumb (`MY FILES › THE KEEPER'S LOG`) with an up tile.
