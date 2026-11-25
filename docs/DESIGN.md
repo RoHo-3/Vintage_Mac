@@ -64,7 +64,7 @@ interface is visually distinct from the prose.
 
 - **Inline Markdown (WYSIWYM):** headings rendered at size as you type; syntax
   markers (`#`, `**`, `_`) visible only on the caret's line.
-- **Hamburger drawer:** 180 px left drawer — chapters, drafts, export, settings (session timer, writing timer). 50%
+- **Hamburger drawer:** 180 px left drawer — File (`Files…`, `Quit`), chapters, drafts, export, settings (session timer, writing timer). 50%
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,
   shortcuts right-aligned.
@@ -123,6 +123,35 @@ A 6 px dot at the footer's bottom right replaces any save text:
 No progress bar: each save is one blocking `FSWrite`, so the screen cannot
 redraw mid-write and a bar would only flash. The dithered dot is an honest
 "saving" signal and stays visible during slower full `.md` rewrites.
+
+### One document at a time
+
+The app keeps exactly one document open — a deliberate focus choice (it also
+keeps the whole 1 MB partition available to one text buffer and its undo).
+
+- **No Close command.** Opening another file from the Library autosaves the
+  current one and switches; nothing ever asks "Save changes?".
+- **Quit (Cmd-Q)** saves and exits.
+- **Cmd-W** opens the Library (muscle-memory alias, not a close).
+- **On launch** the app reopens the last document at the caret where you
+  left off; with no previous document it opens the Library.
+
+### Library (Cmd-O, drawer → Files…)
+
+Full-screen browser that replaces the classic Open dialog and handles both
+new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
+
+1. **Templates** — ordinary `.md` files in a Templates folder (users can
+   add their own): Blank, Outline, Journal Entry, Short Story, Novel
+   Project (a folder template: chapter files + notes), Article, Meeting
+   Notes, Letter, Poem. Cmd-N skips the Library and opens Blank.
+2. **My Files** — real folder hierarchy inside a "Mac MD Write" documents
+   folder, read with HFS catalog calls (`PBGetCatInfo`). The row label is a
+   breadcrumb (`MY FILES › THE KEEPER'S LOG`) with an up tile.
+3. **Recent** — recently opened files.
+
+`Other location…` falls back to the classic Standard File dialog for files
+elsewhere on disk. Return opens, Esc returns to writing.
 
 ## 5. Text engine
 
