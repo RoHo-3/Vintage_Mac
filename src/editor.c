@@ -214,6 +214,7 @@ static short LineTop(long line)
 }
 
 static Boolean gCodeRun;                  /* SetFont: inline code (Monaco) */
+static Boolean gBackRun;                  /* a run of Backspaces is going on */
 static Boolean gMarkRun;                  /* SetFont: Markdown markers (no underline) */
 
 static void SetFont(short level, Boolean isBold, Boolean isItalic)
@@ -673,7 +674,19 @@ static void CollapseEmptyPair(void)
     long c = gCaret, len = TB_Len();
     short k, i;
     char m;
-    if (gShowMarks || HasSel() || c == 0 || c >= len) return;
+    if (gShowMarks || HasSel() || c == 0) return;
+    /* an opener left with nothing after it ("**|" at a line or word start,
+       its text deleted) goes too */
+    m = TB_Char(c - 1);
+    if ((m == '*' || m == '_' || m == '`') && (c >= len || TB_Char(c) == '\r' || TB_Char(c) == ' ')) {
+        long a = c;
+        while (a > 0 && TB_Char(a - 1) == m && c - a < 3) a--;
+        if (a == MD_ParaStart(c) || TB_Char(a - 1) == ' ') {
+            DeleteRange(a, c);
+            return;
+        }
+    }
+    if (c >= len) return;
     m = TB_Char(c - 1);
     if (m != '*' && m != '_' && m != '`') return;
     for (k = (m == '`') ? 1 : 2; k >= 1; k--) {
@@ -821,8 +834,10 @@ void Ed_Key(EventRecord *ev)
     Boolean cmd = (ev->modifiers & cmdKey) != 0;
     long line = LY_LineOf(gCaret), pos;
     Boolean vertical = false;
+    Boolean wasBack = gBackRun;          /* the previous key was a Backspace */
     char ch;
 
+    gBackRun = (c == 0x08 && !cmd && !opt);
     switch (c) {
     case 0x1C:                                           /* left */
         if (HasSel() && !shift) pos = SelStart();
@@ -863,7 +878,8 @@ void Ed_Key(EventRecord *ev)
             pos = SkipLeft(gCaret);
             if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
                 DeleteRange(pos, PrefixEnd(pos));
-            else if ((gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
+            else if (wasBack             /* backspacing along: reopen the style */
+                     || (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                       && gUndo[gUndoN - 1].pos <= pos
                       && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret)
                      /* or an opener (line start / after a space): nothing of
@@ -884,6 +900,12 @@ void Ed_Key(EventRecord *ev)
                 Replace(gCaret - 1, 1, 0, 0, gCaret - 1);
             } else
                 DeleteRange(gCaret - 1, gCaret);
+            /* backspacing up to a hidden closing marker: it goes, so the
+               style reopens and what's typed next continues it */
+            pos = SkipLeft(gCaret);
+            if (!gShowMarks && pos < gCaret && PrefixEnd(pos) == pos
+                && pos > MD_ParaStart(pos) && TB_Char(pos - 1) != ' ')
+                DeleteRange(pos, gCaret);
         }
         CollapseEmptyPair();
         return;
@@ -964,6 +986,8 @@ void Ed_Click(Point pt, EventRecord *ev)
 {
     long pos = HitTest(pt), wordA = 0, wordB = 0, p, a, b;
     Boolean word = false;
+
+    gBackRun = false;
     unsigned long lastScroll = 0;
     short bottom = Bottom();
 

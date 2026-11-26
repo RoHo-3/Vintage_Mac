@@ -104,8 +104,14 @@ static void SuggestName(unsigned char *name)
     }
     if (!sentence && p < len && TB_Char(p) != '\r' && lastSpace > 0)
         n = lastSpace;                   /* too long: cut at a word boundary */
+    {   /* a heading's closing #s: a run of 2+, or after a space ("C#" stays) */
+        short k = n;
+        while (k > 0 && name[k] == '#') k--;
+        if (n - k >= 2 || (n > k && k > 0 && name[k] == ' '))
+            n = k;
+    }
     while (n > 0 && (name[n] == ' ' || name[n] == '.' || name[n] == ','
-                     || name[n] == ';' || name[n] == '-' || name[n] == '#'))
+                     || name[n] == ';' || name[n] == '-'))
         n--;                             /* "Woke up laughing." -> no "..md" */
     {   /* Title Case: each word's first letter up, but leave words with a
            period or digit ("e.g.", "v1.2") or a capital already ("iPhone") */
