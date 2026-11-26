@@ -9,6 +9,8 @@
 #define kPrefsType  'pref'
 #define kPrefsVers  2
 
+static void FixFakeTrash(short vol);
+
 static short gDocsWD, gTemplatesWD, gRootWD;   /* My Files, Templates, Mac MD Write */
 static short gDocsVol;
 static long  gDocsDir;
@@ -215,7 +217,6 @@ void Files_SetDialogFolder(short wd)
 }
 
 static Boolean IsDoc(const unsigned char *name, OSType type);
-static void FixFakeTrash(short vol);
 
 /* A document was moved or deleted in the Finder: its invisible journal is
    left behind. Move such orphans to the Trash (recoverable), in this folder
@@ -410,15 +411,16 @@ Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Pa
     return PBHRenameSync(&pb) == noErr;
 }
 
+/* kind: 0 = OS trap, 1 = Toolbox trap (Retro68 has no names for these) */
 static Boolean TrapAvailable(unsigned short trap, short kind)
 {
-    return NGetTrapAddress(trap, kind) != NGetTrapAddress(0xA89F, ToolTrap);
+    return NGetTrapAddress(trap, kind) != NGetTrapAddress(0xA89F, 1);
 }
 
 static Boolean HaveFindFolder(void)
 {
     long resp;
-    return TrapAvailable(0xA1AD, OSTrap)                 /* Gestalt */
+    return TrapAvailable(0xA1AD, 0)                 /* Gestalt */
         && Gestalt('fold', &resp) == noErr && (resp & 1);
 }
 
