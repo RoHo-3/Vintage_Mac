@@ -448,8 +448,10 @@ static void DoOpen(void)
 {
     short wd;
     if (gSelRow == kRowTpl) {
-        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD()))
+        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD())) {
+            Doc_SetNewFolder(CurWD());   /* saved where you were browsing */
             Lib_Close();
+        }
         else SysBeep(1);
     } else if (gSelRow == kRowFiles) {
         if (gFiles[gSelIdx].isFolder)

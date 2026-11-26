@@ -23,7 +23,8 @@ static Str63      gName;
 static short      gVRef;
 static FileFormat gFmt;
 static Boolean    gMdBehind;            /* journal has text the .md lacks */
-#define gDefaultVRef Files_DocsWD()     /* new documents go to My Files */
+static short      gNewWD;               /* where the next new document goes */
+#define gDefaultVRef (gNewWD ? gNewWD : Files_DocsWD())
 
 static void CopyPString(const unsigned char *src, unsigned char *dst)
 {
@@ -228,10 +229,27 @@ static Boolean SaveIfNeeded(void)
     return Doc_Save();
 }
 
+/* Cmd-N inside a project creates the document in that project: the new
+   document goes where the current one lives, if that is inside My Files. */
+static void NewGoesBesideCurrent(void)
+{
+    short vol, mvol;
+    long dir, mdir;
+    gNewWD = 0;
+    if (gHasFile && Files_DirOfWD(gVRef, &vol, &dir)) {
+        Files_DocsDir(&mvol, &mdir);
+        if (vol == mvol && Files_IsInside(vol, dir, mdir))
+            gNewWD = gVRef;
+    }
+}
+
+void Doc_SetNewFolder(short wd) { gNewWD = wd; }
+
 void Doc_New(void)
 {
     if (!SaveIfNeeded())
         return;
+    NewGoesBesideCurrent();
     gHasFile = false;
     JR_Detach();
     Doc_Init();

@@ -1,12 +1,12 @@
 /*
  * Where documents live, and the small preferences file.
  *
- * My Files is a "Mac MD Write" folder next to the application, created on
- * first launch, with a "Templates" folder inside it (hidden from My Files).
+ * A "Mac MD Write" folder next to the application holds two peers: "My
+ * Files" (your documents and projects) and "Templates", plus the prefs.
  * Folders are reached through working-directory refnums, so the rest of the
  * app keeps using the classic (name, vRefNum) file calls on System 6 and 7.
  *
- * The preferences file ("Mac MD Write Prefs", in My Files) remembers the
+ * The preferences file ("Mac MD Write Prefs", in "Mac MD Write") remembers the
  * last document and its caret, so launch reopens it where you left off.
  */
 #ifndef FILES_H
@@ -32,6 +32,7 @@ Boolean Files_WDOf(const FolderLoc *loc, short *wdRef);
 void    Files_DocsDir(short *vol, long *dirID);
 Boolean Files_WDFor(short vol, long dirID, short *wdRef);
 Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
+Boolean Files_IsInside(short vol, long dir, long ancestor);
 
 /* One folder listing: documents (.md / TEXT) and folders, Finder order. */
 #define kMaxItems 64

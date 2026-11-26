@@ -391,8 +391,10 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    chapter files + notes), Script. `Open` on a template creates a new untitled document from it; the
    template itself is never changed (edit templates in the Finder — a
    power-user feature). Cmd-N skips the Library and opens Blank.
-2. **My Files** — real folder hierarchy inside a "Mac MD Write" documents
-   folder, read with HFS catalog calls (`PBGetCatInfo`). The row label is a
+2. **My Files** — real folder hierarchy in the "My Files" folder, read with
+   HFS catalog calls (`PBGetCatInfo`). On disk, a "Mac MD Write" folder next
+   to the app holds two peers, `My Files` and `Templates`, plus the prefs
+   file. Loose documents and projects both live at the top of My Files. The row label is a
    breadcrumb (`MY FILES › THE KEEPER'S LOG`) with an up tile.
 3. **Recent** — recently opened files.
 

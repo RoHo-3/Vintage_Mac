@@ -7,7 +7,7 @@
 #define kPrefsType  'pref'
 #define kPrefsVers  2
 
-static short gDocsWD, gTemplatesWD;
+static short gDocsWD, gTemplatesWD, gRootWD;   /* My Files, Templates, Mac MD Write */
 static short gDocsVol;
 static long  gDocsDir;
 
@@ -85,22 +85,47 @@ static Boolean SubFolder(short vol, long parent, ConstStr255Param name, long *di
     return true;
 }
 
+static Boolean SameP(const unsigned char *a, const unsigned char *b)
+{
+    short i;
+    if (a[0] != b[0]) return false;
+    for (i = 1; i <= a[0]; i++) {
+        unsigned char x = a[i], y = b[i];
+        if (x >= 'A' && x <= 'Z') x += 32;
+        if (y >= 'A' && y <= 'Z') y += 32;
+        if (x != y) return false;
+    }
+    return true;
+}
+
+/* Builds 29-34 kept documents directly in "Mac MD Write": move them (and
+   any project folders) into My Files once, and point the prefs there. */
+static void MoveIntoMyFiles(short vol, long root, long myFiles);
+
 Boolean Files_Init(void)
 {
     short appWD, vol;
-    long appDir, docsDir, tplDir;
+    long appDir, rootDir, docsDir, tplDir;
+    Boolean fresh;
 
     GetVol(NULL, &appWD);                /* launch sets it to the app's folder */
-    gDocsWD = gTemplatesWD = appWD;      /* fallback: beside the app */
+    gDocsWD = gTemplatesWD = gRootWD = appWD;   /* fallback: beside the app */
     if (!WDInfo(appWD, &vol, &appDir))
         return false;
-    if (!SubFolder(vol, appDir, (ConstStr255Param)"\pMac MD Write", &docsDir)
-        || !OpenWD(vol, docsDir, &gDocsWD))
+    if (!SubFolder(vol, appDir, (ConstStr255Param)"\pMac MD Write", &rootDir)
+        || !OpenWD(vol, rootDir, &gRootWD))
         return false;
+    gDocsWD = gTemplatesWD = gRootWD;
     gDocsVol = vol;
-    gDocsDir = docsDir;
-    gTemplatesWD = gDocsWD;
-    if (SubFolder(vol, docsDir, (ConstStr255Param)"\pTemplates", &tplDir)
+    gDocsDir = rootDir;
+    fresh = !Files_Exists(vol, rootDir, (ConstStr255Param)"\pMy Files");
+    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Files", &docsDir)
+        && OpenWD(vol, docsDir, &gDocsWD)) {
+        gDocsDir = docsDir;
+        if (fresh)
+            MoveIntoMyFiles(vol, rootDir, docsDir);
+    }
+    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pTemplates", &tplDir)
         && OpenWD(vol, tplDir, &gTemplatesWD)) {
         /* a Templates folder always offers at least Blank */
         short ref;
@@ -109,6 +134,61 @@ Boolean Files_Init(void)
             FSClose(ref);
     }
     return true;
+}
+
+static void MoveIntoMyFiles(short vol, long root, long myFiles)
+{
+    CInfoPBRec ci;
+    CMovePBRec mv;
+    Str63 name;
+    short idx = 1, i;
+    Prefs p;
+    while (true) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = root;
+        if (PBGetCatInfoSync(&ci) != noErr)
+            break;
+        if (SameP(name, (ConstStr255Param)"\pMy Files") || SameP(name, (ConstStr255Param)"\pTemplates")
+            || SameP(name, (ConstStr255Param)"\pMac MD Write Prefs")) {
+            idx++;
+            continue;
+        }
+        mv.ioCompletion = NULL;
+        mv.ioNamePtr = name;
+        mv.ioVRefNum = vol;
+        mv.ioNewName = NULL;
+        mv.ioNewDirID = myFiles;
+        mv.ioDirID = root;
+        if (PBCatMoveSync(&mv) != noErr)
+            idx++;                       /* leave it; look at the next */
+        /* on success the folder's indexes shift: same idx again */
+    }
+    Prefs_Load(&p);                      /* the remembered places moved too */
+    if (p.lastDir.dirID == root) p.lastDir.dirID = myFiles;
+    for (i = 0; i < p.recentCount; i++)
+        if (p.recent[i].dir.dirID == root) p.recent[i].dir.dirID = myFiles;
+    Prefs_Save(&p);
+}
+
+/* Is dir the folder anc, or inside it? (walks up the parents) */
+Boolean Files_IsInside(short vol, long dir, long anc)
+{
+    CInfoPBRec ci;
+    short n;
+    for (n = 0; n < 16 && dir > 1; n++) {
+        if (dir == anc) return true;
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = NULL;
+        ci.dirInfo.ioVRefNum = vol;
+        ci.dirInfo.ioFDirIndex = -1;     /* info about the folder itself */
+        ci.dirInfo.ioDrDirID = dir;
+        if (PBGetCatInfoSync(&ci) != noErr) return false;
+        dir = ci.dirInfo.ioDrParID;
+    }
+    return false;
 }
 
 void Files_DocsDir(short *vol, long *dirID) { *vol = gDocsVol; *dirID = gDocsDir; }
@@ -318,7 +398,7 @@ Boolean Files_WDOf(const FolderLoc *loc, short *wdRef)
 Boolean Prefs_Exist(void)
 {
     FInfo fi;
-    return GetFInfo(kPrefsName, gDocsWD, &fi) == noErr;
+    return GetFInfo(kPrefsName, gRootWD, &fi) == noErr;
 }
 
 void Prefs_Load(Prefs *p)
@@ -332,7 +412,7 @@ void Prefs_Load(Prefs *p)
     p->lastName[0] = 0;
     p->lastCaret = 0;
     p->recentCount = 0;
-    if (FSOpen(kPrefsName, gDocsWD, &ref) != noErr)
+    if (FSOpen(kPrefsName, gRootWD, &ref) != noErr)
         return;
     if (FSRead(ref, &n, (Ptr)&tmp) == noErr && n == sizeof(Prefs)
         && tmp.version == kPrefsVers)
@@ -344,10 +424,10 @@ void Prefs_Save(const Prefs *p)
 {
     short ref;
     long n = sizeof(Prefs);
-    OSErr err = Create(kPrefsName, gDocsWD, kCreator, kPrefsType);
+    OSErr err = Create(kPrefsName, gRootWD, kCreator, kPrefsType);
     if (err != noErr && err != dupFNErr)
         return;
-    if (FSOpen(kPrefsName, gDocsWD, &ref) != noErr)
+    if (FSOpen(kPrefsName, gRootWD, &ref) != noErr)
         return;
     if (FSWrite(ref, &n, (Ptr)p) == noErr)
         SetEOF(ref, sizeof(Prefs));
