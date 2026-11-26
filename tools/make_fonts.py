@@ -40,6 +40,23 @@ FAMILIES = [(200, 'MDW Mono', 'IBMPlexMono-Regular.ttf'),
 SIZES = [10, 12, 14, 16, 20]
 FIRST, LAST = 0x20, 0xFF
 
+# Hand-drawn glyphs where no automatic rendering fits the 6 px cell well:
+# (font file, size, char) -> (first row, rows). '#' = ink.
+OVERRIDES = {
+    ('IBMPlexMono-Regular.ttf', 10, 'w'): (6, ['#...#.',
+                                               '#...#.',
+                                               '#.#.#.',
+                                               '#.#.#.',
+                                               '.#.#..']),
+    ('IBMPlexMono-Regular.ttf', 10, 'W'): (4, ['#...#.',
+                                               '#...#.',
+                                               '#...#.',
+                                               '#.#.#.',
+                                               '#.#.#.',
+                                               '#.#.#.',
+                                               '.#.#..']),
+}
+
 
 def cell_width(size):
     return int(size * 0.6 + 0.5)        # Plex Mono advance = 600/1000 em
@@ -59,7 +76,13 @@ def build(path, size):
         if present and size in FITTED_SIZES:
             import numpy as np
             from fontfit import fitted
-            arr = fitted(path, size, ch, w, asc, h)
+            arr = fitted(path, size, ch, w, asc, h, gap=(size == 10))
+            ov = OVERRIDES.get((os.path.basename(path), size, ch))
+            if ov:
+                arr = np.zeros((h, w), dtype='uint8')
+                for r, line in enumerate(ov[1]):
+                    for x, v in enumerate(line[:w]):
+                        arr[ov[0] + r, x] = v == '#'
             if arr is not None:
                 img = Image.fromarray((arr * 255).astype('uint8')).convert('1')
         if present and arr is None:
