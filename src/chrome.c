@@ -20,7 +20,8 @@ static Boolean   gShown;                 /* footer */
 static Boolean   gStripShown;            /* top strip */
 static unsigned long gStripUntil;       /* shown briefly (a document opened): hide then */
 static Point     gLastMouse;
-static unsigned long gClockStart, gLastKey;
+static unsigned long gClockStart, gLastKey;   /* gClockStart 0: not started */
+#define Elapsed() (gClockStart ? (long)((TickCount() - gClockStart) / 60) : 0L)
 static long      gShownSeconds = -1;
 static long      gWords = -1;             /* -1: needs counting */
 static short     gSaveState = kSaveUnsaved;
@@ -139,7 +140,7 @@ static void DrawStatus(void)
 {
     Rect r;
     Str63 s;
-    long secs = (TickCount() - gClockStart) / 60;
+    long secs = Elapsed();               /* starts with the first keystroke */
     short top = gWin->portRect.bottom - kFooterH;
 
     if (gWords < 0)
@@ -170,7 +171,8 @@ static void DrawStatus(void)
 void Chrome_Init(WindowPtr w)
 {
     gWin = w;
-    gClockStart = gLastKey = TickCount();
+    gClockStart = 0;
+    gLastKey = TickCount();
     GetMouse(&gLastMouse);
     gTitle[0] = 0;
     AppendStr(gTitle, "Untitled");
@@ -238,6 +240,8 @@ void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
+    if (gClockStart == 0)
+        gClockStart = gLastKey;          /* writing begins: the clock starts */
     if (!gWin) return;
     gStripUntil = 0;
     SetStrip(false);
@@ -267,7 +271,7 @@ void Chrome_Idle(void)
         if (!gStripUntil) SetStrip(m.v >= 0 && m.v < kStripH);
     } else if (TickCount() - gLastKey >= kPauseTicks)
         ShowFooter();                    /* the writer paused */
-    if (gShown && (long)((TickCount() - gClockStart) / 60) != gShownSeconds) {
+    if (gShown && Elapsed() != gShownSeconds) {
         SetPort(gWin);                   /* tick the clock: one small redraw */
         DrawStatus();
     }
@@ -300,5 +304,5 @@ void Chrome_TextChanged(void)
 
 void Chrome_ResetClock(void)
 {
-    gClockStart = TickCount();
+    gClockStart = 0;                     /* the next keystroke starts it */
 }
