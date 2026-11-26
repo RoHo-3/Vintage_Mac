@@ -803,7 +803,19 @@ static Boolean CopyFile(short svol, long sdir, ConstStr255Param name,
         return false;
     fi.fdLocation.h = fi.fdLocation.v = 0;   /* the Finder places it */
     fi.fdFlags &= ~0x0100;                   /* not "inited" on the new disk */
-    HSetFInfo(dvol, ddir, name, &fi);        /* type, creator, invisible bit */
+    {
+        HParamBlockRec pb;                   /* type, creator, invisible bit */
+        pb.fileParam.ioCompletion = NULL;
+        pb.fileParam.ioNamePtr = (StringPtr)name;
+        pb.fileParam.ioVRefNum = dvol;
+        pb.fileParam.ioFDirIndex = 0;
+        pb.fileParam.ioDirID = ddir;
+        if (PBHGetFInfoSync(&pb) == noErr) {
+            pb.fileParam.ioFlFndrInfo = fi;
+            pb.fileParam.ioDirID = ddir;
+            PBHSetFInfoSync(&pb);
+        }
+    }
     return true;
 }
 
