@@ -40,4 +40,6 @@ Boolean Ed_SetText(const char *text, long len);
 void    Ed_SetShowMarks(Boolean on);
 Boolean Ed_ShowMarks(void);
 
+void    Ed_SetCaret(long pos);      /* places the cursor and scrolls to it */
+
 #endif

@@ -17,6 +17,7 @@
 #include <ToolUtils.h>
 
 #include "editor.h"
+#include "files.h"
 #include "document.h"
 #include "chrome.h"
 #include "build_number.h"
@@ -69,7 +70,9 @@ static const char kWelcome[] =
     "\r"
     "Command-O opens a .md file and Command-S saves; Command-N starts a new "
     "document. A new document is named from its first line and saved in "
-    "the app's folder, with no dialog. Once a document has a file it saves itself when you pause "
+    "the \"Mac MD Write\" folder next to the app, with no dialog; its name "
+    "follows the first line as you edit it. Quit and relaunch: your last "
+    "document reopens where you left off. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
     "original line endings, so they round-trip with modern editors. "
     "Characters the Mac can't show appear as a box and are kept exactly.\r"
@@ -250,8 +253,10 @@ int main(void)
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
     }
-    {
-        /* welcome text + which font is in use */
+    Files_Init();                /* My Files beside the app */
+    Doc_Init();
+    if (!Doc_Reopen()) {
+        /* first run: welcome text + which font is in use */
         const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
         long n1 = sizeof(kWelcome) - 1, n2 = 0, i;
         static char buf[sizeof(kWelcome) + 128];   /* not on the stack */

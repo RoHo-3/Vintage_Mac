@@ -41,7 +41,9 @@ short   JR_Recover(void);
 
 /* Per-document settings, kept in the journal ('P' record: one flag byte).
    JR_Attach resets them; JR_Recover reads the latest. */
-enum { kPrefShowMarks = 1 };
+enum { kPrefShowMarks = 1,
+       kPrefNameFollows = 2 };            /* app-named: name tracks line 1 */
+void          JR_Rename(const unsigned char *newMd);
 void          JR_SetPrefs(unsigned char prefs);
 unsigned char JR_Prefs(void);
 

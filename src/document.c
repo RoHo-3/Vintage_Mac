@@ -4,6 +4,7 @@
 #include "textbuf.h"
 #include "chrome.h"
 #include "journal.h"
+#include "files.h"
 
 #include <Files.h>
 #include <StandardFile.h>
@@ -22,8 +23,7 @@ static Str63      gName;
 static short      gVRef;
 static FileFormat gFmt;
 static Boolean    gMdBehind;            /* journal has text the .md lacks */
-static short      gDefaultVRef;         /* where new documents go: the app's folder */
-static Boolean    gHaveDefault;
+#define gDefaultVRef Files_DocsWD()     /* new documents go to My Files */
 
 static void CopyPString(const unsigned char *src, unsigned char *dst)
 {
@@ -42,10 +42,6 @@ static Point DialogSpot(void)
 
 void Doc_Init(void)
 {
-    if (!gHaveDefault) {
-        GetVol(NULL, &gDefaultVRef);     /* the folder the app was launched from */
-        gHaveDefault = true;
-    }
     gHasFile = false;
     gFmt.lineEnding = kEndLF;            /* new files: the modern default */
     gFmt.bom = false;
@@ -81,15 +77,36 @@ static void SuggestName(unsigned char *name)
     name[0] = (unsigned char)n;
 }
 
-/* SuggestName, made unique in the default folder: "Day Two 2.md", ... */
-static Boolean UniqueName(unsigned char *name)
+static Boolean SameName(const unsigned char *a, const unsigned char *b)
+{
+    short i;
+    if (a[0] != b[0]) return false;
+    for (i = 1; i <= a[0]; i++) {
+        unsigned char x = a[i], y = b[i];
+        if (x >= 'a' && x <= 'z') x -= 32;   /* HFS names ignore case */
+        if (y >= 'a' && y <= 'z') y -= 32;
+        if (x != y) return false;
+    }
+    return true;
+}
+
+/* Free in vRef, or the open document's own name there. */
+static Boolean NameFree(const unsigned char *name, short vRef)
 {
     FInfo fi;
+    if (gHasFile && vRef == gVRef && SameName(name, gName))
+        return true;
+    return GetFInfo(name, vRef, &fi) == fnfErr;
+}
+
+/* SuggestName, made unique in vRef: "Day Two 2.md", ... */
+static Boolean UniqueName(unsigned char *name, short vRef)
+{
     unsigned char base[40];
     short n, k, i;
 
     SuggestName(name);
-    if (GetFInfo(name, gDefaultVRef, &fi) == fnfErr)
+    if (NameFree(name, vRef))
         return true;
     CopyPString(name, base);
     base[0] -= 3;                        /* without ".md" */
@@ -102,10 +119,26 @@ static Boolean UniqueName(unsigned char *name)
         name[++n] = (unsigned char)('0' + k % 10);
         name[++n] = '.'; name[++n] = 'm'; name[++n] = 'd';
         name[0] = (unsigned char)n;
-        if (GetFInfo(name, gDefaultVRef, &fi) == fnfErr)
+        if (NameFree(name, vRef))
             return true;
     }
     return false;
+}
+
+/* An app-named document's name follows its first line (DESIGN.md, Naming
+   documents) until the writer renames it; the journal is renamed with it. */
+static void FollowFirstLine(void)
+{
+    unsigned char want[40];
+    if (!gHasFile || !(JR_Prefs() & kPrefNameFollows))
+        return;
+    if (!UniqueName(want, gVRef) || SameName(want, gName))
+        return;
+    if (Rename(gName, gVRef, want) != noErr)
+        return;
+    JR_Rename(want);
+    CopyPString(want, gName);
+    Chrome_SetTitle(gName);
 }
 
 static Boolean WriteFile(void)
@@ -117,6 +150,7 @@ static Boolean WriteFile(void)
     FInfo fi;
 
     if (!buf) { SysBeep(1); return false; }
+    FollowFirstLine();
     Chrome_SetSaveState(kSaveSaving);    /* dithered dot until the write ends */
     n = Enc_Encode(buf, max, &gFmt);
     err = (n < 0) ? -1 : FSOpen(gName, gVRef, &ref);
@@ -151,12 +185,13 @@ Boolean Doc_Save(void)
 {
     unsigned char suggested[40];
     OSErr err;
+    Boolean wasUntitled = !gHasFile;
 
     if (!gHasFile) {
         /* Naming happens in place (DESIGN.md): the first line names the
            file, in the app's folder until the Library exists. No dialog. */
         unsigned char prefs = JR_Prefs();
-        if (!UniqueName(suggested)) {
+        if (!UniqueName(suggested, gDefaultVRef)) {
             SysBeep(1);
             return false;
         }
@@ -170,11 +205,16 @@ Boolean Doc_Save(void)
         gHasFile = true;
         Chrome_SetTitle(gName);
         JR_Attach(gName, gVRef);
-        JR_SetPrefs(prefs);              /* keep what was chosen while untitled */
+        JR_SetPrefs(prefs | kPrefNameFollows);   /* keep what was chosen while
+                                                    untitled; app-named */
         JR_Reset();                      /* the journal starts with a snapshot */
     }
     JR_Checkpoint(Ed_Caret(), NULL);     /* journal first, then the .md */
-    return WriteFile();
+    if (!WriteFile())
+        return false;
+    if (wasUntitled)
+        Doc_Remember();                  /* reopen it on the next launch */
+    return true;
 }
 
 /* Before quitting or switching: the .md must hold the latest text, even
@@ -198,24 +238,59 @@ void Doc_New(void)
     Chrome_SetTitle((const unsigned char *)"\pUntitled");
     Chrome_TextChanged();
     Chrome_ResetClock();
+    Doc_Remember();                      /* nothing to reopen until it's saved */
+}
+
+/* Remember the open document and its caret for the next launch. */
+void Doc_Remember(void)
+{
+    Prefs p;
+    Prefs_Load(&p);
+    p.lastName[0] = 0;
+    if (gHasFile && Files_LocOf(gVRef, &p.lastDir)) {
+        CopyPString(gName, p.lastName);
+        p.lastCaret = Ed_Caret();
+    }
+    Prefs_Save(&p);
+}
+
+static Boolean OpenFile(const unsigned char *name, short vRef);
+
+/* Launch: reopen the last document at its caret. False: none (first run,
+   or the file is gone). */
+Boolean Doc_Reopen(void)
+{
+    Prefs p;
+    short wd;
+    Prefs_Load(&p);
+    if (p.lastName[0] == 0 || !Files_WDOf(&p.lastDir, &wd))
+        return false;
+    if (!OpenFile(p.lastName, wd))
+        return false;
+    Ed_SetCaret(p.lastCaret);
+    return true;
 }
 
 void Doc_Open(void)
 {
     SFReply reply;
+    if (!SaveIfNeeded())
+        return;
+    SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
+    if (reply.good && OpenFile(reply.fName, reply.vRefNum))
+        Doc_Remember();
+}
+
+static Boolean OpenFile(const unsigned char *name, short vRef)
+{
     short ref;
     long size, n;
     Ptr raw, text;
     OSErr err;
+    Boolean ok = false;
 
-    if (!SaveIfNeeded())
-        return;
-    SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
-    if (!reply.good)
-        return;
-
-    err = FSOpen(reply.fName, reply.vRefNum, &ref);
-    if (err != noErr) { SysBeep(1); return; }
+    err = FSOpen(name, vRef, &ref);
+    if (err != noErr) return false;
     GetEOF(ref, &size);
     raw = NewPtr(size + 1);
     text = NewPtr(TB_Capacity());
@@ -224,7 +299,7 @@ void Doc_Open(void)
         if (raw) DisposePtr(raw);
         if (text) DisposePtr(text);
         SysBeep(1);                      /* too big for memory */
-        return;
+        return false;
     }
     n = size;
     err = FSRead(ref, &n, raw);
@@ -234,7 +309,7 @@ void Doc_Open(void)
         long len = Enc_Decode((unsigned char *)raw, n, text, TB_Capacity(), &fmt);
         short recovered = kRecoverNone;
         if (len >= 0 && TB_Replace(0, TB_Len(), text, len)) {
-            JR_Attach(reply.fName, reply.vRefNum);
+            JR_Attach(name, vRef);
             recovered = JR_Recover();    /* may leave newer text in the buffer */
             len = TB_Len();
             TB_Copy(0, len, text);
@@ -243,8 +318,8 @@ void Doc_Open(void)
         if (len >= 0)
             Ed_SetShowMarks((JR_Prefs() & kPrefShowMarks) != 0);
         if (len >= 0 && Ed_SetText(text, len)) {
-            CopyPString(reply.fName, gName);
-            gVRef = reply.vRefNum;
+            CopyPString(name, gName);
+            gVRef = vRef;
             gFmt = fmt;
             gHasFile = true;
             Chrome_SetTitle(gName);
@@ -257,12 +332,14 @@ void Doc_Open(void)
                 WriteFile();
             } else if (recovered == kRecoverEditedElsewhere)
                 JR_Checkpoint(Ed_Caret(), "Edited on another computer");
+            ok = true;
         } else
             SysBeep(1);                  /* too big for the text buffer */
     } else
         SysBeep(1);
     DisposePtr(raw);
     DisposePtr(text);
+    return ok;
 }
 
 void Doc_Idle(void)
@@ -302,11 +379,15 @@ void Doc_Suspend(void)
         JR_Checkpoint(Ed_Caret(), NULL);
         WriteFile();
     }
+    Doc_Remember();
 }
 
 Boolean Doc_CanQuit(void)
 {
-    return SaveIfNeeded();
+    if (!SaveIfNeeded())
+        return false;
+    Doc_Remember();
+    return true;
 }
 
 /* Markdown markers on or off for this document (Cmd-M for now; it moves

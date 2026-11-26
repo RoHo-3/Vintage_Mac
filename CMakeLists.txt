@@ -14,6 +14,7 @@ set(SOURCES
     src/document.c
     src/chrome.c
     src/journal.c
+    src/files.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r

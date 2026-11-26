@@ -909,6 +909,14 @@ void Ed_SetShowMarks(Boolean on)
 
 Boolean Ed_ShowMarks(void) { return gShowMarks; }
 
+void Ed_SetCaret(long pos)
+{
+    if (pos < 0) pos = 0;
+    if (pos > TB_Len()) pos = TB_Len();
+    pos = PrefixEnd(MD_ParaStart(pos)) > pos ? PrefixEnd(MD_ParaStart(pos)) : pos;
+    SetSel(pos, pos);
+}
+
 Boolean Ed_SetText(const char *text, long len)
 {
     if (!TB_Replace(0, TB_Len(), text, len))
