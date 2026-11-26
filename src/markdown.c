@@ -239,6 +239,18 @@ static short Underline(long a, long b)
     return m == '=' ? 1 : 2;
 }
 
+/* A setext underline of a single - or = ("-", "- "): while the writer is
+   on that line it's most likely a list item being started, so it doesn't
+   turn the line above into a heading until a second - (or the cursor
+   leaves). */
+static Boolean LoneUnderline(long a, long b)
+{
+    long i, n = 0;
+    for (i = a; i < b; i++)
+        if (TB_Char(i) != ' ') n++;
+    return n == 1;
+}
+
 /* Length of a list marker at i ("- ", "12. ", "3) "), or 0. */
 static long ListMarker(long i, long b, Boolean *ordered)
 {
@@ -346,7 +358,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
     if (quote == 0 && start > 0) {       /* setext underline under text */
         long ps = MD_ParaStart(start - 1);
         short u = Underline(start, end);
-        Boolean pending = cpos >= 0 && len == 1;   /* a lone "-" being typed */
+        Boolean pending = cpos >= 0 && LoneUnderline(start, end);   /* "- " being typed */
         if (u && !pending && IsParaText(ps, start - 1, false)) {
             Mark(0, len, mark);
             kind = MD_FENCE;             /* a syntax-only line: nothing drawn */
@@ -407,7 +419,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
     if (*level == 0 && kind == 0 && quote == 0 && end < TB_Len()) {
         long ne = MD_ParaEnd(end + 1);
         short u = Underline(end + 1, ne);
-        Boolean pending = gCaretAbs >= end + 1 && gCaretAbs <= ne && ne - (end + 1) == 1;
+        Boolean pending = gCaretAbs >= end + 1 && gCaretAbs <= ne && LoneUnderline(end + 1, ne);
         if (u && !pending && IsParaText(start, end, false))
             *level = u;
     }
