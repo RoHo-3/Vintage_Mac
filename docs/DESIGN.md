@@ -401,33 +401,56 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    Meeting Notes, Article, Short Story, Novel Project (a folder template:
    chapter files + notes), Script. `Open` on a template creates a new untitled document from it; the
    template itself is never changed (edit templates in the Finder — a
-   power-user feature). Cmd-N skips the Library and opens Blank.
-2. **My Stuff** — projects (as folders) and loose documents side by side.
-   On disk, a "Writings" folder next to the app holds three peers:
-   `My Documents` (loose documents), `My Projects` (project folders) and
-   `Templates`, plus the prefs file; the shelf shows the first two together,
-   read with HFS catalog calls (`PBGetCatInfo`). Inside a project the row
-   label is a breadcrumb (`MY STUFF › THE KEEPER'S LOG`) with an up tile.
-   New Project goes to My Projects. Cmd-N opens the Library with Blank
-   picked; starting from Blank or any template shows the Save dialog first
-   (in the folder being browsed, template name filled in), then writing
-   begins. Cmd-S in the writing view always saves by hand; an untitled page
-   asks for a name.
+   power-user feature).
+2. **My Writings** — every writing is a folder, so a piece can grow from
+   one document into a project without a choice up front. On disk, a
+   "Writings" folder (next to the app, unless moved: Settings › Move
+   Library…) holds two peers, `My Writings` and `Templates`, plus the
+   invisible prefs; the shelf is read with HFS catalog calls
+   (`PBGetCatInfo`). The first tile is **New Writing**, a dotted page with a
+   + in the middle: a blank page opens at once, and nothing exists on disk
+   until it is named. Its first save (Cmd-S, whose dialog suggests a free
+   name; or the quiet first-line naming on a pause) makes the folder and
+   its first document, one name for both; while the writing is app-named,
+   the folder follows the first line with its document. Inside a writing
+   the row label is a breadcrumb (`MY WRITINGS › THE KEEPER'S LOG`) with an
+   up tile. A template on the Templates shelf opens the same way (a new
+   writing at the top, a new document inside a writing). Cmd-N opens the
+   Library with New Writing picked (Return starts it). A loose document
+   found in My Writings at launch (dropped in from the Finder) is wrapped
+   in a folder of its own name, its journal moving with it.
 3. **Recent** — recently opened files.
 
-**Project structure (max three levels):**
+**Action bar.** Double-click (or Return) opens: a folder opens in the
+Library, a document opens for writing. The bar holds only what acts on a
+pick — Duplicate · Rename · Move to Trash, greyed when they don't fit —
+and, inside a writing, New Document · New Folder. Apart at the right, the
+**Import…** pill copies (never moves) a Markdown file from anywhere into a
+new writing of its own name, starts its history and opens it. Renaming a
+folder renames only the folder; renaming a document renames it and its
+history.
+
+**Writing structure (max three levels):**
 
 | Level | Can contain |
 |---|---|
-| My Stuff (top level) | Documents (My Documents) and projects (My Projects) |
-| Project | Documents and folders |
-| Folder inside a project | Documents only |
+| My Writings (top level) | Writings (folders) |
+| Writing | Documents and folders |
+| Folder inside a writing | Documents only |
 
-- `New Folder` is offered only inside a project.
-- A document named "Outline" is pinned first in its project.
+- `New Folder` is offered only inside a writing; the drawer's writing blade
+  ends with `New Document`.
+- A document named "Outline" is pinned first in its writing.
 - Deeper folders created in the Finder are still shown (files never seem to
   vanish), but the app never creates them. This is a documented power-user
   feature: "Want folders of folders? Make them in the Finder."
+
+**Move Library…** (Settings): the classic Save dialog picks the folder (and
+name) the whole library moves into. On the same disk it is one catalog move;
+onto another disk everything is copied, Recent follows the copies, and the
+original goes to the Trash. Where it went is kept in "Mac MD Write Library"
+in the Preferences folder (System Folder on System 6). Documents, journals,
+templates and prefs always move together.
 
 **Export** on a project writes one combined `.md` (documents in project
 order) — the way to assemble a manuscript. A destructive Merge command is

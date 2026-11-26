@@ -76,21 +76,25 @@
 
 ## 0.04 alpha — Library: every writing is a folder (Robert's design)
 
-- **No project/document choice up front.** Every new writing is a folder
-  holding its first document, so a piece can grow into a project later
-  without moving anything.
-- **My Stuff becomes My Writings.** New Project and New Document leave the
-  action bar; the shelf's first tile is an icon with a + in the middle,
-  titled "New Writing", which opens a folder with a blank document ready.
-- **Naming:** the folder and its first document both take the name chosen
-  when the writing is first saved.
-- Existing loose documents and projects keep working (migration to be
-  designed with the change).
-- Cmd-S shows the title strip for ~2 s, so the name used is seen (done,
-  ships with the first 0.04 build).
-- **Settings › Move My Library…:** choose where on the disk the library
-  lives (default unchanged). Documents, invisible histories, prefs and
-  templates move together, so histories always stay beside their files.
+- **No project/document choice up front.** Every writing is a folder
+  holding its documents, so a piece can grow into a project later without
+  moving anything.
+- **My Writings** replaces My Stuff (and the My Documents / My Projects
+  folders). Its first tile, a + named **New Writing**, opens a blank page;
+  the first save (Cmd-S, or quiet first-line naming) makes the folder and
+  its first document, one name for both, and the folder follows the first
+  line with its document while app-named.
+- Loose documents found in My Writings at launch are wrapped in a folder of
+  their own name (journal included).
+- Action bar: double-click opens (folders in the Library, documents for
+  writing); Duplicate (folders too) · Rename · Move to Trash; New Document
+  and New Folder inside a writing; the **Import…** pill copies a .md from
+  anywhere into a new writing with its history.
+- Cmd-S shows the title strip for ~2 s, so the name used is seen; Import
+  too.
+- **Settings › Move Library…:** documents, invisible histories, prefs and
+  templates move together (same disk: one move; another disk: copied, then
+  the original to the Trash).
 
 ## Later alphas
 
@@ -131,7 +135,7 @@
 
 - **Find existing .md files (migration).** A Library affordance that searches
   the Mac's disks for Markdown files made elsewhere and copies them into
-  Writings (My Documents), so moving to the app is one step. Copies, never
+  My Writings (each in a writing of its own, like Import), so moving to the app is one step. Copies, never
   moves; skips Writings itself and the Trash; shows what it found before
   copying. Classic search: PBCatSearch on HFS volumes that support it,
   otherwise a recursive catalog walk.

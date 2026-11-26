@@ -76,14 +76,14 @@ static void Str(const char *s, short x, short y)
     short n = 0;
     while (s[n]) n++;
     MoveTo(x, y);
-    DrawText(s, 0, n);
+    DrawText((Ptr)s, 0, n);
 }
 
 static short SW(const char *s)
 {
     short n = 0;
     while (s[n]) n++;
-    return TextWidth(s, 0, n);
+    return TextWidth((Ptr)s, 0, n);
 }
 
 static void DrawRows(void)

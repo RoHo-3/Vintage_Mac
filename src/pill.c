@@ -72,7 +72,7 @@ static short CW(const char *s)
 {
     short n = 0;
     while (s[n]) n++;
-    return TextWidth(s, 0, n);
+    return TextWidth((Ptr)s, 0, n);
 }
 
 static short ItemW(const PillItem *it)
@@ -143,7 +143,7 @@ static void DrawItem(Placed *p)
     if (it->look == 'b') TextFace(bold);
     if (it->look == 'i') TextFace(italic);
     MoveTo(tx, base);
-    DrawText(it->label, 0, n);
+    DrawText((Ptr)it->label, 0, n);
     if (it->look == 's') {
         Point e;
         GetPen(&e);

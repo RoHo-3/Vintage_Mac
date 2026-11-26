@@ -5,7 +5,10 @@ support full version history and connected drafts later.
 
 ## Files
 
-Each document is two sibling files:
+The library is a "Writings" folder: `My Writings` (one folder per
+writing, holding its documents), `Templates`, and the invisible prefs.
+Settings › Move Library… moves it whole, so a journal never leaves its
+document's folder. Each document is two sibling files:
 
 | File | Purpose |
 |---|---|

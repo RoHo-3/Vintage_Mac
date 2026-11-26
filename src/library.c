@@ -131,10 +131,6 @@ static Boolean IsSpecial(short row, short idx)
     return IsUp(row, idx) || IsNewTile(row, idx);
 }
 
-static DirItem *FileItem(short idx)
-{
-    return &gFiles[idx];
-}
 
 /* The folder being browsed (My Writings at the top). */
 static long HereDir(Boolean unused)
