@@ -22,8 +22,30 @@ static Str63      gName;
 static short      gVRef;
 static FileFormat gFmt;
 static Boolean    gMdBehind;            /* journal has text the .md lacks */
-static short      gNewWD;               /* where the next new document goes */
+static short      gNewWD;               /* the writing a new document joins; 0:
+                                            it starts a new writing (a folder in
+                                            My Writings, made on its first save) */
 #define gDefaultVRef (gNewWD ? gNewWD : Files_DocsWD())
+
+/* Is this working directory My Writings itself (where writings start)? */
+static Boolean IsWritingsRoot(short wd)
+{
+    short v1, v2;
+    long d1, d2;
+    if (wd == Files_DocsWD()) return true;
+    Files_DocsDir(&v2, &d2);
+    return Files_DirOfWD(wd, &v1, &d1) && v1 == v2 && d1 == d2;
+}
+
+/* "Name.md" -> "Name" */
+static void BaseOf(const unsigned char *md, unsigned char *base)
+{
+    short i;
+    for (i = 0; i <= md[0]; i++) base[i] = md[i];
+    if (base[0] > 3 && base[base[0] - 2] == '.' && (base[base[0] - 1] | 0x20) == 'm'
+        && (base[base[0]] | 0x20) == 'd')
+        base[0] -= 3;
+}
 
 static void CopyPString(const unsigned char *src, unsigned char *dst)
 {
@@ -168,6 +190,18 @@ static Boolean UniqueName(unsigned char *name, short vRef)
     short n, k, i;
 
     SuggestName(name);
+    if (IsWritingsRoot(vRef)) {          /* a new writing: its folder's name */
+        short v;
+        long d;
+        unsigned char free[40];
+        BaseOf(name, base);
+        if (base[0] > 24) base[0] = 24;
+        Files_DocsDir(&v, &d);
+        if (!Files_FreeName(v, d, base, free)) return false;
+        for (i = 0; i <= free[0]; i++) name[i] = free[i];
+        name[++name[0]] = '.'; name[++name[0]] = 'm'; name[++name[0]] = 'd';
+        return true;
+    }
     if (NameFree(name, vRef))
         return true;
     CopyPString(name, base);
@@ -187,14 +221,56 @@ static Boolean UniqueName(unsigned char *name, short vRef)
     return false;
 }
 
+/* The writing (top folder in My Writings) the open document is the
+   namesake of: the folder has the document's name. */
+static Boolean NamesakeFolder(short *vol, long *dir, unsigned char *folder)
+{
+    long proj;
+    unsigned char base[40];
+    if (!gHasFile || !Files_DirOfWD(gVRef, vol, dir)) return false;
+    if (!Files_ProjectOf(*vol, *dir, &proj) || proj != *dir) return false;
+    if (!Files_FolderName(*vol, *dir, folder)) return false;
+    BaseOf(gName, base);
+    return SameName(folder, base);
+}
+
 /* An app-named document's name follows its first line (DESIGN.md, Naming
-   documents) until the writer renames it; the journal is renamed with it. */
+   documents) until the writer renames it; the journal is renamed with it.
+   A writing's namesake document takes its folder along: the two names
+   come together from what's free in My Writings (its own folder counts as
+   free), so they never drift apart. */
 static void FollowFirstLine(void)
 {
-    unsigned char want[40];
+    unsigned char want[40], folder[40], base[40], cand[40];
+    short vol, wv, k, i, n;
+    long dir, wdir;
+    Boolean namesake;
     if (!gHasFile || !(JR_Prefs() & kPrefNameFollows))
         return;
-    if (!UniqueName(want, gVRef) || SameName(want, gName))
+    namesake = NamesakeFolder(&vol, &dir, folder);
+    if (namesake) {
+        SuggestName(want);
+        BaseOf(want, base);
+        if (base[0] > 24) base[0] = 24;
+        Files_DocsDir(&wv, &wdir);
+        for (k = 1; k < 100; k++) {      /* base, "base 2", ... */
+            n = 0;
+            for (i = 1; i <= base[0]; i++) cand[++n] = base[i];
+            if (k > 1) {
+                cand[++n] = ' ';
+                if (k >= 10) cand[++n] = (unsigned char)('0' + k / 10);
+                cand[++n] = (unsigned char)('0' + k % 10);
+            }
+            cand[0] = (unsigned char)n;
+            if (SameName(cand, folder) || !Files_Exists(wv, wdir, cand))
+                break;
+        }
+        if (k >= 100) return;
+        for (i = 0; i <= cand[0]; i++) want[i] = cand[i];
+        want[++want[0]] = '.'; want[++want[0]] = 'm'; want[++want[0]] = 'd';
+    } else if (!UniqueName(want, gVRef))
+        return;
+    if (SameName(want, gName))
         return;
     if (Rename(gName, gVRef, want) != noErr)
         return;
@@ -202,6 +278,8 @@ static void FollowFirstLine(void)
         Rename(want, gVRef, gName);      /* so the pair stays together */
         return;
     }
+    if (namesake && !SameName(folder, cand))
+        Files_Rename(wv, wdir, folder, cand);
     CopyPString(want, gName);
     Chrome_SetTitle(gName);
 }
@@ -251,7 +329,21 @@ static Boolean WriteFile(void)
 static Boolean BecomeFile(const unsigned char *name, short vRef, Boolean follows)
 {
     unsigned char prefs = JR_Prefs();
-    OSErr err = Create(name, vRef, kCreator, kFileType);
+    OSErr err;
+    if (IsWritingsRoot(vRef)) {          /* a new writing: its folder, then the */
+        short vol;                       /* document inside, both one name */
+        long dir, folder;
+        unsigned char base[40], free[40];
+        BaseOf(name, base);
+        if (base[0] > 27) base[0] = 27;
+        if (!Files_DirOfWD(vRef, &vol, &dir) || !Files_FreeName(vol, dir, base, free)
+            || !Files_NewFolder(vol, dir, free, &folder) || !Files_WDFor(vol, folder, &vRef)) {
+            SysBeep(1);
+            return false;
+        }
+        gNewWD = vRef;                   /* more new documents join it */
+    }
+    err = Create(name, vRef, kCreator, kFileType);
     if (err != noErr && !(err == dupFNErr && !follows)) {   /* dialog: Replace */
         SysBeep(1);
         return false;
@@ -283,9 +375,12 @@ Boolean Doc_SaveCommand(void)
         }
         return Doc_Save();
     }
-    SuggestName(suggested);
+    if (!UniqueName(suggested, gDefaultVRef))   /* a free name, as quiet naming */
+        SuggestName(suggested);
     Files_SetDialogFolder(gDefaultVRef);
-    SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave as:", suggested, NULL, &reply);
+    SFPutFile(DialogSpot(), IsWritingsRoot(gDefaultVRef)
+              ? (ConstStringPtr)"\pName this writing:" : (ConstStringPtr)"\pSave as:",
+              suggested, NULL, &reply);
     if (!reply.good)
         return false;
     if (!BecomeFile(reply.fName, reply.vRefNum, false))
@@ -301,7 +396,7 @@ Boolean Doc_Save(void)
 
     if (!gHasFile) {
         /* Autosave, quit, switching: named in place from the first line,
-           in My Documents or the current project. No dialog. */
+           in a new writing (or the writing it joins). No dialog. */
         if (!UniqueName(suggested, gDefaultVRef) || !BecomeFile(suggested, gDefaultVRef, true)) {
             SysBeep(1);
             return false;
@@ -324,27 +419,15 @@ static Boolean SaveIfNeeded(void)
     return Doc_Save();
 }
 
-/* Cmd-N inside a project creates the document in that project; otherwise
-   new documents go to My Documents. */
-static void NewGoesBesideCurrent(void)
-{
-    short vol, mvol;
-    long dir, mdir;
-    gNewWD = 0;
-    if (gHasFile && Files_DirOfWD(gVRef, &vol, &dir)) {
-        Files_ProjectsDir(&mvol, &mdir);           /* inside a project */
-        if (vol == mvol && dir != mdir && Files_IsInside(vol, dir, mdir))
-            gNewWD = gVRef;
-    }
-}
-
+/* Where the next new document goes: 0 starts a new writing; a writing's
+   folder (or one inside it) adds the document there. */
 void Doc_SetNewFolder(short wd) { gNewWD = wd; }
 
+/* A blank page, named on its first save (see Doc_SetNewFolder). */
 void Doc_New(void)
 {
     if (!SaveIfNeeded())
         return;
-    NewGoesBesideCurrent();
     gHasFile = false;
     JR_Detach();
     Doc_Init();
@@ -408,6 +491,7 @@ void Doc_ForgetRecent(short wd, const unsigned char *name, const unsigned char *
 }
 
 Boolean Doc_HasFile(void) { return gHasFile; }
+short Doc_WD(void) { return gVRef; }
 const unsigned char *Doc_Name(void) { return gName; }
 
 Boolean Doc_IsOpen(short wd, const unsigned char *name)
@@ -450,6 +534,7 @@ void Doc_FileTrashed(short wd, const unsigned char *name)
 {
     if (Doc_IsOpen(wd, name)) {
         gHasFile = false;
+        gNewWD = 0;                      /* writing goes on in a new writing */
         JR_Detach();
         Doc_Init();
         Ed_SetText("", 0);
@@ -472,28 +557,16 @@ Boolean Doc_OpenAt(const unsigned char *name, short wd)
     return true;
 }
 
-/* A new document from a template (Blank is one): the Save dialog comes
-   first, in destWD with the template's name filled in ("Untitled" for
-   Blank); then the template's text fills the new file and writing begins.
-   The template itself is never changed. Cancel: nothing changes. */
+/* A new writing (destWD 0) or a new document in a writing (destWD) from a
+   template (Blank is one): its text fills an untitled page, named on the
+   first save like any new page. The template itself is never changed. */
 Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
 {
-    SFReply reply;
-    unsigned char suggest[40];
     short ref;
     long size, n, len = -1;
     Ptr raw = NULL, text = NULL;
     FileFormat fmt;
     if (!SaveIfNeeded())
-        return false;
-    if (name[0] == 8 && (name[1] | 0x20) == 'b' && (name[2] | 0x20) == 'l'
-        && (name[3] | 0x20) == 'a' && (name[4] | 0x20) == 'n' && (name[5] | 0x20) == 'k')
-        CopyPString((const unsigned char *)"\pUntitled.md", suggest);
-    else
-        CopyPString(name, suggest);
-    Files_SetDialogFolder(destWD);
-    SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave new document as:", suggest, NULL, &reply);
-    if (!reply.good)
         return false;
     if (FSOpen(name, wd, &ref) != noErr)
         return false;
@@ -508,6 +581,7 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
     FSClose(ref);
     if (len >= 0) {
         gHasFile = false;
+        gNewWD = destWD;
         JR_Detach();
         Doc_Init();
         gFmt = fmt;
@@ -516,9 +590,7 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
         Chrome_SetTitle((const unsigned char *)"\pUntitled");
         Chrome_TextChanged();
         Chrome_ResetClock();
-        if (BecomeFile(reply.fName, reply.vRefNum, false))
-            Doc_Save();                  /* the file exists from the start */
-        Doc_Remember();
+        Doc_Remember();                  /* nothing to reopen until it's saved */
     }
     if (raw) DisposePtr(raw);
     if (text) DisposePtr(text);
@@ -550,6 +622,45 @@ Boolean Doc_Open(void)
     SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
     if (!reply.good || !OpenFile(reply.fName, reply.vRefNum))
         return false;
+    Doc_Remember();
+    return true;
+}
+
+/* Library > Import...: a Markdown file from anywhere is copied (never moved)
+   into a new writing of its own name in My Writings, gets its history, and
+   opens. The original is left as it was. */
+Boolean Doc_Import(void)
+{
+    SFReply reply;
+    unsigned char base[40], free[40], md[40];
+    short v, wd, i, n;
+    long d, nd;
+    if (!SaveIfNeeded())
+        return false;
+    SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
+    if (!reply.good)
+        return false;
+    for (i = 0; i <= reply.fName[0]; i++) base[i] = reply.fName[i];
+    n = base[0];                         /* "Notes.md", ".txt", ".markdown" off */
+    for (i = n; i > 1 && base[i] != '.'; i--)
+        ;
+    if (i > 1 && n - i <= 8) base[0] = (unsigned char)(i - 1);
+    if (base[0] > 24) base[0] = 24;      /* room for " 99" and the journal */
+    Files_DocsDir(&v, &d);
+    if (!Files_FreeName(v, d, base, free) || !Files_NewFolder(v, d, free, &nd)
+        || !Files_WDFor(v, nd, &wd)) {
+        SysBeep(1);
+        return false;
+    }
+    for (i = 0; i <= free[0]; i++) md[i] = free[i];
+    md[++md[0]] = '.'; md[++md[0]] = 'm'; md[++md[0]] = 'd';
+    if (!Files_CopyTo(reply.vRefNum, reply.fName, wd, md) || !OpenFile(md, wd)) {
+        Files_Trash(v, d, free);         /* nothing half-made left behind */
+        SysBeep(1);
+        return false;
+    }
+    gNewWD = wd;
+    JR_Checkpoint(Ed_Caret(), "Imported");   /* its history starts here */
     Doc_Remember();
     return true;
 }

@@ -15,6 +15,7 @@
 #include <Events.h>
 #include <OSUtils.h>
 #include <ToolUtils.h>
+#include <StandardFile.h>
 
 #include "editor.h"
 #include "files.h"
@@ -73,13 +74,13 @@ static const char kWelcome[] =
     "\r"
     "## Files\r"
     "\r"
-    "Command-O opens the Library: templates, your documents and projects, "
-    "and recent files. Command-N opens it with Blank picked: press Return "
-    "(or pick a template), choose a folder and a name, and start writing. "
-    "Command-S saves; an untitled page asks for a name first. An untitled "
-    "page you never save is named from its first line when you pause, in "
-    "My Documents (in the \"Writings\" folder next to the app). Quit "
-    "and relaunch: your last "
+    "Command-O opens the Library: templates, My Writings and recent files. "
+    "Every writing is a folder: the + tile (or Command-N, then Return) "
+    "starts one on a blank page. Name it with Command-S, or just write: "
+    "when you pause, the writing and its first document take their name "
+    "from your first line. Double-click a writing to see inside, a "
+    "document to write in it. Import copies a Markdown file from anywhere "
+    "into a writing of its own. Quit and relaunch: your last "
     "document reopens where you left off. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
     "original line endings, so they round-trip with modern editors. "
@@ -198,6 +199,35 @@ void App_SetStatusParts(Boolean words, Boolean clock)
     Prefs_Load(&p);
     p.hide = (short)((words ? 0 : 1) | (clock ? 0 : 2));
     Prefs_Save(&p);
+}
+
+/* Settings > Move Library...: the classic Save dialog picks the folder
+   (and the name) the whole library moves into; the open document is saved
+   first and reopened from its new place. */
+void App_MoveLibrary(void)
+{
+    SFReply reply;
+    Point where;
+    short wd;
+    unsigned char name[64];
+    if (!Doc_CanQuit()) return;          /* saved, and remembered */
+    if (!Files_LibraryName(name)) return;
+    if (Files_LibraryParentWD(&wd)) Files_SetDialogFolder(wd);
+    SetPt(&where, 80, 60);
+    SFPutFile(where, PSTR("\pMove the library into this folder as:"), name, NULL, &reply);
+    SetPort(gWindow);
+    InvalRect(&gWindow->portRect);       /* the dialog drew over the page */
+    if (!reply.good) return;
+    if (!Files_MoveLibrary(reply.vRefNum, reply.fName)) {
+        SysBeep(1);                      /* inside itself, a name taken, disk full */
+        return;
+    }
+    Files_Init();                        /* the library's new home */
+    Lib_Reset();
+    if (!Doc_Reopen()) {
+        Doc_SetNewFolder(0);
+        Doc_New();
+    }
 }
 
 void App_Quit(void)
@@ -412,7 +442,8 @@ int main(void)
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
     }
-    Files_Init();                /* Writings beside the app */
+    Files_Init();                /* Writings beside the app (or where it moved) */
+    Files_WrapLoose();           /* every writing is a folder */
     Files_TidyJournals();        /* journals whose document left via the Finder */
     {
         Prefs p;                 /* the font and size chosen last time */

@@ -30,7 +30,7 @@ static short gY;                         /* top of the panel being drawn: 0, or 
 
 enum { kRoot, kProject, kFolder, kSections, kSettings };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
-       aFont, aSize, aMarks, aWords, aClock };
+       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib };
 
 typedef struct {
     short kind;
@@ -194,6 +194,8 @@ static void BuildRows(void)
         Files_ProjectsDir(&vol, &proj);
         if (!Files_FolderName(vol, b->dir, gBladeTitle)) gBladeTitle[0] = 0;
         BuildFolderRows(b->dir, b->kind == kProject && gDepth < kMaxDepth);
+        r = AddRow("", aNone, 0); if (r) r->sep = 1;
+        r = AddRow("New Document", aNewDoc, b->dir);     /* the writing grows */
         break;
     case kSections:
         CStr("Sections", gBladeTitle);
@@ -209,6 +211,9 @@ static void BuildRows(void)
         r = AddRow("", aNone, 0); r->sep = 1;
         r = AddRow("Show Markdown", aMarks, 0); r->check = 1; r->checked = Ed_ShowMarks();
         CStr("this doc", r->value);
+        r = AddRow("", aNone, 0); r->sep = 1;
+        r = AddRow("Move Library\311", aMoveLib, 0);
+        if (!Files_LibraryPlace(r->value)) r->value[0] = 0;   /* the folder it's in */
         break;
     }
     if (b->sel >= gRowN) b->sel = gRowN - 1;
@@ -474,6 +479,20 @@ static void Activate(short i)
         Doc_ToggleMarks();
         BuildRows();
         DrawTop();
+        break;
+    case aNewDoc: {                      /* a new page in this writing */
+        short wd, vol;
+        long proj;
+        Files_ProjectsDir(&vol, &proj);
+        if (!Files_WDFor(vol, r->arg, &wd)) { SysBeep(1); break; }
+        Drawer_Close();
+        Doc_SetNewFolder(wd);
+        Doc_New();
+        break;
+    }
+    case aMoveLib:
+        Drawer_Close();
+        App_MoveLibrary();
         break;
     }
 }

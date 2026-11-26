@@ -13,6 +13,7 @@ void    Doc_Init(void);
 void    Doc_New(void);
 Boolean Doc_SaveCommand(void);  /* Cmd-S: Save dialog when untitled */
 Boolean Doc_Open(void);          /* classic dialog (Library's Other...) */
+Boolean Doc_Import(void);        /* copy a .md from anywhere into a new writing */
 Boolean Doc_Save(void);          /* false if cancelled or failed */
 void    Doc_Idle(void);          /* autosave on pause */
 void    Doc_Suspend(void);       /* switching to another app */
@@ -24,6 +25,7 @@ Boolean Doc_Reopen(void);       /* launch: reopen it; false = none */
 
 /* For the Library. wd: a working directory (files.h). */
 Boolean Doc_HasFile(void);
+short   Doc_WD(void);                  /* its folder's working directory */
 const unsigned char *Doc_Name(void);   /* the file's name (if it has one) */
 Boolean Doc_Location(short *vol, long *dirID);
 Boolean Doc_IsOpen(short wd, const unsigned char *name);

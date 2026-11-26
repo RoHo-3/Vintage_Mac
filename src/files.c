@@ -10,8 +10,12 @@
 #define kPrefsVers  2
 
 static void FixFakeTrash(short vol);
+static Boolean TrashDir(short vol, long *dir);
+static Boolean HaveFindFolder(void);
+static Boolean IsDoc(const unsigned char *name, OSType type);
+static Boolean MoveItem(short vol, long from, ConstStr255Param name, long to);
 
-static short gDocsWD, gTemplatesWD, gRootWD;   /* My Files, Templates, Mac MD Write */
+static short gDocsWD, gTemplatesWD, gRootWD;   /* My Writings, Templates, Writings */
 static short gDocsVol;
 static long  gDocsDir;
 
@@ -104,98 +108,102 @@ static Boolean SameP(const unsigned char *a, const unsigned char *b)
 
 static short gProjVol;
 static long  gProjDir;
+static short gRootVol;
+static long  gRootDir;                   /* "Writings" itself */
 
-/* Earlier builds kept documents directly in "Mac MD Write" (29-34) or in a
-   "My Files" folder (35). Each launch tidies the top: documents move to My
-   Documents, folders (projects) to My Projects; the prefs follow. */
-static void Tidy(short vol, long from, long root, long docs, long projs, Prefs *p)
+/* ---- where the library is: a pointer file in the Preferences folder ----
+   The library can be moved (Settings > Move Library...); the prefs live
+   inside it, so where it went is kept outside it: "Mac MD Write Library"
+   in the System Folder's Preferences (System 7) or the System Folder. */
+
+#define kPointerName ((ConstStr255Param)"\pMac MD Write Library")
+
+static Boolean PrefsFolder(short *vol, long *dir)
 {
-    CInfoPBRec ci;
-    CMovePBRec mv;
-    Str63 name;
-    short idx = 1, i;
-    Boolean isDir;
-    long sub;
-    while (true) {
-        ci.hFileInfo.ioCompletion = NULL;
-        ci.hFileInfo.ioNamePtr = name;
-        ci.hFileInfo.ioVRefNum = vol;
-        ci.hFileInfo.ioFDirIndex = idx;
-        ci.hFileInfo.ioDirID = from;
-        if (PBGetCatInfoSync(&ci) != noErr)
-            break;
-        isDir = (ci.hFileInfo.ioFlAttrib & 0x10) != 0;
-        sub = ci.dirInfo.ioDrDirID;
-        if (from == root && (SameP(name, (ConstStr255Param)"\pMy Documents")
-            || SameP(name, (ConstStr255Param)"\pMy Projects")
-            || SameP(name, (ConstStr255Param)"\pTemplates")
-            || SameP(name, (ConstStr255Param)"\pMac MD Write Prefs"))) {
-            idx++;
-            continue;
-        }
-        if (from == root && isDir && SameP(name, (ConstStr255Param)"\pMy Files")) {
-            HParamBlockRec del;
-            Tidy(vol, sub, root, docs, projs, p);       /* empty it, then remove it */
-            del.fileParam.ioCompletion = NULL;
-            del.fileParam.ioNamePtr = name;
-            del.fileParam.ioVRefNum = vol;
-            del.fileParam.ioDirID = root;
-            if (PBHDeleteSync(&del) != noErr) idx++;
-            continue;
-        }
-        mv.ioCompletion = NULL;
-        mv.ioNamePtr = name;
-        mv.ioVRefNum = vol;
-        mv.ioNewName = NULL;
-        mv.ioNewDirID = isDir ? projs : docs;
-        mv.ioDirID = from;
-        if (PBCatMoveSync(&mv) != noErr)
-            idx++;                       /* a name clash: leave it */
-        /* on success the indexes shift: same idx again */
+    SysEnvRec env;
+    if (HaveFindFolder())
+        return FindFolder(-32768, 'pref', true, vol, dir) == noErr;   /* kOnSystemDisk */
+    if (SysEnvirons(1, &env) != noErr) return false;
+    return WDInfo(env.sysVRefNum, vol, dir);
+}
+
+static Boolean LoadPointer(FolderLoc *loc)
+{
+    short vol, wd, ref;
+    long dir, n = sizeof(FolderLoc);
+    Boolean ok;
+    if (!PrefsFolder(&vol, &dir) || !OpenWD(vol, dir, &wd)) return false;
+    if (FSOpen(kPointerName, wd, &ref) != noErr) return false;
+    ok = FSRead(ref, &n, (Ptr)loc) == noErr && n == sizeof(FolderLoc);
+    FSClose(ref);
+    return ok;
+}
+
+static void SavePointer(const FolderLoc *loc)
+{
+    short vol, wd, ref;
+    long dir, n = sizeof(FolderLoc);
+    OSErr err;
+    if (!PrefsFolder(&vol, &dir) || !OpenWD(vol, dir, &wd)) return;
+    if (!loc) {                          /* back to the default: forget it */
+        FSDelete(kPointerName, wd);
+        return;
     }
-    if (p->lastDir.dirID == from) p->lastDir.dirID = docs;   /* moved documents */
-    for (i = 0; i < p->recentCount; i++)
-        if (p->recent[i].dir.dirID == from) p->recent[i].dir.dirID = docs;
+    err = Create(kPointerName, wd, kCreator, kPrefsType);
+    if (err != noErr && err != dupFNErr) return;
+    if (FSOpen(kPointerName, wd, &ref) != noErr) return;
+    FSWrite(ref, &n, (Ptr)loc);
+    SetEOF(ref, n);
+    FSClose(ref);
+}
+
+/* The folder the library lives in: beside the app ("Writings"), unless it
+   was moved and the pointer still finds it. */
+static Boolean FindRoot(short appVol, long appDir, short *vol, long *dir)
+{
+    FolderLoc loc;
+    short wd;
+    CInfoPBRec ci;
+    if (LoadPointer(&loc) && Files_WDOf(&loc, &wd) && WDInfo(wd, vol, dir)) {
+        ci.dirInfo.ioCompletion = NULL;  /* still a folder (not in the Trash)? */
+        ci.dirInfo.ioNamePtr = NULL;
+        ci.dirInfo.ioVRefNum = *vol;
+        ci.dirInfo.ioFDirIndex = -1;
+        ci.dirInfo.ioDrDirID = *dir;
+        if (PBGetCatInfoSync(&ci) == noErr) {
+            long trash;
+            if (!(TrashDir(*vol, &trash) && Files_IsInside(*vol, *dir, trash)))
+                return true;
+        }
+    }
+    *vol = appVol;
+    return SubFolder(appVol, appDir, (ConstStr255Param)"\pWritings", dir);
 }
 
 Boolean Files_Init(void)
 {
-    short appWD, vol;
-    long appDir, rootDir, docsDir, projDir, tplDir;
-    Prefs p;
+    short appWD, vol, rvol;
+    long appDir, rootDir, docsDir, tplDir;
 
     GetVol(NULL, &appWD);                /* launch sets it to the app's folder */
     gDocsWD = gTemplatesWD = gRootWD = appWD;   /* fallback: beside the app */
     if (!WDInfo(appWD, &vol, &appDir))
         return false;
     FixFakeTrash(vol);
-    /* Earlier names: "Mac MD Write" (builds 29-41, looked like the app) and
-       "Library" (42-43, clashes with the OS's Library folders). Rename the
-       old folder once; contents and folder IDs stay. */
-    if (!Files_Exists(vol, appDir, (ConstStr255Param)"\pWritings")) {
-        if (!Files_Rename(vol, appDir, (ConstStr255Param)"\pLibrary",
-                          (ConstStr255Param)"\pWritings"))
-            Files_Rename(vol, appDir, (ConstStr255Param)"\pMac MD Write",
-                         (ConstStr255Param)"\pWritings");
-    }
-    if (!SubFolder(vol, appDir, (ConstStr255Param)"\pWritings", &rootDir)
-        || !OpenWD(vol, rootDir, &gRootWD))
+    if (!FindRoot(vol, appDir, &rvol, &rootDir) || !OpenWD(rvol, rootDir, &gRootWD))
         return false;
+    gRootVol = rvol;
+    gRootDir = rootDir;
     gDocsWD = gTemplatesWD = gRootWD;
-    gDocsVol = gProjVol = vol;
+    gDocsVol = gProjVol = rvol;
     gDocsDir = gProjDir = rootDir;
-    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Documents", &docsDir)
-        && OpenWD(vol, docsDir, &gDocsWD))
-        gDocsDir = docsDir;
-    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Projects", &projDir))
-        gProjDir = projDir;
-    if (gDocsDir != rootDir && gProjDir != rootDir) {
-        Prefs_Load(&p);
-        Tidy(vol, rootDir, rootDir, gDocsDir, gProjDir, &p);
-        Prefs_Save(&p);
-    }
-    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pTemplates", &tplDir)
-        && OpenWD(vol, tplDir, &gTemplatesWD)) {
+    /* Writings holds two peers: My Writings (every writing is a folder)
+       and Templates, plus the invisible prefs */
+    if (SubFolder(rvol, rootDir, (ConstStr255Param)"\pMy Writings", &docsDir)
+        && OpenWD(rvol, docsDir, &gDocsWD))
+        gDocsDir = gProjDir = docsDir;
+    if (SubFolder(rvol, rootDir, (ConstStr255Param)"\pTemplates", &tplDir)
+        && OpenWD(rvol, tplDir, &gTemplatesWD)) {
         /* a Templates folder always offers at least Blank */
         short ref;
         if (Create((ConstStr255Param)"\pBlank.md", gTemplatesWD, kCreator, 'TEXT') == noErr
@@ -203,6 +211,96 @@ Boolean Files_Init(void)
             FSClose(ref);
     }
     return true;
+}
+
+/* A name free in (vol, dir): base, "base 2", ... (at most 31 characters). */
+static Boolean FreeIn(short vol, long dir, const unsigned char *base, unsigned char *out)
+{
+    short k, i, n;
+    for (k = 1; k < 100; k++) {
+        n = 0;
+        for (i = 1; i <= base[0] && n < 27; i++) out[++n] = base[i];
+        if (k > 1) {
+            out[++n] = ' ';
+            if (k >= 10) out[++n] = (unsigned char)('0' + k / 10);
+            out[++n] = (unsigned char)('0' + k % 10);
+        }
+        out[0] = (unsigned char)n;
+        if (!Files_Exists(vol, dir, out))
+            return true;
+    }
+    return false;
+}
+
+Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out)
+{
+    return FreeIn(vol, dir, base, out);
+}
+
+static Boolean MoveItem(short vol, long from, ConstStr255Param name, long to)
+{
+    CMovePBRec mv;
+    mv.ioCompletion = NULL;
+    mv.ioNamePtr = (StringPtr)name;
+    mv.ioVRefNum = vol;
+    mv.ioNewName = NULL;
+    mv.ioNewDirID = to;
+    mv.ioDirID = from;
+    return PBCatMoveSync(&mv) == noErr;
+}
+
+/* Every writing is a folder. A document dropped loose into My Writings (from
+   the Finder, say) is wrapped in a folder of its own name at launch, its
+   journal moving with it; Recent and the last document follow it. */
+void Files_WrapLoose(void)
+{
+    CInfoPBRec ci;
+    Str63 name;
+    unsigned char base[40], folder[40], hist[40];
+    short idx = 1, i, tries = 0;
+    long nd;
+    Prefs p;
+    Boolean changed = false;
+    Prefs_Load(&p);
+    while (tries++ < 200) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = gDocsVol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = gDocsDir;
+        if (PBGetCatInfoSync(&ci) != noErr)
+            break;
+        if ((ci.hFileInfo.ioFlAttrib & 0x10) || (ci.hFileInfo.ioFlFndrInfo.fdFlags & 0x4000)
+            || !IsDoc(name, ci.hFileInfo.ioFlFndrInfo.fdType)) {
+            idx++;                       /* folders, journals, other files */
+            continue;
+        }
+        for (i = 0; i <= name[0]; i++) base[i] = name[i];
+        if (base[0] > 3 && base[base[0] - 2] == '.' && (base[base[0] - 1] | 0x20) == 'm'
+            && (base[base[0]] | 0x20) == 'd')
+            base[0] -= 3;
+        if (!FreeIn(gDocsVol, gDocsDir, base, folder)
+            || !Files_NewFolder(gDocsVol, gDocsDir, folder, &nd)
+            || !MoveItem(gDocsVol, gDocsDir, name, nd)) {
+            idx++;                       /* leave it where it is */
+            continue;
+        }
+        JR_HistoryName(name, hist);
+        MoveItem(gDocsVol, gDocsDir, hist, nd);       /* fnfErr: no journal */
+        if (p.lastDir.dirID == gDocsDir && SameP(p.lastName, name)) {
+            p.lastDir.dirID = nd;
+            changed = true;
+        }
+        for (i = 0; i < p.recentCount; i++)
+            if (p.recent[i].dir.dirID == gDocsDir && SameP(p.recent[i].name, name)) {
+                p.recent[i].dir.dirID = nd;
+                changed = true;
+            }
+        /* the listing changed under us: start over (the new folder is
+           skipped, being a folder) */
+        idx = 1;
+    }
+    if (changed) Prefs_Save(&p);
 }
 
 /* Where the next Standard File dialog opens (low-memory globals). */
@@ -267,8 +365,7 @@ static void TrashOrphans(short vol, long dir, short depth)
 
 void Files_TidyJournals(void)
 {
-    TrashOrphans(gDocsVol, gDocsDir, 1);
-    TrashOrphans(gProjVol, gProjDir, 3);  /* projects, their folders */
+    TrashOrphans(gDocsVol, gDocsDir, 3);  /* writings, their folders */
 }
 
 void Files_ProjectsDir(short *vol, long *dirID) { *vol = gProjVol; *dirID = gProjDir; }
@@ -285,7 +382,7 @@ Boolean Files_FolderName(short vol, long dir, unsigned char *name)
     return PBGetCatInfoSync(&ci) == noErr;
 }
 
-/* The project (top folder in My Projects) that holds dir, if any. */
+/* The writing (top folder in My Writings) that holds dir, if any. */
 Boolean Files_ProjectOf(short vol, long dir, long *project)
 {
     CInfoPBRec ci;
@@ -383,8 +480,6 @@ short Files_List(short vol, long dirID, DirItem *items, short max)
         if (ci.hFileInfo.ioFlFndrInfo.fdFlags & 0x4000)
             continue;                    /* invisible */
         if (ci.hFileInfo.ioFlAttrib & 0x10) {
-            if (dirID == gDocsDir && NameEq(name, "Templates"))
-                continue;                /* Templates has its own row */
             items[n].isFolder = true;
             items[n].dirID = ci.dirInfo.ioDrDirID;
         } else {
@@ -666,4 +761,220 @@ void Prefs_Save(const Prefs *p)
             SetFInfo(kPrefsName, gRootWD, &fi);
         }
     }
+}
+
+/* ---- copying folders: Duplicate, and moving the library to another disk */
+
+#define kMaxMap 128
+static long  gMapFrom[kMaxMap], gMapTo[kMaxMap];
+static short gMapN;
+
+static Boolean CopyFork(short svol, long sdir, ConstStr255Param sname,
+                        short dvol, long ddir, ConstStr255Param dname, Boolean rsrc)
+{
+    short in, out;
+    long n;
+    char buf[1024];
+    OSErr err;
+    err = rsrc ? HOpenRF(svol, sdir, sname, fsRdPerm, &in)
+               : HOpen(svol, sdir, sname, fsRdPerm, &in);
+    if (err != noErr) return true;       /* no such fork: nothing to copy */
+    err = rsrc ? HOpenRF(dvol, ddir, dname, fsWrPerm, &out)
+               : HOpen(dvol, ddir, dname, fsWrPerm, &out);
+    if (err != noErr) { FSClose(in); return false; }
+    do {
+        n = sizeof(buf);
+        err = FSRead(in, &n, buf);
+        if (n > 0 && FSWrite(out, &n, buf) != noErr) { err = -1; break; }
+    } while (err == noErr);
+    FSClose(in);
+    FSClose(out);
+    return err == eofErr;
+}
+
+static Boolean CopyFile(short svol, long sdir, ConstStr255Param name,
+                        short dvol, long ddir)
+{
+    FInfo fi;
+    if (HGetFInfo(svol, sdir, name, &fi) != noErr) return false;
+    if (HCreate(dvol, ddir, name, fi.fdCreator, fi.fdType) != noErr) return false;
+    if (!CopyFork(svol, sdir, name, dvol, ddir, name, false)
+        || !CopyFork(svol, sdir, name, dvol, ddir, name, true))
+        return false;
+    fi.fdLocation.h = fi.fdLocation.v = 0;   /* the Finder places it */
+    fi.fdFlags &= ~0x0100;                   /* not "inited" on the new disk */
+    HSetFInfo(dvol, ddir, name, &fi);        /* type, creator, invisible bit */
+    return true;
+}
+
+/* Copy folder sdir (and everything in it) into dparent as name. */
+static Boolean CopyTree(short svol, long sdir, short dvol, long dparent,
+                        ConstStr255Param name, long *newDir, short depth)
+{
+    CInfoPBRec ci;
+    Str63 item;
+    short idx;
+    long nd;
+    if (depth > 8 || !Files_NewFolder(dvol, dparent, name, &nd)) return false;
+    if (gMapN < kMaxMap) { gMapFrom[gMapN] = sdir; gMapTo[gMapN] = nd; gMapN++; }
+    for (idx = 1; ; idx++) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = item;
+        ci.hFileInfo.ioVRefNum = svol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = sdir;
+        if (PBGetCatInfoSync(&ci) != noErr) break;
+        if (ci.hFileInfo.ioFlAttrib & 0x10) {
+            long sub;
+            if (!CopyTree(svol, ci.dirInfo.ioDrDirID, dvol, nd, item, &sub, depth + 1))
+                return false;
+        } else if (!CopyFile(svol, sdir, item, dvol, nd))
+            return false;
+    }
+    if (newDir) *newDir = nd;
+    return true;
+}
+
+/* Duplicate a folder beside itself as name (Library: Duplicate). */
+Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = (StringPtr)from;
+    ci.dirInfo.ioVRefNum = vol;
+    ci.dirInfo.ioFDirIndex = 0;
+    ci.dirInfo.ioDrDirID = parent;
+    if (PBGetCatInfoSync(&ci) != noErr || !(ci.dirInfo.ioFlAttrib & 0x10)) return false;
+    gMapN = 0;
+    return CopyTree(vol, ci.dirInfo.ioDrDirID, vol, parent, to, NULL, 0);
+}
+
+static long Mapped(long dir)
+{
+    short i;
+    for (i = 0; i < gMapN; i++)
+        if (gMapFrom[i] == dir) return gMapTo[i];
+    return 0;
+}
+
+static void VolName(short vol, unsigned char *name)
+{
+    HParamBlockRec pb;
+    pb.volumeParam.ioCompletion = NULL;
+    pb.volumeParam.ioNamePtr = name;
+    pb.volumeParam.ioVRefNum = vol;
+    pb.volumeParam.ioVolIndex = 0;
+    if (PBHGetVInfoSync(&pb) != noErr) name[0] = 0;
+}
+
+/* Settings > Move Library...: the whole Writings folder (documents, their
+   invisible journals, templates, prefs) moves into (destWD) as name, so
+   journals always stay beside their documents. On the same disk it is one
+   catalog move (folder IDs, so Recent, stay valid); onto another disk it is
+   copied, Recent is pointed at the copies, and the original goes to the
+   Trash. The caller has saved the open document; call Files_Init after. */
+Boolean Files_MoveLibrary(short destWD, ConstStr255Param name)
+{
+    short dvol, i;
+    long ddir, nd;
+    unsigned char oldName[64], vname[32];
+    FolderLoc loc;
+    Prefs p;
+    if (!WDInfo(destWD, &dvol, &ddir)) return false;
+    if (dvol == gRootVol && Files_IsInside(dvol, ddir, gRootDir)) return false;   /* into itself */
+    if (Files_Exists(dvol, ddir, name)) return false;
+    if (!Files_FolderName(gRootVol, gRootDir, oldName)) return false;
+    if (dvol == gRootVol) {
+        CInfoPBRec ci;                   /* the folder Writings is in now */
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = NULL;
+        ci.dirInfo.ioVRefNum = gRootVol;
+        ci.dirInfo.ioFDirIndex = -1;
+        ci.dirInfo.ioDrDirID = gRootDir;
+        if (PBGetCatInfoSync(&ci) != noErr) return false;
+        if (ci.dirInfo.ioDrParID != ddir) {
+            if (Files_Exists(dvol, ddir, oldName)) return false;   /* clash */
+            if (!MoveItem(gRootVol, ci.dirInfo.ioDrParID, oldName, ddir)) return false;
+        }
+        for (i = 0; i <= name[0] && oldName[i] == name[i]; i++)
+            ;
+        if (i <= name[0])                /* a new name too */
+            Files_Rename(dvol, ddir, oldName, name);
+        nd = gRootDir;
+    } else {
+        long parent;
+        CInfoPBRec ci;
+        gMapN = 0;
+        Prefs_Load(&p);
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = NULL;
+        ci.dirInfo.ioVRefNum = gRootVol;
+        ci.dirInfo.ioFDirIndex = -1;
+        ci.dirInfo.ioDrDirID = gRootDir;
+        if (PBGetCatInfoSync(&ci) != noErr) return false;
+        parent = ci.dirInfo.ioDrParID;
+        if (!CopyTree(gRootVol, gRootDir, dvol, ddir, name, &nd, 0)) {
+            Files_Trash(dvol, ddir, name);   /* half a copy: the original stays */
+            return false;
+        }
+        VolName(dvol, vname);            /* Recent and the last document */
+        if (Mapped(p.lastDir.dirID)) {
+            p.lastDir.dirID = Mapped(p.lastDir.dirID);
+            for (i = 0; i <= vname[0]; i++) p.lastDir.volName[i] = vname[i];
+        }
+        for (i = 0; i < p.recentCount; i++) {
+            long m = Mapped(p.recent[i].dir.dirID);
+            short k;
+            if (!m) continue;
+            p.recent[i].dir.dirID = m;
+            for (k = 0; k <= vname[0]; k++) p.recent[i].dir.volName[k] = vname[k];
+        }
+        {
+            short wd;                    /* the prefs in the copy */
+            if (OpenWD(dvol, nd, &wd)) {
+                short save = gRootWD;
+                gRootWD = wd;
+                Prefs_Save(&p);
+                gRootWD = save;
+            }
+        }
+        Files_Trash(gRootVol, parent, oldName);   /* the original: recoverable */
+    }
+    {
+        short wd;
+        if (OpenWD(dvol, nd, &wd) && Files_LocOf(wd, &loc))
+            SavePointer(&loc);
+    }
+    return true;
+}
+
+/* Where the library is, for Settings: its parent folder's name. */
+Boolean Files_LibraryPlace(unsigned char *name)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = NULL;
+    ci.dirInfo.ioVRefNum = gRootVol;
+    ci.dirInfo.ioFDirIndex = -1;
+    ci.dirInfo.ioDrDirID = gRootDir;
+    if (PBGetCatInfoSync(&ci) != noErr) return false;
+    return Files_FolderName(gRootVol, ci.dirInfo.ioDrParID, name);
+}
+
+/* The library's own folder, for the Move dialog to start beside it. */
+Boolean Files_LibraryParentWD(short *wd)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = NULL;
+    ci.dirInfo.ioVRefNum = gRootVol;
+    ci.dirInfo.ioFDirIndex = -1;
+    ci.dirInfo.ioDrDirID = gRootDir;
+    if (PBGetCatInfoSync(&ci) != noErr) return false;
+    return OpenWD(gRootVol, ci.dirInfo.ioDrParID, wd);
+}
+
+Boolean Files_LibraryName(unsigned char *name)
+{
+    return Files_FolderName(gRootVol, gRootDir, name);
 }

@@ -1,10 +1,10 @@
 /*
  * Where documents live, and the small preferences file.
  *
- * A "Writings" folder next to the application holds three peers:
- * "My Documents" (loose documents), "My Projects" (project folders) and
- * "Templates", plus the prefs. The Library shows the first two together on
- * one shelf, MY STUFF.
+ * A "Writings" folder (next to the application, unless moved with Settings >
+ * Move Library...) holds two peers: "My Writings", where every writing is a
+ * folder holding its documents, and "Templates", plus the invisible prefs.
+ * The Library shows My Writings on its middle shelf.
  * Folders are reached through working-directory refnums, so the rest of the
  * app keeps using the classic (name, vRefNum) file calls on System 6 and 7.
  *
@@ -17,7 +17,7 @@
 #include <Files.h>
 
 Boolean Files_Init(void);            /* false: no folder (locked disk?) */
-short   Files_DocsWD(void);          /* My Files */
+short   Files_DocsWD(void);          /* My Writings */
 short   Files_TemplatesWD(void);
 
 /* A folder as a lasting location (volume name + dirID) and back. */
@@ -31,13 +31,13 @@ Boolean Files_WDOf(const FolderLoc *loc, short *wdRef);
 
 /* Folders as (volume, dirID); a working directory is opened (and kept)
    for each folder the app touches, so (name, wdRef) calls work on it. */
-void    Files_DocsDir(short *vol, long *dirID);       /* My Documents */
-void    Files_ProjectsDir(short *vol, long *dirID);   /* My Projects */
+void    Files_DocsDir(short *vol, long *dirID);       /* My Writings */
+void    Files_ProjectsDir(short *vol, long *dirID);   /* My Writings too */
 Boolean Files_WDFor(short vol, long dirID, short *wdRef);
 Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
 Boolean Files_IsInside(short vol, long dir, long ancestor);
 Boolean Files_FolderName(short vol, long dir, unsigned char *name);
-Boolean Files_ProjectOf(short vol, long dir, long *project);   /* in My Projects */
+Boolean Files_ProjectOf(short vol, long dir, long *project);   /* its writing folder */
 void    Files_SetDialogFolder(short wdRef);
 void    Files_TidyJournals(void);  /* launch: orphaned .history files to the Trash */   /* next SFGetFile/SFPutFile */
 
@@ -57,6 +57,16 @@ Boolean Files_Trash(short vol, long dirID, ConstStr255Param name);
 Boolean Files_Copy(short wdRef, ConstStr255Param from, ConstStr255Param to);
 Boolean Files_CopyTo(short wdRef, ConstStr255Param from, short dstWD, ConstStr255Param to);
 Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
+Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
+Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
+void    Files_WrapLoose(void);       /* launch: loose documents get a folder each */
+
+/* The library itself (Settings). Move: the caller saved first and calls
+   Files_Init afterwards. */
+Boolean Files_MoveLibrary(short destWD, ConstStr255Param name);
+Boolean Files_LibraryPlace(unsigned char *name);   /* the folder it's in */
+Boolean Files_LibraryName(unsigned char *name);
+Boolean Files_LibraryParentWD(short *wd);
 
 #define kMaxRecent 8
 typedef struct {

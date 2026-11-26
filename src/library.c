@@ -36,11 +36,11 @@
 
 enum { kRowTpl, kRowFiles, kRowRecent, kRows };
 enum { kActOpen, kActDuplicate, kActRename, kActTrash,
-       kActNewProject, kActNewFolder, kActOther, kActNewDoc, kActCount };
+       kActNewFolder, kActOther, kActNewDoc, kActCount };
 
 static const char *kActName[kActCount] = {
     "Open", "Duplicate", "Rename", "Move to Trash",
-    "New Project", "New Folder", "Open File\311",   /* \311 = MacRoman ellipsis */
+    "New Folder", "Open File\311",   /* \311 = MacRoman ellipsis */
     "New Document"
 };
 
@@ -50,16 +50,17 @@ static Boolean   gOpen;
 /* shelves */
 static DirItem   gTpl[kMaxItems];
 static short     gTplN;
-static DirItem   gFiles[kMaxItems];      /* index 0 is the up tile when deep */
+static DirItem   gFiles[kMaxItems];      /* index 0: New Writing at the top,
+                                            the up tile inside a writing */
 static short     gFilesN;
 static Prefs     gPrefs;                 /* Recent comes from here */
 
-/* where My Files is browsing */
+/* where My Writings is browsing */
 #define kMaxDepth 8
 static short     gVol;
 static long      gDir[kMaxDepth];
 static Str31     gDirName[kMaxDepth];
-static short     gDepth;                 /* 0 = My Files itself */
+static short     gDepth;                 /* 0 = My Writings itself */
 
 /* selection */
 static short     gSelRow = -1, gSelIdx;
@@ -70,6 +71,7 @@ static short     gActs[kActCount];
 static short     gActN;
 static Rect      gActRect[kActCount];
 static Rect      gBackRect;
+static Rect      gImportRect;            /* the Import... pill at the right */
 
 /* renaming in place */
 static Boolean   gRenaming;
@@ -117,21 +119,28 @@ static Boolean IsUp(short row, short idx)
     return row == kRowFiles && gDepth > 0 && idx == 0;
 }
 
+/* The first tile of My Writings: a + that starts a new writing. */
+static Boolean IsNewTile(short row, short idx)
+{
+    return row == kRowFiles && gDepth == 0 && idx == 0;
+}
+
+/* Not a file or folder: the up tile or the New Writing tile. */
+static Boolean IsSpecial(short row, short idx)
+{
+    return IsUp(row, idx) || IsNewTile(row, idx);
+}
+
 static DirItem *FileItem(short idx)
 {
     return &gFiles[idx];
 }
 
-/* The folder new things go in here: My Documents / My Projects at the top
-   (MY STUFF), otherwise the folder being browsed. */
-static long HereDir(Boolean forProject)
+/* The folder being browsed (My Writings at the top). */
+static long HereDir(Boolean unused)
 {
-    short v;
-    long d;
-    if (gDepth > 0) return gDir[gDepth];
-    if (forProject) Files_ProjectsDir(&v, &d);
-    else Files_DocsDir(&v, &d);
-    return d;
+    (void)unused;
+    return gDir[gDepth];
 }
 
 static short WDOfDir(long dir)
@@ -144,8 +153,9 @@ static short WDOfDir(long dir)
 static short ItemWD(short idx) { return WDOfDir(gFiles[idx].parent); }
 
 static void LoadFiles(void);
+static void EndRename(Boolean commit);
 
-/* The picked file or folder, on My Stuff or Recent, with its folder. */
+/* The picked file or folder, on My Writings or Recent, with its folder. */
 typedef struct {
     short   vol;
     long    dir;                         /* the folder it is in */
@@ -157,7 +167,7 @@ typedef struct {
 
 static Boolean GetTarget(Target *t)
 {
-    if (gSelRow == kRowFiles && !IsUp(gSelRow, gSelIdx)) {
+    if (gSelRow == kRowFiles && !IsSpecial(gSelRow, gSelIdx)) {
         DirItem *it = &gFiles[gSelIdx];
         t->vol = gVol;
         t->dir = it->parent;
@@ -198,12 +208,14 @@ static void LoadFiles(void)
         gFiles[0].parent = 0;
         n = 1;
     }
-    if (gDepth == 0) {                   /* MY STUFF: projects, then documents */
-        n += Files_List(gVol, HereDir(true), gFiles + n, kMaxItems - n);
-        n += Files_List(gVol, HereDir(false), gFiles + n, kMaxItems - n);
-        gFilesN = n;
-    } else
-        gFilesN = n + Files_List(gVol, gDir[gDepth], gFiles + n, kMaxItems - n);
+    if (gDepth == 0) {                   /* the New Writing tile leads */
+        CopyP((const unsigned char *)"\pNew Writing", gFiles[0].name);
+        gFiles[0].isFolder = false;
+        gFiles[0].dirID = 0;
+        gFiles[0].parent = 0;
+        n = 1;
+    }
+    gFilesN = n + Files_List(gVol, gDir[gDepth], gFiles + n, kMaxItems - n);
 }
 
 static void LoadAll(void)
@@ -231,7 +243,7 @@ static void Select(short row, short idx)
     if (row >= 0) ScrollIntoView(row, idx);
 }
 
-/* Select the file called name in My Files (after create/rename/duplicate). */
+/* Select the file called name in My Writings (after create/rename/duplicate). */
 static void SelectFileNamed(const unsigned char *name)
 {
     short i, j;
@@ -239,7 +251,7 @@ static void SelectFileNamed(const unsigned char *name)
         if (gFiles[i].name[0] != name[0]) continue;
         for (j = 1; j <= name[0] && gFiles[i].name[j] == name[j]; j++)
             ;
-        if (j > name[0] && !IsUp(kRowFiles, i)) {
+        if (j > name[0] && !IsSpecial(kRowFiles, i)) {
             Select(kRowFiles, i);
             return;
         }
@@ -252,23 +264,23 @@ static void SelectFileNamed(const unsigned char *name)
 static short gActSplit;                  /* index of the first file action */
 static Boolean gActOn[kActCount];        /* by slot: enabled now */
 
+/* At the top, My Writings starts new writings from its + tile, so the bar
+   holds only what acts on a pick. Inside a writing it can grow: New
+   Document, and New Folder one level down (chapters, say). Opening is a
+   double-click (or Return); Import... sits apart at the right. */
 static void BuildActions(void)
 {
     Boolean file = gSelRow == kRowFiles || gSelRow == kRowRecent;
-    Boolean up = IsUp(gSelRow, gSelIdx);
-    Boolean folder = gSelRow == kRowFiles && !up && FileItem(gSelIdx)->isFolder;
+    Boolean special = IsSpecial(gSelRow, gSelIdx);
     gActN = 0;
-    gActOn[gActN] = true;  gActs[gActN++] = kActNewDoc;
-    if (gDepth <= 1) {
-        gActOn[gActN] = true;  gActs[gActN++] = gDepth == 0 ? kActNewProject : kActNewFolder;
-    } else {
-        gActOn[gActN] = false; gActs[gActN++] = kActNewFolder;   /* 3 levels at most */
+    if (gDepth > 0) {
+        gActOn[gActN] = true;        gActs[gActN++] = kActNewDoc;
+        gActOn[gActN] = gDepth == 1; gActs[gActN++] = kActNewFolder;   /* 3 levels at most */
     }
     gActSplit = gActN;
-    gActOn[gActN] = true;                   gActs[gActN++] = kActOpen;
-    gActOn[gActN] = file && !up && !folder; gActs[gActN++] = kActDuplicate;
-    gActOn[gActN] = file && !up;            gActs[gActN++] = kActRename;
-    gActOn[gActN] = file && !up;            gActs[gActN++] = kActTrash;
+    gActOn[gActN] = file && !special;       gActs[gActN++] = kActDuplicate;
+    gActOn[gActN] = file && !special;       gActs[gActN++] = kActRename;
+    gActOn[gActN] = file && !special;       gActs[gActN++] = kActTrash;
 }
 
 /* ---- drawing ------------------------------------------------------------ */
@@ -327,6 +339,18 @@ static void IconFolder(short x, short y, Boolean up)
     }
 }
 
+/* New Writing: a dotted page with a + in the middle. */
+static void IconNew(short x, short y)
+{
+    Rect r;
+    PenPat(&qd.gray);
+    MoveTo(x + 4, y + 2);  LineTo(x + 27, y + 2); LineTo(x + 27, y + 29);
+    LineTo(x + 4, y + 29); LineTo(x + 4, y + 2);
+    PenNormal();
+    SetRect(&r, x + 14, y + 8, x + 17, y + 24); PaintRect(&r);
+    SetRect(&r, x + 8, y + 14, x + 23, y + 17); PaintRect(&r);
+}
+
 static void TileName(short row, short idx, unsigned char *out)
 {
     if (row == kRowTpl) ShownName(gTpl[idx].name, out);
@@ -368,6 +392,8 @@ static void DrawTile(short row, short idx, short x, short top)
     EraseRect(&r);
     if (row == kRowTpl)
         IconDoc(x + 16, top + kIconTop, true);
+    else if (IsNewTile(row, idx))
+        IconNew(x + 16, top + kIconTop);
     else if (row == kRowFiles && gFiles[idx].isFolder)
         IconFolder(x + 16, top + kIconTop, IsUp(row, idx));
     else
@@ -402,7 +428,7 @@ static void DrawRow(short row)
     if (row == kRowTpl) DrawString(PSTR("\pTEMPLATES"));
     else if (row == kRowRecent) DrawString(PSTR("\pRECENT"));
     else {
-        DrawString(PSTR("\pMY STUFF"));
+        DrawString(PSTR("\pMY WRITINGS"));
         for (i = 1; i <= gDepth; i++) {
             DrawString(PSTR("\p \310 "));          /* \310 = MacRoman >> */
             ShownName(gDirName[i], s);
@@ -415,7 +441,7 @@ static void DrawRow(short row)
     if (n == 0) {
         MoveTo(kLeft, top + kLabelBase);
         if (row == kRowRecent) DrawString(PSTR("\pNothing opened yet"));
-        else if (row == kRowFiles) DrawString(PSTR("\pEmpty"));
+        else if (row == kRowFiles) DrawString(PSTR("\pEmpty"));   /* (never at the top: + leads) */
     }
     for (i = gFirst[row]; i < n && i < gFirst[row] + kVisible; i++)
         DrawTile(row, i, kLeft + (i - gFirst[row]) * kTileStep, top);
@@ -481,8 +507,25 @@ static void DrawActions(void)
         }
         x += StringWidth(s) + 12;
     }
+    {   /* Import...: a pill at the right, apart from the pick's actions */
+        short w = StringWidth(PSTR("\pImport\311"));
+        SetRect(&gImportRect, gWin->portRect.right - kLeft - w - 14, kHeaderH + 1,
+                gWin->portRect.right - kLeft, kRowsTop - 2);
+        FrameRoundRect(&gImportRect, 12, 12);
+        MoveTo(gImportRect.left + 7, kHeaderH + 11);
+        DrawString(PSTR("\pImport\311"));
+    }
     MoveTo(0, kRowsTop - 1);
     LineTo(gWin->portRect.right, kRowsTop - 1);
+}
+
+static void DoImport(void)
+{
+    EndRename(true);
+    if (Doc_Import())
+        Lib_Close();
+    else
+        Lib_Draw();                      /* the dialog drew over us */
 }
 
 static void DrawHeader(void)
@@ -553,6 +596,14 @@ static void Navigate(short idx)
 }
 
 static void DoOther(void);
+static void DoNewDocument(void);
+
+/* Where a new page goes from here: a new writing at the top, else the
+   writing (or folder) being browsed. */
+static short NewWD(void)
+{
+    return gDepth == 0 ? 0 : WDOfDir(gDir[gDepth]);
+}
 
 static void DoOpen(void)
 {
@@ -562,14 +613,15 @@ static void DoOpen(void)
         return;
     }
     if (gSelRow == kRowTpl) {
-        /* the Save dialog comes first, in the folder being browsed */
-        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD(),
-                                WDOfDir(HereDir(false))))
+        /* its text on a new page, named when first saved */
+        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD(), NewWD()))
             Lib_Close();
         else
-            Lib_Draw();                  /* cancelled: the dialog drew over us */
+            SysBeep(1);
     } else if (gSelRow == kRowFiles) {
-        if (gFiles[gSelIdx].isFolder)
+        if (IsNewTile(gSelRow, gSelIdx))
+            DoNewDocument();
+        else if (gFiles[gSelIdx].isFolder)
             Navigate(gSelIdx);
         else if (Doc_OpenAt(gFiles[gSelIdx].name, ItemWD(gSelIdx)))
             Lib_Close();
@@ -702,7 +754,8 @@ static void DoNew(Boolean project)
 {
     unsigned char name[40];
     long dir;
-    Boolean ok = AskName(project, name);
+    Boolean ok = AskName(false, name);
+    (void)project;
     Lib_Draw();                          /* the dialog drew over us */
     if (!ok) return;
     if (Files_Exists(gVol, HereDir(project), name)
@@ -724,7 +777,24 @@ static void DoDuplicate(void)
     Target t;
     SFReply reply;
     Point where;
-    if (!GetTarget(&t) || t.isFolder) return;
+    if (!GetTarget(&t)) return;
+    if (t.isFolder) {                    /* a writing or folder: copied beside it */
+        CopyP(t.name, base);
+        if (base[0] > 22) base[0] = 22;
+        {
+            const char *c = " copy";
+            while (*c) base[++base[0]] = (unsigned char)*c++;
+        }
+        if (!Files_FreeName(t.vol, t.dir, base, name)
+            || !Files_CopyFolder(t.vol, t.dir, t.name, name))
+            SysBeep(1);
+        else {
+            Reload();
+            SelectFileNamed(name);
+        }
+        Redraw();
+        return;
+    }
     ShownName(t.name, base);
     n = base[0];
     if (n > 20) n = 20;                  /* room for " copy.md" */
@@ -765,7 +835,8 @@ static void DoTrash(void)
     if (t.isFolder) {
         /* not the folder the open document lives in (it would keep saving
            into the Trash) */
-        if (Doc_Location(&v, &d) && v == t.vol && d == t.selfDir) { SysBeep(1); return; }
+        if (Doc_Location(&v, &d) && v == t.vol && Files_IsInside(v, d, t.selfDir))
+            Doc_FileTrashed(Doc_WD(), Doc_Name());   /* writing goes on, untitled */
         if (!Files_Trash(t.vol, t.dir, t.name)) { SysBeep(1); return; }
     } else {
         Doc_FileTrashed(t.wd, t.name);   /* also drops it from Recent */
@@ -786,23 +857,13 @@ static void DoOther(void)
         Lib_Draw();                      /* the dialog drew over us */
 }
 
-/* New Document: Blank, through the Save dialog, in the folder being browsed
-   (My Documents at the top). */
+/* At the top (or the + tile): a new writing, named when first saved.
+   Inside a writing: a new document there. */
 static void DoNewDocument(void)
 {
-    short i;
-    unsigned char n[40];
-    for (i = 0; i < gTplN; i++) {
-        ShownName(gTpl[i].name, n);
-        if (n[0] == 5 && (n[1] | 0x20) == 'b' && (n[2] | 0x20) == 'l'
-            && (n[3] | 0x20) == 'a' && (n[4] | 0x20) == 'n' && (n[5] | 0x20) == 'k')
-            break;
-    }
-    if (Doc_NewFromTemplate(i < gTplN ? gTpl[i].name : (const unsigned char *)"\pBlank.md",
-                            Files_TemplatesWD(), WDOfDir(HereDir(false))))
-        Lib_Close();
-    else
-        Lib_Draw();                      /* cancelled: the dialog drew over us */
+    Doc_SetNewFolder(NewWD());
+    Doc_New();
+    Lib_Close();
 }
 
 static void Run(short act)
@@ -812,7 +873,6 @@ static void Run(short act)
     case kActDuplicate:  DoDuplicate(); break;
     case kActRename:     StartRename(); break;
     case kActTrash:      DoTrash(); break;
-    case kActNewProject: DoNew(true); break;
     case kActNewFolder:  DoNew(false); break;
     case kActOther:      DoOther(); break;
     case kActNewDoc:     DoNewDocument(); break;
@@ -833,9 +893,8 @@ static Boolean Offered(short act)
 void Lib_Init(WindowPtr w)
 {
     gWin = w;
-    Files_DocsDir(&gVol, &gDir[0]);      /* depth 0 is MY STUFF (two folders) */
-    gDirName[0][0] = 8;
-    BlockMove("My Stuff", gDirName[0] + 1, 8);
+    Files_DocsDir(&gVol, &gDir[0]);      /* depth 0 is My Writings */
+    CopyP((const unsigned char *)"\pMy Writings", gDirName[0]);
     gDepth = 0;
 }
 
@@ -869,18 +928,25 @@ void Lib_Close(void)
 
 Boolean Lib_IsOpen(void) { return gOpen; }
 
-/* Cmd-N: the Library with Blank picked; Return starts it. */
+/* The library moved: browse from its new top. */
+void Lib_Reset(void)
+{
+    gDepth = 0;
+    Files_DocsDir(&gVol, &gDir[0]);
+}
+
+/* Cmd-N: the Library at the top with New Writing picked; Return starts
+   it (Cmd-N again too). */
 void Lib_OpenNew(void)
 {
-    short i;
-    unsigned char n[40];
-    (void)i; (void)n;
     if (gOpen) {                         /* Cmd-N inside the Library: make it */
         DoNewDocument();
         return;
     }
+    gDepth = 0;
     Lib_Open();
-    Select(-1, 0);                       /* nothing picked: New Document leads */
+    gFirst[kRowFiles] = 0;
+    Select(kRowFiles, 0);
     Redraw();
 }
 
@@ -922,7 +988,7 @@ shown:
 static void MoveSel(short dRow, short dIdx)
 {
     short row = gSelRow, idx = gSelIdx, n;
-    if (row < 0) {                       /* nothing picked: start in My Files */
+    if (row < 0) {                       /* nothing picked: start in My Writings */
         row = gFilesN > 0 ? kRowFiles : (gTplN > 0 ? kRowTpl : -1);
         if (row < 0) return;
         Select(row, 0);
@@ -951,7 +1017,7 @@ static void TypeSelect(unsigned char c)
     if (c >= 'A' && c <= 'Z') c += 32;
     for (i = 0; i < n; i++) {
         unsigned char f;
-        if (IsUp(row, i)) continue;
+        if (IsSpecial(row, i)) continue;
         TileName(row, i, name);
         f = name[0] ? name[1] : 0;
         if (f >= 'A' && f <= 'Z') f += 32;
@@ -977,7 +1043,7 @@ void Lib_Key(EventRecord *ev)
     case 0x1B: Lib_Close(); break;
     case '\r': case 0x03:
         if (gSelRow >= 0) DoOpen();
-        else DoNewDocument();            /* Cmd-N, Return: a new document */
+        else DoNewDocument();            /* nothing picked: a new writing here */
         break;
     case 0x1C: MoveSel(0, -1); break;
     case 0x1D: MoveSel(0, 1); break;
@@ -993,6 +1059,12 @@ void Lib_Click(Point pt, EventRecord *ev)
     short i, row, idx;
     if (PtInRect(pt, &gBackRect)) { Lib_Close(); return; }
     if (pt.v >= kHeaderH && pt.v < kRowsTop) {
+        if (PtInRect(pt, &gImportRect)) {
+            InvertRoundRect(&gImportRect, 12, 12);
+            while (StillDown()) ;
+            DoImport();
+            return;
+        }
         for (i = 0; i < gActN; i++)
             if (PtInRect(pt, &gActRect[i])) {
                 if (gActOn[i]) Run(gActs[i]);
