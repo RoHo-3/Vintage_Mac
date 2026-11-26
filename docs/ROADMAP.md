@@ -28,16 +28,54 @@
    next keystroke; the clock redraws only its own rectangle. ✅ build 4
    (the hamburger does nothing until the drawer arrives)
 
+## 0.02 alpha — "find your work"
+
+1. **Files** — "Writings" folder beside the app with My Documents, My
+   Projects and Templates; names from the first sentence (Title Case, no
+   Markdown or Windows-illegal characters); reopen the last document at its
+   caret; journals invisible; orphaned journals to the Trash. ✅ builds 29-55
+2. **Library** (Cmd-O) — Templates / My Stuff / Recent shelves, projects,
+   rename in place, duplicate and new documents through the Save dialog,
+   Move to Trash, Other... ✅ builds 34-53
+3. **Fonts** — one font and size for the whole app (body, headings, bold
+   and italic follow it, at real bitmap sizes).
+   - 3a. Font switcher with fixed-width fonts: MDW Mono, Monaco, Courier;
+     Cmd-Option-F cycles fonts, Cmd-= / Cmd-- change size (temporary keys
+     until the Settings blade), remembered in the prefs.
+   - 3b. Proportional layout (lines measured per character) so New York,
+     Geneva, Times, Helvetica, Palatino can be tried.
+4. **Drawer** — project blade, Sections (jump to heading), Settings (font,
+   size, Markdown switch replacing Cmd-M), Library... row. With it:
+   - Formatting keys: Cmd-B bold, Cmd-I italic, Cmd-E inline code (Cmd-K
+     stays the command palette); they wrap or unwrap the selection, or turn
+     the style on for what is typed next.
+   - Copy keeps Markdown balanced: a selection that cuts through a styled
+     phrase copies with the missing markers added.
+
+## 0.03 alpha — Markdown coverage
+
+- Strikethrough (\~\~text\~\~): QuickDraw has no strike style, so draw the
+  line ourselves.
+- Block quotes, lists (Return continues a list), task boxes, horizontal
+  rules, fenced code blocks, setext headings, hard line breaks.
+- Selection pill, Cmd-K palette with synonyms.
+
 ## Later alphas
 
-- Drawer and blades (project, Sections, Links, Find, Focus Timer, History,
-  Export, Settings)
-- Library (templates, my files, recent)
-- Selection pill, Cmd-K palette with synonyms
+- Drawer blades: Links, Find, Focus Timer, History, Export
 - Notes, image placeholders, links and back stack
 - **Default templates — no later than 0.05 alpha:** Blank, Outline,
   Research, Meeting Notes, Article, Short Story, Novel Project, Script
   (structures designed together; see to-do list)
+
+## Readying for release
+
+- Release disk images: an app disk in Disk Copy 4.2 format (writable to a
+  real 800K floppy) and a BlueSCSI image. App only: no Apple System
+  software is redistributed.
+- A "Start Here" guide shipped as a real Markdown document in My
+  Documents, replacing the first-run welcome text.
+- Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
 
 ## Known limits in the first build
 
