@@ -18,6 +18,7 @@ void Chrome_Init(WindowPtr w);
 void Chrome_Draw(void);                 /* redraw if shown (update events) */
 void Chrome_Idle(void);                 /* show on pause / mouse move, tick clock */
 void Chrome_KeyPressed(void);           /* hide */
+void Chrome_ShowSaveDot(void);          /* Cmd-S: footer up, so the dot shows the save */
 void Chrome_SetTitle(const unsigned char *pascalTitle);
 void Chrome_SetSaveState(short state);
 void Chrome_TextChanged(void);          /* word count is stale */

@@ -54,6 +54,7 @@ static void SuggestName(unsigned char *name)
     long len = TB_Len(), p = 0;
     short n = 0, lastSpace = 0;
     unsigned char c;
+    Boolean sentence = false;            /* stopped at the first sentence's end */
 
     /* skip line markers: headings "## ", quotes "> ", bullets "- " "* " "+ ",
        numbers "1. ", tasks "[ ] " */
@@ -82,6 +83,12 @@ static void SuggestName(unsigned char *name)
             continue;
         }
         if (c == '!' && p + 1 < len && TB_Char(p + 1) == '[') continue;   /* image */
+        if ((c == '.' || c == '?' || c == '!')                    /* first sentence */
+            && (p + 1 >= len || TB_Char(p + 1) == ' ' || TB_Char(p + 1) == '\r')
+            && !(c == '.' && n >= 2 && name[n - 1] == '.')) {   /* not "e.g." */
+            sentence = true;
+            break;
+        }
         /* Markdown markers, and what Windows and FAT drives refuse in names */
         if (c == '*' || c == '_' || c == '`' || c == '~' || c == '[' || c == ']'
             || c == '<' || c == '>' || c == '|' || c == '\\' || c == '"' || c == '?'
@@ -92,8 +99,8 @@ static void SuggestName(unsigned char *name)
         if (c == ' ') lastSpace = n;
         name[++n] = c;
     }
-    if (p < len && TB_Char(p) != '\r' && lastSpace > 0)
-        n = lastSpace;                   /* cut at a word boundary */
+    if (!sentence && p < len && TB_Char(p) != '\r' && lastSpace > 0)
+        n = lastSpace;                   /* too long: cut at a word boundary */
     while (n > 0 && (name[n] == ' ' || name[n] == '.' || name[n] == ','
                      || name[n] == ';' || name[n] == '-'))
         n--;                             /* "Woke up laughing." -> no "..md" */
@@ -242,8 +249,14 @@ Boolean Doc_SaveCommand(void)
 {
     SFReply reply;
     unsigned char suggested[40];
-    if (gHasFile)
+    Chrome_ShowSaveDot();                /* the dot shows the save happen */
+    if (gHasFile) {
+        if (Ed_ChangeWeight() == 0 && !gMdBehind) {
+            Chrome_SetSaveState(kSaveSaved);   /* nothing new: already solid */
+            return true;
+        }
         return Doc_Save();
+    }
     SuggestName(suggested);
     Files_SetDialogFolder(gDefaultVRef);
     SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave as:", suggested, NULL, &reply);

@@ -217,6 +217,12 @@ static void SetStrip(Boolean on)
     else EraseStrip();
 }
 
+/* Cmd-S: show the footer so the save dot is seen doing its work. */
+void Chrome_ShowSaveDot(void)
+{
+    ShowFooter();
+}
+
 void Chrome_KeyPressed(void)
 {
     Rect r;
