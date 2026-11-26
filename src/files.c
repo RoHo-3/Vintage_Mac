@@ -148,7 +148,7 @@ static Boolean NameEq(const unsigned char *a, const char *c)
     return a[0] == i;
 }
 
-static Boolean IsOutline(const DirItem *d)
+static Boolean IsOutlineDoc(const DirItem *d)
 {
     return !d->isFolder && (NameEq(d->name, "Outline") || NameEq(d->name, "Outline.md"));
 }
@@ -188,7 +188,7 @@ short Files_List(short vol, long dirID, DirItem *items, short max)
         for (j = i; j > 0; j--) {
             DirItem t;
             DirItem *a = &items[j - 1], *b = &items[j];
-            if (IsOutline(a) || (!IsOutline(b) && !LessName(b->name, a->name)))
+            if (IsOutlineDoc(a) || (!IsOutlineDoc(b) && !LessName(b->name, a->name)))
                 break;
             t = *a; *a = *b; *b = t;
         }
