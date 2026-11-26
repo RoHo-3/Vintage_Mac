@@ -398,8 +398,9 @@ static void Push(short kind, long dir)
     gStack[gDepth].dir = dir;
     gStack[gDepth].sel = gStack[gDepth].top = 0;
     gDepth++;
+    DrawUnder(gDepth - 2);               /* the panel it covers dims */
     BuildRows();
-    DrawTop();                           /* slides over: only the new panel */
+    DrawTop();
 }
 
 static void Pop(void)
