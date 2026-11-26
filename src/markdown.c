@@ -129,6 +129,35 @@ static long FindClose(long i, long n, char c, long len)
     return -1;
 }
 
+/* Is there a run of n c's at k (exactly n for single markers) that opens
+   emphasis: after a space, not before one, not hidden or code? */
+static Boolean InnerOpener(long k, long n, char c, long len)
+{
+    if (gSty[k] & (MD_MARK | MD_CODE)) return false;
+    if (gTxt[k] != c || (n == 2 && gTxt[k + 1] != c)) return false;
+    if (!IsBlank(gTxt[k - 1]) || !CanOpen(k, n, len)) return false;
+    if (n == 1 && k + 1 < len && gTxt[k + 1] == c) return false;
+    return true;
+}
+
+/* Closer for the opener at i. As in standard Markdown a closer belongs to
+   the nearest opener before it, so in "**a **b**" the last ** closes the
+   second one; the first then looks for a closer further on. */
+static long FindPair(long i, long n, char c, long len)
+{
+    long j = FindClose(i + n + 1, n, c, len), k, from = i + n + 1;
+    while (j > 0) {
+        for (k = from; k + n <= j; k++)  /* openers paired before 'from' */
+            if (InnerOpener(k, n, c, len))     /* are already used up */
+                break;
+        if (k + n > j)
+            return j;
+        from = j + n;
+        j = FindClose(j + n + 1, n, c, len);
+    }
+    return -1;
+}
+
 static void Mark(long a, long n, unsigned char m)
 {
     while (n-- > 0)
@@ -215,7 +244,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         } else if ((c == '*' || c == '_') && i + 1 < len && gTxt[i + 1] == c) {
             if (!CanOpen(i, 2, len)) { spaced |= SpacedBit(c, 2); i++; continue; }
             if (LooksClosing(i, 2, len, spaced)) { i++; continue; }
-            j = FindClose(i + 3, 2, c, len);
+            j = FindPair(i, 2, c, len);
             if (j > 0) {
                 Mark(i, 2, mark);
                 Mark(j, 2, mark);
@@ -233,7 +262,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         } else if (c == '~' && i + 1 < len && gTxt[i + 1] == '~') {
             if (!CanOpen(i, 2, len)) { spaced |= SpacedBit(c, 2); i++; continue; }
             if (LooksClosing(i, 2, len, spaced)) { i++; continue; }
-            j = FindClose(i + 3, 2, c, len);          /* ~~strike~~ */
+            j = FindPair(i, 2, c, len);          /* ~~strike~~ */
             if (j > 0) {
                 Mark(i, 2, mark);
                 Mark(j, 2, mark);
@@ -255,7 +284,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 spaced |= SpacedBit(c, 1);
                 continue;                /* "* " is a bullet or plain text */
             }
-            j = FindClose(i + 2, 1, c, len);
+            j = FindPair(i, 1, c, len);
             if (j > 0) {
                 Mark(i, 1, mark);
                 Mark(j, 1, mark);
