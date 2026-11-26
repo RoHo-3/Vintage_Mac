@@ -20,12 +20,17 @@ Usage: python3 tools/make_fonts.py [--fitted]   (needs Pillow; --fitted needs nu
 """
 import os
 import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from PIL import Image, ImageDraw, ImageFont
 from fontTools.ttLib import TTFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'fonts', 'ibm-plex-mono')
-FITTED = '--fitted' in sys.argv          # grid-fitted strikes (tools/fontfit.py)
+FITTED = '--fitted' in sys.argv          # every size grid-fitted (comparison disk)
+# The shipping font mixes both: grid-fitted strikes for body text, where
+# even 1-2 px stems matter most (w, m, M, l vs i), and the plain FreeType
+# strikes for headings, which looked better plain (Build 24 review).
+FITTED_SIZES = {10, 12, 14, 16, 20} if FITTED else {10}
 OUT = os.path.join(ROOT, 'src', 'fonts_fitted.r' if FITTED else 'fonts.r')
 
 FAMILIES = [(200, 'MDW Mono', 'IBMPlexMono-Regular.ttf'),
@@ -51,13 +56,13 @@ def build(path, size):
         img = Image.new('1', (w, h), 0)
         present = ord(ch) in cmap
         arr = None
-        if present and FITTED:
+        if present and size in FITTED_SIZES:
             import numpy as np
             from fontfit import fitted
             arr = fitted(path, size, ch, w, asc, h)
             if arr is not None:
                 img = Image.fromarray((arr * 255).astype('uint8')).convert('1')
-        if present and (not FITTED or arr is None):
+        if present and arr is None:
             d = ImageDraw.Draw(img)
             d.fontmode = '1'
             d.text((0, asc), ch, font=font, fill=1, anchor='ls')

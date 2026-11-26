@@ -20,7 +20,7 @@ jobs:
           echo "#define BUILD_NUMBER ${{ github.run_number }}" > src/build_number.h
           mkdir -p build
           cd build
-          cmake .. -DFONT_TEST=ON -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
+          cmake .. -DCMAKE_TOOLCHAIN_FILE=/Retro68-build/toolchain/m68k-apple-macos/cmake/retro68.toolchain.cmake
 
       - name: Build
         shell: bash
@@ -78,5 +78,4 @@ jobs:
           path: |
             build/MacMDWrite.dsk
             build/MacMDWrite.bin
-            build/MacMDWrite_FittedFont.dsk
           if-no-files-found: error

@@ -80,7 +80,7 @@ static const char kWelcome[] =
 #ifdef FONT_FITTED
 static const char kFontOK[] = "MDW Mono 10, grid-fitted test strikes (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
 #else
-static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono). Build " STR(BUILD_NUMBER) ".";
+static const char kFontOK[] = "MDW Mono 10 (bitmap IBM Plex Mono; body grid-fitted). Build " STR(BUILD_NUMBER) ".";
 #endif
 static const char kFontFallback[] = "Monaco 9 - MDW Mono did not load. Build " STR(BUILD_NUMBER) ".";
 

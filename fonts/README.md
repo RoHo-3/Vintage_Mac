@@ -27,3 +27,13 @@ The long-term plan (pending the iA Writer license check on the to-do list)
 is hand-cleaned strikes in FontForge or Bits'N'Picas: every counter keeps
 at least one white pixel, fixed integer advance per size, Bold drawn from
 the real Bold face.
+
+## Grid fitting
+
+The 10 px body strikes are grid-fitted (`tools/fontfit.py`): each glyph is
+nudged by a fraction of a pixel so its stems land on whole pixels at an even
+width, which fixes w, m, M and l looking heavier than their neighbours. The
+heading sizes (12-20 px) use the plain FreeType rendering, which looked
+better there. `python3 tools/make_fonts.py --fitted` writes
+`src/fonts_fitted.r` with every size fitted, for comparison builds
+(`-DFONT_TEST=ON` builds `MacMDWrite_FittedFont`).
