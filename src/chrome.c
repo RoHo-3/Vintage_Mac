@@ -18,6 +18,7 @@
 static WindowPtr gWin;
 static Boolean   gShown;                 /* footer */
 static Boolean   gStripShown;            /* top strip */
+static Boolean   gHold;                  /* the Library is up: draw nothing */
 static unsigned long gStripUntil;       /* shown briefly (a document opened): hide then */
 static Point     gLastMouse;
 static unsigned long gClockStart, gLastKey;   /* gClockStart 0: not started */
@@ -178,9 +179,15 @@ void Chrome_Init(WindowPtr w)
     AppendStr(gTitle, "Untitled");
 }
 
+void Chrome_Hold(Boolean hold)
+{
+    gHold = hold;
+    if (hold) gShown = gStripShown = false;   /* the Library covers them */
+}
+
 void Chrome_Draw(void)
 {
-    if (!gWin) return;
+    if (!gWin || gHold) return;
     SetPort(gWin);
     if (gStripShown) DrawStrip();
     if (gShown) { DrawStatus(); DrawDot(); }
@@ -194,7 +201,7 @@ static void ShowFooter(void)
 #if defined(DIAG_NO_CHROME) || defined(DIAG_MINIMAL)
     return;
 #endif
-    if (gShown || !gWin) return;
+    if (gShown || !gWin || gHold) return;
     gShown = true;
     SetPort(gWin);
     DrawStatus();
@@ -216,6 +223,7 @@ static void SetStrip(Boolean on)
 #endif
     if (on == gStripShown || !gWin) return;
     gStripShown = on;
+    if (gHold) return;                   /* the Library owns the screen */
     if (on) { SetPort(gWin); DrawStrip(); }
     else EraseStrip();
 }
@@ -248,7 +256,7 @@ void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
-    if (!gWin) return;
+    if (!gWin || gHold) return;
     gStripUntil = 0;
     SetStrip(false);
     if (!gShown) return;
@@ -291,14 +299,14 @@ void Chrome_SetTitle(const unsigned char *t)
     if (n > 63) n = 63;                  /* gTitle is a Str63 */
     for (i = 1; i <= n; i++) gTitle[i] = t[i];
     gTitle[0] = (unsigned char)n;
-    if (gStripShown) { SetPort(gWin); DrawStrip(); }
+    if (gStripShown && !gHold) { SetPort(gWin); DrawStrip(); }
 }
 
 void Chrome_SetSaveState(short state)
 {
     if (state == gSaveState) return;
     gSaveState = state;
-    if (gShown) { SetPort(gWin); DrawDot(); }
+    if (gShown && !gHold) { SetPort(gWin); DrawDot(); }
 }
 
 void Chrome_TextChanged(void)

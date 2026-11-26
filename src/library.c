@@ -3,6 +3,7 @@
 #include "document.h"
 #include "journal.h"
 #include "chrome.h"
+#include "editor.h"
 
 #include <Quickdraw.h>
 #include <Fonts.h>
@@ -765,6 +766,8 @@ void Lib_Open(void)
         Files_DocsDir(&gVol, &gDir[0]);
     gOpen = true;
     gRenaming = false;
+    Ed_Hold(true);                       /* the writing view stays still below */
+    Chrome_Hold(true);
     LoadAll();
     Select(-1, 0);
     if (gPrefs.recentCount > 0)
@@ -777,6 +780,8 @@ void Lib_Close(void)
     if (!gOpen) return;
     EndRename(true);
     gOpen = false;
+    Ed_Hold(false);
+    Chrome_Hold(false);
     SetPort(gWin);
     EraseRect(&gWin->portRect);          /* no Library header left behind */
     InvalRect(&gWin->portRect);          /* the writing view redraws */

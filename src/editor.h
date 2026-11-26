@@ -39,6 +39,7 @@ Boolean Ed_SetText(const char *text, long len);
 /* Markdown markers shown or hidden (a per-document setting). */
 void    Ed_SetShowMarks(Boolean on);
 Boolean Ed_ShowMarks(void);
+void    Ed_Hold(Boolean hold);      /* true while the Library covers the text */
 
 void    Ed_SetCaret(long pos);      /* places the cursor and scrolls to it */
 

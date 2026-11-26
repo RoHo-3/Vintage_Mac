@@ -298,10 +298,15 @@ done:
 }
 
 /* Draw lines [from, to) that are on screen. */
+static Boolean gHold;                    /* the Library is up: draw nothing */
+
+void Ed_Hold(Boolean hold) { gHold = hold; if (hold) gCaretOn = false; }
+
 static void DrawLines(long from, long to)
 {
     short y, bottom = Bottom();
     Rect r;
+    if (gHold) return;
     if (from < gTop) from = gTop;
     y = LineTop(from);
     for (; from < to && y < bottom; from++) {
@@ -320,6 +325,7 @@ void Ed_DrawAll(void)
 {
     Rect r;
     gCaretOn = false;
+    if (gHold) return;
     SetPort(gWin);
     SetRect(&r, 0, kStripH, gWin->portRect.right, gWin->portRect.bottom - kFooterH);
     EraseRect(&r);                       /* the text area; chrome draws itself */
@@ -358,7 +364,7 @@ static Boolean CaretVisible(void)
 static void ToggleCaret(void)
 {
     Rect r;
-    if (!CaretVisible()) { gCaretOn = false; return; }
+    if (gHold || !CaretVisible()) { gCaretOn = false; return; }
     CaretRect(&r);
     InvertRect(&r);
     gCaretOn = !gCaretOn;
