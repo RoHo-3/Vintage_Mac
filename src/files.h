@@ -36,6 +36,7 @@ void    Files_ProjectsDir(short *vol, long *dirID);   /* My Projects */
 Boolean Files_WDFor(short vol, long dirID, short *wdRef);
 Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
 Boolean Files_IsInside(short vol, long dir, long ancestor);
+void    Files_SetDialogFolder(short wdRef);   /* next SFGetFile/SFPutFile */
 
 /* One folder listing: documents (.md / TEXT) and folders, Finder order. */
 #define kMaxItems 64

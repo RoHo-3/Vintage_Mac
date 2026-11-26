@@ -363,7 +363,7 @@ keeps the whole 1 MB partition available to one text buffer and its undo).
   current one and switches; nothing ever asks "Save changes?".
 - **Quit (Cmd-Q)** saves and exits.
 - **On launch** the app reopens the last document at the caret where you
-  left off; with no previous document it opens the Library.
+  left off; with no previous document it opens a blank page in the writing view (Cmd-O opens the Library).
 
 ### Naming documents
 

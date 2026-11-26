@@ -184,33 +184,58 @@ static Boolean WriteFile(void)
     return true;
 }
 
+/* Give the untitled document its file. follows: the app picked the name,
+   so it keeps following the first line. */
+static Boolean BecomeFile(const unsigned char *name, short vRef, Boolean follows)
+{
+    unsigned char prefs = JR_Prefs();
+    OSErr err = Create(name, vRef, kCreator, kFileType);
+    if (err != noErr && !(err == dupFNErr && !follows)) {   /* dialog: Replace */
+        SysBeep(1);
+        return false;
+    }
+    CopyPString(name, gName);
+    gVRef = vRef;
+    gHasFile = true;
+    Chrome_SetTitle(gName);
+    JR_Attach(gName, gVRef);
+    JR_SetPrefs(follows ? (prefs | kPrefNameFollows)    /* keep what was chosen */
+                        : (prefs & ~kPrefNameFollows)); /* while untitled */
+    JR_Reset();                          /* the journal starts with a snapshot */
+    return true;
+}
+
+/* Cmd-S: an untitled document gets the classic Save dialog, opened in My
+   Documents (or the current project) with the first-line name filled in;
+   a document with a file just saves. */
+Boolean Doc_SaveCommand(void)
+{
+    SFReply reply;
+    unsigned char suggested[40];
+    if (gHasFile)
+        return Doc_Save();
+    SuggestName(suggested);
+    Files_SetDialogFolder(gDefaultVRef);
+    SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave as:", suggested, NULL, &reply);
+    if (!reply.good)
+        return false;
+    if (!BecomeFile(reply.fName, reply.vRefNum, false))
+        return false;
+    return Doc_Save();
+}
+
 Boolean Doc_Save(void)
 {
     unsigned char suggested[40];
-    OSErr err;
     Boolean wasUntitled = !gHasFile;
 
     if (!gHasFile) {
-        /* Naming happens in place (DESIGN.md): the first line names the
-           file, in the app's folder until the Library exists. No dialog. */
-        unsigned char prefs = JR_Prefs();
-        if (!UniqueName(suggested, gDefaultVRef)) {
+        /* Autosave, quit, switching: named in place from the first line,
+           in My Documents or the current project. No dialog. */
+        if (!UniqueName(suggested, gDefaultVRef) || !BecomeFile(suggested, gDefaultVRef, true)) {
             SysBeep(1);
             return false;
         }
-        err = Create(suggested, gDefaultVRef, kCreator, kFileType);
-        if (err != noErr) {
-            SysBeep(1);
-            return false;
-        }
-        CopyPString(suggested, gName);
-        gVRef = gDefaultVRef;
-        gHasFile = true;
-        Chrome_SetTitle(gName);
-        JR_Attach(gName, gVRef);
-        JR_SetPrefs(prefs | kPrefNameFollows);   /* keep what was chosen while
-                                                    untitled; app-named */
-        JR_Reset();                      /* the journal starts with a snapshot */
     }
     JR_Checkpoint(Ed_Caret(), NULL);     /* journal first, then the .md */
     if (!WriteFile())

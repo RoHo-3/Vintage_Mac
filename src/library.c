@@ -137,6 +137,49 @@ static short WDOfDir(long dir)
 
 static short ItemWD(short idx) { return WDOfDir(gFiles[idx].parent); }
 
+/* The picked file or folder, on My Stuff or Recent, with its folder. */
+typedef struct {
+    short   vol;
+    long    dir;                         /* the folder it is in */
+    short   wd;
+    long    selfDir;                     /* folders: their own ID */
+    Str31   name;
+    Boolean isFolder;
+} Target;
+
+static Boolean GetTarget(Target *t)
+{
+    if (gSelRow == kRowFiles && !IsUp(gSelRow, gSelIdx)) {
+        DirItem *it = &gFiles[gSelIdx];
+        t->vol = gVol;
+        t->dir = it->parent;
+        t->wd = ItemWD(gSelIdx);
+        t->selfDir = it->dirID;
+        CopyP(it->name, t->name);
+        t->isFolder = it->isFolder;
+        return true;
+    }
+    if (gSelRow == kRowRecent && gSelIdx < gPrefs.recentCount) {
+        RecentItem *r = &gPrefs.recent[gSelIdx];
+        if (!Files_WDOf(&r->dir, &t->wd) || !Files_DirOfWD(t->wd, &t->vol, &t->dir))
+            return false;                /* its disk isn't here */
+        t->selfDir = 0;
+        CopyP(r->name, t->name);
+        t->isFolder = false;
+        return true;
+    }
+    return false;
+}
+
+/* After a change: reload both shelves, keep the pick where it was. */
+static void Reload(void)
+{
+    LoadFiles();
+    Prefs_Load(&gPrefs);
+    if (gSelRow >= 0 && gSelIdx >= RowCount(gSelRow)) gSelIdx = RowCount(gSelRow) - 1;
+    if (gSelRow >= 0 && gSelIdx < 0) gSelRow = -1;
+}
+
 static void LoadFiles(void)
 {
     short n = 0;
@@ -198,11 +241,11 @@ static void SelectFileNamed(const unsigned char *name)
 static void BuildActions(void)
 {
     gActN = 0;
-    if (gSelRow == kRowTpl || gSelRow == kRowRecent || IsUp(gSelRow, gSelIdx)) {
+    if (gSelRow == kRowTpl || IsUp(gSelRow, gSelIdx)) {
         gActs[gActN++] = kActOpen;
-    } else if (gSelRow == kRowFiles) {
-        gActs[gActN++] = kActOpen;
-        if (!FileItem(gSelIdx)->isFolder)
+    } else if (gSelRow == kRowFiles || gSelRow == kRowRecent) {
+        gActs[gActN++] = kActOpen;       /* Recent offers what My Stuff does */
+        if (gSelRow == kRowRecent || !FileItem(gSelIdx)->isFolder)
             gActs[gActN++] = kActDuplicate;
         gActs[gActN++] = kActRename;
         gActs[gActN++] = kActTrash;
@@ -407,11 +450,13 @@ static void DrawHeader(void)
     EraseRect(&r);
     TextFont(kGeneva);
     TextSize(9);
-    w = StringWidth(PSTR("\p\307 Writing"));
-    SetRect(&gBackRect, 6, 3, 6 + w + 10, 17);
-    FrameRoundRect(&gBackRect, 8, 8);
-    MoveTo(11, 13);
-    DrawString(PSTR("\p\307 Writing"));
+    TextFont(systemFont);                /* back to writing: just the chevron */
+    TextSize(12);
+    SetRect(&gBackRect, 2, 0, 26, kHeaderH - 1);
+    MoveTo(8, 15);
+    DrawString(PSTR("\p\307"));
+    TextFont(kGeneva);
+    TextSize(9);
     w = StringWidth(PSTR("\pReturn opens \245 Esc closes"));   /* \245 = bullet */
     MoveTo(gWin->portRect.right - 6 - w, 13);
     DrawString(PSTR("\pReturn opens \245 Esc closes"));
@@ -501,7 +546,7 @@ static void DoOpen(void)
 }
 
 /* "Name copy.md", "Name copy 2.md" ... / "Untitled Project", "... 2" */
-static Boolean FreeName(const unsigned char *base, Boolean md, long dir, unsigned char *out)
+static Boolean FreeName(const unsigned char *base, Boolean md, short vol, long dir, unsigned char *out)
 {
     short k, i, n;
     for (k = 1; k < 100; k++) {
@@ -514,7 +559,7 @@ static Boolean FreeName(const unsigned char *base, Boolean md, long dir, unsigne
         }
         if (md) { out[++n] = '.'; out[++n] = 'm'; out[++n] = 'd'; }
         out[0] = (unsigned char)n;
-        if (!Files_Exists(gVol, dir, out))
+        if (!Files_Exists(vol, dir, out))
             return true;
     }
     return false;
@@ -523,9 +568,10 @@ static Boolean FreeName(const unsigned char *base, Boolean md, long dir, unsigne
 static void StartRename(void)
 {
     unsigned char s[40];
-    if (gSelRow != kRowFiles || IsUp(gSelRow, gSelIdx)) return;
-    gEditIsDoc = !gFiles[gSelIdx].isFolder && HasMd(gFiles[gSelIdx].name);
-    ShownName(gFiles[gSelIdx].name, s);
+    Target t;
+    if (!GetTarget(&t)) return;
+    gEditIsDoc = !t.isFolder && HasMd(t.name);
+    ShownName(t.name, s);
     CopyP(s, gEdit);
     gEditCaret = gEdit[0];
     gEditAll = true;                     /* typing replaces, like the Finder */
@@ -533,17 +579,18 @@ static void StartRename(void)
     gCaretOn = true;
     gBlinkAt = TickCount();
     DrawActions();
-    DrawRow(kRowFiles);
+    DrawRow(gSelRow);
 }
 
 static void EndRename(Boolean commit)
 {
     unsigned char to[40], from[40];
     short i, max = gEditIsDoc ? 28 : 31;
+    Target t;
     if (!gRenaming) return;
     gRenaming = false;
-    if (commit) {
-        CopyP(gFiles[gSelIdx].name, from);
+    if (commit && GetTarget(&t)) {
+        CopyP(t.name, from);
         CopyP(gEdit, to);
         while (to[0] > 0 && to[to[0]] == ' ') to[0]--;
         if (to[0] > max) to[0] = (unsigned char)max;
@@ -555,14 +602,13 @@ static void EndRename(Boolean commit)
             for (i = 1; same && i <= to[0]; i++) same = to[i] == from[i];
             if (!same) {
                 Boolean ok;
-                if (gFiles[gSelIdx].isFolder)
-                    ok = Files_Rename(gVol, gFiles[gSelIdx].parent, from, to);
+                if (t.isFolder)
+                    ok = Files_Rename(t.vol, t.dir, from, to);
                 else
-                    ok = Doc_RenameFile(ItemWD(gSelIdx), from, to);
+                    ok = Doc_RenameFile(t.wd, from, to);
                 if (ok) {
-                    LoadFiles();
-                    Prefs_Load(&gPrefs);
-                    SelectFileNamed(to);
+                    Reload();
+                    if (gSelRow == kRowFiles) SelectFileNamed(to);
                 } else
                     SysBeep(1);          /* the name is taken */
             }
@@ -576,7 +622,7 @@ static void DoNew(Boolean project)
     unsigned char name[40];
     long dir;
     if (!FreeName(project ? PSTR("\pUntitled Project") : PSTR("\pUntitled Folder"),
-                  false, HereDir(project), name)
+                  false, gVol, HereDir(project), name)
         || !Files_NewFolder(gVol, HereDir(project), name, &dir)) {
         SysBeep(1);
         return;
@@ -591,8 +637,9 @@ static void DoDuplicate(void)
 {
     unsigned char base[40], name[40];
     short n;
-    if (gSelRow != kRowFiles || gFiles[gSelIdx].isFolder) return;
-    ShownName(gFiles[gSelIdx].name, base);
+    Target t;
+    if (!GetTarget(&t) || t.isFolder) return;
+    ShownName(t.name, base);
     n = base[0];
     if (n > 19) n = 19;                  /* room for " copy 99.md" */
     base[0] = (unsigned char)n;
@@ -600,39 +647,34 @@ static void DoDuplicate(void)
         const char *c = " copy";
         while (*c) base[++base[0]] = (unsigned char)*c++;
     }
-    if (!FreeName(base, true, gFiles[gSelIdx].parent, name)
-        || !Files_Copy(ItemWD(gSelIdx), gFiles[gSelIdx].name, name)) {
+    if (!FreeName(base, true, t.vol, t.dir, name) || !Files_Copy(t.wd, t.name, name)) {
         SysBeep(1);
         return;
     }
-    LoadFiles();
-    SelectFileNamed(name);
+    Reload();
+    if (gSelRow == kRowFiles) SelectFileNamed(name);
     Redraw();
 }
 
 static void DoTrash(void)
 {
-    DirItem *it;
     unsigned char hist[40];
     short v;
     long d;
-    if (gSelRow != kRowFiles || IsUp(gSelRow, gSelIdx)) return;
-    it = &gFiles[gSelIdx];
-    if (it->isFolder) {
+    Target t;
+    if (!GetTarget(&t)) return;
+    if (t.isFolder) {
         /* not the folder the open document lives in (it would keep saving
            into the Trash) */
-        if (Doc_Location(&v, &d) && v == gVol && d == it->dirID) { SysBeep(1); return; }
-        if (!Files_Trash(gVol, it->parent, it->name)) { SysBeep(1); return; }
+        if (Doc_Location(&v, &d) && v == t.vol && d == t.selfDir) { SysBeep(1); return; }
+        if (!Files_Trash(t.vol, t.dir, t.name)) { SysBeep(1); return; }
     } else {
-        Doc_FileTrashed(ItemWD(gSelIdx), it->name);
-        if (!Files_Trash(gVol, it->parent, it->name)) { SysBeep(1); return; }
-        JR_HistoryName(it->name, hist);
-        Files_Trash(gVol, it->parent, hist);         /* its journal, if any */
+        Doc_FileTrashed(t.wd, t.name);   /* also drops it from Recent */
+        if (!Files_Trash(t.vol, t.dir, t.name)) { SysBeep(1); return; }
+        JR_HistoryName(t.name, hist);
+        Files_Trash(t.vol, t.dir, hist);             /* its journal, if any */
     }
-    LoadFiles();
-    Prefs_Load(&gPrefs);
-    if (gSelIdx >= gFilesN) gSelIdx = gFilesN - 1;
-    Select(gFilesN > (gDepth > 0 ? 1 : 0) ? kRowFiles : -1, gSelIdx < 0 ? 0 : gSelIdx);
+    Reload();
     Redraw();
 }
 
@@ -733,7 +775,7 @@ static void EditKey(unsigned char c)
 shown:
     gCaretOn = true;
     gBlinkAt = TickCount();
-    DrawRow(kRowFiles);
+    DrawRow(gSelRow);
 }
 
 static void MoveSel(short dRow, short dIdx)
@@ -854,6 +896,6 @@ void Lib_Idle(void)
         gBlinkAt = TickCount();
         gCaretOn = !gCaretOn;
         SetPort(gWin);
-        DrawRow(kRowFiles);
+        DrawRow(gSelRow);
     }
 }

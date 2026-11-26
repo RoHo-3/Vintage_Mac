@@ -11,6 +11,7 @@
 
 void    Doc_Init(void);
 void    Doc_New(void);
+Boolean Doc_SaveCommand(void);  /* Cmd-S: Save dialog when untitled */
 Boolean Doc_Open(void);          /* classic dialog (Library's Other...) */
 Boolean Doc_Save(void);          /* false if cancelled or failed */
 void    Doc_Idle(void);          /* autosave on pause */

@@ -191,6 +191,17 @@ Boolean Files_Init(void)
     return true;
 }
 
+/* Where the next Standard File dialog opens (low-memory globals). */
+void Files_SetDialogFolder(short wd)
+{
+    short vol;
+    long dir;
+    if (Files_DirOfWD(wd, &vol, &dir)) {
+        *(short *)0x0214 = -vol;         /* SFSaveDisk */
+        *(long *)0x0398 = dir;           /* CurDirStore */
+    }
+}
+
 void Files_ProjectsDir(short *vol, long *dirID) { *vol = gProjVol; *dirID = gProjDir; }
 
 /* Is dir the folder anc, or inside it? (walks up the parents) */

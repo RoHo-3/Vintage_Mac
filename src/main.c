@@ -69,11 +69,13 @@ static const char kWelcome[] =
     "\r"
     "## Files\r"
     "\r"
-    "Command-O opens a .md file and Command-S saves; Command-N starts a new "
-    "document. A new document is named from its first line and saved in "
-    "My Documents (in the \"Mac MD Write\" folder next to the app), with "
-    "no dialog, or in the project you are working in; its name "
-    "follows the first line as you edit it. Quit and relaunch: your last "
+    "Command-O opens the Library: templates, your documents and projects, "
+    "and recent files. Command-N starts a new document. Command-S saves; the "
+    "first time, it asks for a name (the first line is filled in). If you "
+    "never save, a pause names the document from its first line and keeps "
+    "it in My Documents (in the \"Mac MD Write\" folder next to the app), "
+    "or in the project you are working in; that name follows the first line "
+    "as you edit. Quit and relaunch: your last "
     "document reopens where you left off. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
     "original line endings, so they round-trip with modern editors. "
@@ -171,7 +173,7 @@ static void DoCommandKey(EventRecord *ev)
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
     case 'n': Doc_New(); break;
     case 'o': Lib_Open(); break;
-    case 's': Doc_Save(); break;
+    case 's': Doc_SaveCommand(); break;
     case 'm': Doc_ToggleMarks(); break;
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
     case 'x': Ed_Cut(); break;
@@ -274,7 +276,8 @@ int main(void)
     if (Doc_Reopen()) {
         /* back where you left off */
     } else if (Prefs_Exist()) {
-        Lib_Open();              /* no previous document: the Library */
+        /* no previous document: a blank page, ready to write (Cmd-O for the
+           Library) */
     } else {
         /* first run: welcome text + which font is in use */
         const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
