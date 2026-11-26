@@ -65,11 +65,14 @@ static void SuggestName(unsigned char *name)
         if (p + 1 < len && (TB_Char(p) == '-' || TB_Char(p) == '*' || TB_Char(p) == '+')
             && TB_Char(p + 1) == ' ')
             p += 2;
-        while (p < len && TB_Char(p) >= '0' && TB_Char(p) <= '9' && p - q < 4)
-            p++;
-        if (p > q && p + 1 < len && (TB_Char(p) == '.' || TB_Char(p) == ')')
-            && TB_Char(p - 1) >= '0' && TB_Char(p - 1) <= '9' && TB_Char(p + 1) == ' ')
-            p += 2;
+        {
+            long d = p;                  /* "12. " or "3) ": a numbered item */
+            while (d < len && TB_Char(d) >= '0' && TB_Char(d) <= '9' && d - p < 4)
+                d++;
+            if (d > p && d + 1 < len && (TB_Char(d) == '.' || TB_Char(d) == ')')
+                && TB_Char(d + 1) == ' ')
+                p = d + 2;               /* otherwise the digits are words */
+        }
         if (p + 3 < len && TB_Char(p) == '[' && TB_Char(p + 2) == ']' && TB_Char(p + 3) == ' ')
             p += 4;
         if (p == q) break;
@@ -104,6 +107,22 @@ static void SuggestName(unsigned char *name)
     while (n > 0 && (name[n] == ' ' || name[n] == '.' || name[n] == ','
                      || name[n] == ';' || name[n] == '-'))
         n--;                             /* "Woke up laughing." -> no "..md" */
+    {   /* Title Case: each word's first letter up, but leave words with a
+           period or digit ("e.g.", "v1.2") or a capital already ("iPhone") */
+        short w = 1, e, k;
+        while (w <= n) {
+            Boolean keep = false;
+            for (e = w; e <= n && name[e] != ' ' && name[e] != '-'; e++)
+                if (name[e] == '.' || (name[e] >= '0' && name[e] <= '9')
+                    || (name[e] >= 'A' && name[e] <= 'Z'))
+                    keep = true;
+            if (!keep && name[w] >= 'a' && name[w] <= 'z')
+                name[w] -= 32;
+            for (k = e; k <= n && (name[k] == ' ' || name[k] == '-'); k++)
+                ;
+            w = k;
+        }
+    }
     if (n == 0) {
         const char *u = "Untitled";
         while (*u) name[++n] = (unsigned char)*u++;
