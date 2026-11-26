@@ -68,6 +68,22 @@
   special handling at 512 x 342. First research how other editors render
   them, looking for permissively licensed (BSD/MIT) solutions we may reuse.
 
+## 0.04 alpha — Library: every writing is a folder (Robert's design)
+
+- **No project/document choice up front.** Every new writing is a folder
+  holding its first document, so a piece can grow into a project later
+  without moving anything.
+- **My Stuff becomes My Writings.** New Project and New Document leave the
+  action bar; the shelf's first tile is an icon with a + in the middle,
+  titled "New Writing", which opens a folder with a blank document ready.
+- **Naming:** the folder and its first document both take the name chosen
+  when the writing is first saved.
+- Existing loose documents and projects keep working (migration to be
+  designed with the change).
+- **Settings › Move My Library…:** choose where on the disk the library
+  lives (default unchanged). Documents, invisible histories, prefs and
+  templates move together, so histories always stay beside their files.
+
 ## Later alphas
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
