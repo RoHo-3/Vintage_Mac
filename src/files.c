@@ -3,6 +3,7 @@
 
 #include <Memory.h>
 #include <OSUtils.h>
+#include <Multiverse.h>
 
 #define kCreator    'MMDW'
 #define kPrefsType  'pref'
@@ -165,6 +166,7 @@ Boolean Files_Init(void)
     gDocsWD = gTemplatesWD = gRootWD = appWD;   /* fallback: beside the app */
     if (!WDInfo(appWD, &vol, &appDir))
         return false;
+    FixFakeTrash(vol);
     /* Earlier names: "Mac MD Write" (builds 29-41, looked like the app) and
        "Library" (42-43, clashes with the OS's Library folders). Rename the
        old folder once; contents and folder IDs stay. */
@@ -213,6 +215,7 @@ void Files_SetDialogFolder(short wd)
 }
 
 static Boolean IsDoc(const unsigned char *name, OSType type);
+static void FixFakeTrash(short vol);
 
 /* A document was moved or deleted in the Finder: its invisible journal is
    left behind. Move such orphans to the Trash (recoverable), in this folder
@@ -407,11 +410,87 @@ Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Pa
     return PBHRenameSync(&pb) == noErr;
 }
 
-/* The Trash: on System 6 and 7 alike, the Finder keeps it in a folder
-   named "Trash" at the root of each disk. */
+static Boolean TrapAvailable(unsigned short trap, short kind)
+{
+    return NGetTrapAddress(trap, kind) != NGetTrapAddress(0xA89F, ToolTrap);
+}
+
+static Boolean HaveFindFolder(void)
+{
+    long resp;
+    return TrapAvailable(0xA1AD, OSTrap)                 /* Gestalt */
+        && Gestalt('fold', &resp) == noErr && (resp & 1);
+}
+
+static void MakeInvisible(short vol, long parent, ConstStr255Param name)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = (StringPtr)name;
+    ci.dirInfo.ioVRefNum = vol;
+    ci.dirInfo.ioFDirIndex = 0;
+    ci.dirInfo.ioDrDirID = parent;
+    if (PBGetCatInfoSync(&ci) != noErr) return;
+    if (ci.dirInfo.ioDrUsrWds.frFlags & 0x4000) return;
+    ci.dirInfo.ioDrUsrWds.frFlags |= 0x4000;
+    ci.dirInfo.ioDrDirID = parent;
+    PBSetCatInfoSync(&ci);
+}
+
+/* The disk's real Trash: FindFolder on System 7 (creating it properly if
+   the Finder hasn't yet); on System 6, the Finder's invisible root "Trash". */
 static Boolean TrashDir(short vol, long *dir)
 {
-    return SubFolder(vol, 2, (ConstStr255Param)"\pTrash", dir);
+    short tvol;
+    if (HaveFindFolder())
+        return FindFolder(vol, 'trsh', true, &tvol, dir) == noErr;
+    if (!SubFolder(vol, 2, (ConstStr255Param)"\pTrash", dir))
+        return false;
+    MakeInvisible(vol, 2, (ConstStr255Param)"\pTrash");
+    return true;
+}
+
+/* Builds 34-57 could create an ordinary, visible "Trash" folder at a
+   disk's root on System 7. Empty it into the real Trash and remove it. */
+static void FixFakeTrash(short vol)
+{
+    CInfoPBRec ci;
+    CMovePBRec mv;
+    HParamBlockRec del;
+    Str63 name;
+    long fake, real;
+    short tvol;
+    if (!HaveFindFolder()) return;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = (StringPtr)"\pTrash";
+    ci.dirInfo.ioVRefNum = vol;
+    ci.dirInfo.ioFDirIndex = 0;
+    ci.dirInfo.ioDrDirID = 2;
+    if (PBGetCatInfoSync(&ci) != noErr || !(ci.dirInfo.ioFlAttrib & 0x10))
+        return;
+    fake = ci.dirInfo.ioDrDirID;
+    if (FindFolder(vol, 'trsh', true, &tvol, &real) != noErr || real == fake)
+        return;                          /* it is the real one */
+    while (true) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = 1;
+        ci.hFileInfo.ioDirID = fake;
+        if (PBGetCatInfoSync(&ci) != noErr) break;
+        mv.ioCompletion = NULL;
+        mv.ioNamePtr = name;
+        mv.ioVRefNum = vol;
+        mv.ioNewName = NULL;
+        mv.ioNewDirID = real;
+        mv.ioDirID = fake;
+        if (PBCatMoveSync(&mv) != noErr) return;   /* a clash: leave it be */
+    }
+    del.fileParam.ioCompletion = NULL;
+    del.fileParam.ioNamePtr = (StringPtr)"\pTrash";
+    del.fileParam.ioVRefNum = vol;
+    del.fileParam.ioDirID = 2;
+    PBHDeleteSync(&del);
 }
 
 Boolean Files_Trash(short vol, long dirID, ConstStr255Param name)
