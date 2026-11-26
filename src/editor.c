@@ -783,6 +783,28 @@ static void CollapseEmptyPair(void)
     }
 }
 
+/* A hidden opener left alone at the cursor ("**|" at a line start or after
+   a space, nothing after it) that the writer didn't just type: they can't
+   see it, so it goes before typing there, rather than silently styling
+   what comes next and showing up as "**" once the cursor leaves. */
+static void DropLoneOpener(void)
+{
+    long c = gCaret, len = TB_Len(), a = c;
+    char m;
+    if (gShowMarks || HasSel() || c == 0) return;
+    if (c < len && TB_Char(c) != '\r') return;      /* text after it */
+    m = TB_Char(c - 1);
+    if (m != '*' && m != '_' && m != '`' && m != '~') return;
+    while (a > 0 && TB_Char(a - 1) == m && c - a < 3) a--;
+    if (!(a == MD_ParaStart(c) || TB_Char(a - 1) == ' ')) return;
+    if (!Skippable(a)) return;                       /* shown: it's plain text */
+    if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
+        && gUndo[gUndoN - 1].pos <= a
+        && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == c)
+        return;                                      /* just typed: on purpose */
+    DeleteRange(a, c);
+}
+
 static void InsertText(const char *s, long n, Boolean typing)
 {
     Edit(SelStart(), SelEnd() - SelStart(), s, n, typing && !HasSel());
@@ -1432,6 +1454,7 @@ void Ed_Key(EventRecord *ev)
         CollapseEmptyPair();
         return;
     case 0x0D: case 0x03:                                /* return, enter */
+        DropLoneOpener();
         if (ContinueBlock())
             return;
         ch = '\r';
@@ -1448,7 +1471,9 @@ void Ed_Key(EventRecord *ev)
     default:
         if (c >= 0x20 && !cmd) {
             char two[2];
-            long ps = MD_ParaStart(gCaret), k;
+            long ps, k;
+            DropLoneOpener();
+            ps = MD_ParaStart(gCaret);
             ch = (char)c;
             /* "##text": Markdown needs a space after a heading's #s; put it in
                (2-6 #s only, so a "#hashtag" stays as typed) */
