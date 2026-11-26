@@ -276,6 +276,7 @@ Boolean Doc_SaveCommand(void)
     unsigned char suggested[40];
     Chrome_ShowSaveDot();                /* the dot shows the save happen */
     if (gHasFile) {
+        Chrome_ShowTitleBriefly();       /* and the name it's saved under */
         if (Ed_ChangeWeight() == 0 && !gMdBehind) {
             Chrome_SetSaveState(kSaveSaved);   /* nothing new: already solid */
             return true;
@@ -289,6 +290,7 @@ Boolean Doc_SaveCommand(void)
         return false;
     if (!BecomeFile(reply.fName, reply.vRefNum, false))
         return false;
+    Chrome_ShowTitleBriefly();           /* the name just chosen */
     return Doc_Save();
 }
 

@@ -86,6 +86,8 @@
   when the writing is first saved.
 - Existing loose documents and projects keep working (migration to be
   designed with the change).
+- Cmd-S shows the title strip for ~2 s, so the name used is seen (done,
+  ships with the first 0.04 build).
 - **Settings › Move My Library…:** choose where on the disk the library
   lives (default unchanged). Documents, invisible histories, prefs and
   templates move together, so histories always stay beside their files.
