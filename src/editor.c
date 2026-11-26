@@ -779,9 +779,12 @@ void Ed_Key(EventRecord *ev)
             pos = SkipLeft(gCaret);
             if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
                 DeleteRange(pos, PrefixEnd(pos));
-            else if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
-                     && gUndo[gUndoN - 1].pos <= pos
-                     && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret)
+            else if ((gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
+                      && gUndo[gUndoN - 1].pos <= pos
+                      && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret)
+                     /* or an opener (line start / after a space): nothing of
+                        it would be left to see */
+                     || pos == MD_ParaStart(pos) || TB_Char(pos - 1) == ' ')
                 DeleteRange(pos, SkipRight(gCaret));   /* a ** just typed goes as
                                                one unit: a misplaced close can be
                                                removed and retyped */
