@@ -104,6 +104,9 @@ interface is visually distinct from the prose.
   cursor (that paragraph re-wraps as they appear). A heading's `#` prefix
   never takes inline space: when shown it hangs in the left margin (every
   prefix up to `###### ` fits in 46 px), so headings never shift.
+- **Spaces around markers follow standard Markdown:** an opening `**`, `*`,
+  `_` or `~~` can't be followed by a space, and a closing one can't follow a
+  space, so `~~ b ~~` and `** b **` stay plain text, as they do on GitHub.
 - **Hamburger drawer = document explorer, built from blades.** The 180 px
   drawer is headed with the current document's name and lists:
   `<Project name> ›`, `Sections ›`, `Links ›`, `Find ›`, `Focus Timer ›`, `History ›`,

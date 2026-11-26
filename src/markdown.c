@@ -72,6 +72,36 @@ static Boolean IsAlnum(char c)
 
 /* Find a closing run of `n` copies of c at or after i (not already a
    marker, and for n == 1 not part of a longer run). */
+static Boolean IsBlank(char c)
+{
+    return c == ' ' || c == '\t' || c == '\r';
+}
+
+/* The marker run starting at i (n characters) can open emphasis: it is not
+   followed by a space, as in standard Markdown ("** b **" stays plain).
+   A run at the very end is still a possible opener while it is typed. */
+static Boolean CanOpen(long i, long n, long len)
+{
+    return i + n >= len || !IsBlank(gTxt[i + n]);
+}
+
+/* One bit per marker kind, set when a run of it was turned down as an
+   opener because a space followed ("~~ b"). */
+static short SpacedBit(char c, long n)
+{
+    short b = (c == '*') ? 1 : (c == '_') ? 4 : 16;
+    return n == 2 ? b << 1 : b;
+}
+
+/* A run at the end of the paragraph, after a space, when an earlier run of
+   the same kind was turned down: the writer is closing a spaced pair
+   ("~~ b ~~"), so leave it showing rather than treat it as a new opener. */
+static Boolean LooksClosing(long i, long n, long len, short spaced)
+{
+    return i + n >= len && i > 0 && IsBlank(gTxt[i - 1])
+        && (spaced & (SpacedBit(gTxt[i], 1) | SpacedBit(gTxt[i], 2))) != 0;
+}
+
 static long FindClose(long i, long n, char c, long len)
 {
     long j, limit = i + kSearchLimit;
@@ -81,6 +111,11 @@ static long FindClose(long i, long n, char c, long len)
             continue;
         if (gTxt[j] != c)
             continue;
+        if (IsBlank(gTxt[j - 1])) {      /* a closer can't follow a space */
+            if (n == 1 && j + 1 < len && gTxt[j + 1] == c)
+                j++;
+            continue;
+        }
         if (n == 2) {
             if (gTxt[j + 1] == c && !(gSty[j + 1] & MD_MARK))
                 return j;
@@ -113,6 +148,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
     long cpos = (gCaretAbs >= start && gCaretAbs <= end) ? gCaretAbs - start : -1;
     unsigned char mark = MD_MARK | (active ? 0 : MD_HIDDEN);
     char c;
+    short spaced;
 
     if (start == gCStart && end == gCEnd && active == gCActive) {
         *level = gCLevel;
@@ -157,6 +193,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                     break;
             }
 
+    spaced = 0;
     for (i = p; i < len; i++) {
         if (gSty[i] & (MD_MARK | MD_CODE))
             continue;
@@ -176,6 +213,8 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 i = len;
             }
         } else if ((c == '*' || c == '_') && i + 1 < len && gTxt[i + 1] == c) {
+            if (!CanOpen(i, 2, len)) { spaced |= SpacedBit(c, 2); i++; continue; }
+            if (LooksClosing(i, 2, len, spaced)) { i++; continue; }
             j = FindClose(i + 3, 2, c, len);
             if (j > 0) {
                 Mark(i, 2, mark);
@@ -192,6 +231,8 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 i++;
             }
         } else if (c == '~' && i + 1 < len && gTxt[i + 1] == '~') {
+            if (!CanOpen(i, 2, len)) { spaced |= SpacedBit(c, 2); i++; continue; }
+            if (LooksClosing(i, 2, len, spaced)) { i++; continue; }
             j = FindClose(i + 3, 2, c, len);          /* ~~strike~~ */
             if (j > 0) {
                 Mark(i, 2, mark);
@@ -202,7 +243,7 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                        && gTxt[i + 2] == c && gTxt[i + 3] == c) {
                 Mark(i, 4, mark);                     /* ~~|~~ */
                 i += 3;
-            } else if (cpos >= i + 2) {               /* typing after an open ~~ */
+            } else if (cpos >= i + 2) {  /* open ~~ */
                 Mark(i, 2, mark);
                 ApplyStyle(i + 2, len, MD_STRIKE);
                 i += 1;
@@ -210,14 +251,16 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         } else if (c == '*' || c == '_') {
             if (c == '_' && i > 0 && IsAlnum(gTxt[i - 1]))
                 continue;                /* intra-word underscore */
-            if (i + 1 < len && gTxt[i + 1] == ' ')
-                continue;                /* "* " is a list bullet, not emphasis */
+            if (!CanOpen(i, 1, len)) {
+                spaced |= SpacedBit(c, 1);
+                continue;                /* "* " is a bullet or plain text */
+            }
             j = FindClose(i + 2, 1, c, len);
             if (j > 0) {
                 Mark(i, 1, mark);
                 Mark(j, 1, mark);
                 ApplyStyle(i + 1, j, MD_ITALIC);
-            } else if (cpos > i) {       /* typing after an open * or _ */
+            } else if (cpos > i && !LooksClosing(i, 1, len, spaced)) {  /* open * or _ */
                 Mark(i, 1, mark);
                 ApplyStyle(i + 1, len, MD_ITALIC);
             }
