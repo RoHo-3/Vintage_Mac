@@ -272,7 +272,7 @@ static void DrawEditField(short x, short top)
         SetRect(&sel, tx - 1, top + kLabelBase - 9, tx + w + 1, top + kLabelBase + 2);
         InvertRect(&sel);
     } else if (gCaretOn) {
-        short cx = tx + TextWidth(s, 1, gEditCaret);
+        short cx = tx + TextWidth((Ptr)s, 1, gEditCaret);
         MoveTo(cx, top + kLabelBase - 9);
         LineTo(cx, top + kLabelBase + 1);
     }
@@ -708,7 +708,7 @@ shown:
     DrawRow(kRowFiles);
 }
 
-static void Move(short dRow, short dIdx)
+static void MoveSel(short dRow, short dIdx)
 {
     short row = gSelRow, idx = gSelIdx, n;
     if (row < 0) {                       /* nothing picked: start in My Files */
@@ -765,10 +765,10 @@ void Lib_Key(EventRecord *ev)
     switch (c) {
     case 0x1B: Lib_Close(); break;
     case '\r': case 0x03: if (gSelRow >= 0) DoOpen(); break;
-    case 0x1C: Move(0, -1); break;
-    case 0x1D: Move(0, 1); break;
-    case 0x1E: Move(-1, 0); break;
-    case 0x1F: Move(1, 0); break;
+    case 0x1C: MoveSel(0, -1); break;
+    case 0x1D: MoveSel(0, 1); break;
+    case 0x1E: MoveSel(-1, 0); break;
+    case 0x1F: MoveSel(1, 0); break;
     default:
         if (c > 0x20 && c < 0x7F) TypeSelect(c);
     }
