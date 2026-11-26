@@ -581,6 +581,30 @@ static void DeleteRange(long a, long b)
         Edit(a, b - a, 0, 0, false);
 }
 
+/* After a delete: an empty pair left around the cursor (**|**, __|__,
+   *|*, _|_, `|`) goes too, so the next word isn't styled by markers the
+   writer can't see. Markers shown (Cmd-M): left alone, they're visible. */
+static void CollapseEmptyPair(void)
+{
+    long c = gCaret, len = TB_Len();
+    short k, i;
+    char m;
+    if (gShowMarks || HasSel() || c == 0 || c >= len) return;
+    m = TB_Char(c - 1);
+    if (m != '*' && m != '_' && m != '`') return;
+    for (k = (m == '`') ? 1 : 2; k >= 1; k--) {
+        Boolean ok = c - k >= 0 && c + k <= len;
+        for (i = 1; ok && i <= k; i++)
+            ok = TB_Char(c - i) == m && TB_Char(c + i - 1) == m;
+        if (ok && k == 1)                /* exactly one each side */
+            ok = (c - 2 < 0 || TB_Char(c - 2) != m) && (c + 1 >= len || TB_Char(c + 1) != m);
+        if (ok) {
+            DeleteRange(c - k, c + k);
+            return;
+        }
+    }
+}
+
 static void InsertText(const char *s, long n, Boolean typing)
 {
     Edit(SelStart(), SelEnd() - SelStart(), s, n, typing && !HasSel());
@@ -755,10 +779,14 @@ void Ed_Key(EventRecord *ev)
             pos = SkipLeft(gCaret);
             if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
                 DeleteRange(pos, PrefixEnd(pos));
-            else                         /* a hidden ** or * just typed or passed: */
-                DeleteRange(pos, SkipRight(gCaret));   /* one unit (with an empty
-                                               pair's close, **|**), so a misplaced
-                                               close can be removed and retyped */
+            else if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
+                     && gUndo[gUndoN - 1].pos <= pos
+                     && gUndo[gUndoN - 1].pos + gUndo[gUndoN - 1].len == gCaret)
+                DeleteRange(pos, SkipRight(gCaret));   /* a ** just typed goes as
+                                               one unit: a misplaced close can be
+                                               removed and retyped */
+            else if (pos > 0)            /* otherwise markers stay put and the */
+                DeleteRange(pos - 1, pos);   /* letter before them goes */
         } else if (gCaret > 0) {
             if (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                 && gUndo[gUndoN - 1].len > 0
@@ -770,6 +798,7 @@ void Ed_Key(EventRecord *ev)
             } else
                 DeleteRange(gCaret - 1, gCaret);
         }
+        CollapseEmptyPair();
         return;
     case 0x7F:                                           /* forward delete */
         if (HasSel()) DeleteRange(SelStart(), SelEnd());
@@ -777,11 +806,10 @@ void Ed_Key(EventRecord *ev)
             pos = SkipRight(gCaret);
             if (pos < TB_Len() && TB_Char(pos) == '\r' && PrefixEnd(pos + 1) > pos + 1)
                 DeleteRange(pos, PrefixEnd(pos + 1));   /* join; the heading's "### " goes too */
-            else if (pos > gCaret)
-                DeleteRange(gCaret, pos);       /* hidden marker ahead: one unit */
-            else if (pos < TB_Len())
+            else if (pos < TB_Len())         /* past hidden markers: the letter */
                 DeleteRange(pos, pos + 1);
         }
+        CollapseEmptyPair();
         return;
     case 0x0D: case 0x03:                                /* return, enter */
         ch = '\r';
