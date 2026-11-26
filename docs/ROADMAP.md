@@ -102,3 +102,10 @@
   travels (e.g. a sidecar folder, extended attributes, or a sync format).
   Until then: nothing in the file format may preclude it. Documents are plain
   UTF-8 Markdown; the journal format is documented in STORAGE.md.
+
+- **Find existing .md files (migration).** A Library affordance that searches
+  the Mac's disks for Markdown files made elsewhere and copies them into
+  Writings (My Documents), so moving to the app is one step. Copies, never
+  moves; skips Writings itself and the Trash; shows what it found before
+  copying. Classic search: PBCatSearch on HFS volumes that support it,
+  otherwise a recursive catalog walk.
