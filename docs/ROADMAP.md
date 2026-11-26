@@ -57,16 +57,22 @@
    - Copy keeps Markdown balanced: a selection that cuts through a styled
      phrase copies with the missing markers added.
 
-## 0.03 alpha — Markdown coverage
+## 0.03 alpha — Markdown coverage (done, builds 78-83)
 
-- Strikethrough (\~\~text\~\~): QuickDraw has no strike style, so draw the
-  line ourselves.
-- Block quotes, lists (Return continues a list), task boxes, horizontal
-  rules, fenced code blocks, setext headings, hard line breaks.
-- Selection pill, Cmd-K palette with synonyms.
-- Tabled until the items above are done: **tables and footnotes**, which need
-  special handling at 512 x 342. First research how other editors render
-  them, looking for permissively licensed (BSD/MIT) solutions we may reuse.
+- Strikethrough (\~\~text\~\~), drawn by hand (QuickDraw has no strike
+  style). Spaces next to markers follow standard Markdown (`~~ b ~~` and
+  `** b **` stay plain); closers pair with the nearest opener.
+- Block quotes (bars at the left, three deep), lists (bullets, numbers,
+  task boxes; Return continues, Return on an empty item ends or outdents,
+  Tab / Shift-Tab nest under the parent's text), horizontal rules, fenced
+  code blocks, setext headings, hard line breaks, backslash escapes.
+- Paragraph formats on Cmd-Opt-0..6, Cmd-Shift-8/7/9/'.
+- Selection pill (Cut · Copy · Paste · Format › B I S Code · Paragraph ›)
+  and the Cmd-K palette with synonyms, both from one command table. Link
+  and Note join the pill when those features are built.
+- Tabled: **tables and footnotes**, which need special handling at
+  512 x 342. First research how other editors render them, looking for
+  permissively licensed (BSD/MIT) solutions we may reuse.
 
 ## 0.04 alpha — Library: every writing is a folder (Robert's design)
 
