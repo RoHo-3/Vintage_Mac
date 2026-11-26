@@ -265,11 +265,8 @@ static void DrawUnder(short level)
     short x = level * kStep;
     Rect r;
     SetRect(&r, x, 0, x + kPanelW + 2, gWin->portRect.bottom);
-    FillRect(&r, &qd.gray);              /* around the floating card: dimmed */
-    SetRect(&r, x, 0, x + kStep, gWin->portRect.bottom);
-    EraseRect(&r);                       /* the panel's strip: clean white */
-    MoveTo(x + kStep, 0);
-    LineTo(x + kStep, gWin->portRect.bottom);
+    FillRect(&r, &qd.gray);              /* the panel underneath is dimmed away:
+                                            the blade is the only thing open */
 }
 
 static void DrawHeader(short x, Boolean root)
