@@ -392,7 +392,7 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    template itself is never changed (edit templates in the Finder — a
    power-user feature). Cmd-N skips the Library and opens Blank.
 2. **My Stuff** — projects (as folders) and loose documents side by side.
-   On disk, a "Mac MD Write" folder next to the app holds three peers:
+   On disk, a "Library" folder next to the app holds three peers:
    `My Documents` (loose documents), `My Projects` (project folders) and
    `Templates`, plus the prefs file; the shelf shows the first two together,
    read with HFS catalog calls (`PBGetCatInfo`). Inside a project the row

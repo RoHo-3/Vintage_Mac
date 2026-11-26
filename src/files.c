@@ -164,7 +164,12 @@ Boolean Files_Init(void)
     gDocsWD = gTemplatesWD = gRootWD = appWD;   /* fallback: beside the app */
     if (!WDInfo(appWD, &vol, &appDir))
         return false;
-    if (!SubFolder(vol, appDir, (ConstStr255Param)"\pMac MD Write", &rootDir)
+    /* Builds 29-41 called it "Mac MD Write", which looked like the app's
+       own name in the Finder: rename it once (contents and IDs stay). */
+    if (!Files_Exists(vol, appDir, (ConstStr255Param)"\pLibrary"))
+        Files_Rename(vol, appDir, (ConstStr255Param)"\pMac MD Write",
+                     (ConstStr255Param)"\pLibrary");
+    if (!SubFolder(vol, appDir, (ConstStr255Param)"\pLibrary", &rootDir)
         || !OpenWD(vol, rootDir, &gRootWD))
         return false;
     gDocsWD = gTemplatesWD = gRootWD;
