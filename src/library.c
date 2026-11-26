@@ -2,6 +2,7 @@
 #include "files.h"
 #include "document.h"
 #include "journal.h"
+#include "chrome.h"
 
 #include <Quickdraw.h>
 #include <Fonts.h>
@@ -777,7 +778,9 @@ void Lib_Close(void)
     EndRename(true);
     gOpen = false;
     SetPort(gWin);
+    EraseRect(&gWin->portRect);          /* no Library header left behind */
     InvalRect(&gWin->portRect);          /* the writing view redraws */
+    Chrome_ShowTitleBriefly();           /* the document's name, for a moment */
 }
 
 Boolean Lib_IsOpen(void) { return gOpen; }

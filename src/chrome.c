@@ -18,6 +18,7 @@
 static WindowPtr gWin;
 static Boolean   gShown;                 /* footer */
 static Boolean   gStripShown;            /* top strip */
+static unsigned long gStripUntil;       /* shown briefly (a document opened): hide then */
 static Point     gLastMouse;
 static unsigned long gClockStart, gLastKey;
 static long      gShownSeconds = -1;
@@ -223,11 +224,22 @@ void Chrome_ShowSaveDot(void)
     ShowFooter();
 }
 
+/* A document just opened: show its name for a moment (~2 s). */
+void Chrome_ShowTitleBriefly(void)
+{
+    if (!gWin) return;
+    gStripShown = false;
+    SetStrip(true);
+    GetMouse(&gLastMouse);               /* don't count this as a mouse move */
+    gStripUntil = TickCount() + 120;
+}
+
 void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
     if (!gWin) return;
+    gStripUntil = 0;
     SetStrip(false);
     if (!gShown) return;
     gShown = false;
@@ -245,10 +257,14 @@ void Chrome_Idle(void)
     SetPort(gWin);
     GetMouse(&m);
     moved = m.h != gLastMouse.h || m.v != gLastMouse.v;
+    if (gStripUntil && TickCount() >= gStripUntil) {
+        gStripUntil = 0;                 /* the title has been seen */
+        if (!(m.v >= 0 && m.v < kStripH)) SetStrip(false);
+    }
     if (moved) {
         gLastMouse = m;
         ShowFooter();
-        SetStrip(m.v >= 0 && m.v < kStripH);
+        if (!gStripUntil) SetStrip(m.v >= 0 && m.v < kStripH);
     } else if (TickCount() - gLastKey >= kPauseTicks)
         ShowFooter();                    /* the writer paused */
     if (gShown && (long)((TickCount() - gClockStart) / 60) != gShownSeconds) {
