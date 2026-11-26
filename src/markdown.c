@@ -191,6 +191,22 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 ApplyStyle(i + 2, len, MD_BOLD);
                 i++;
             }
+        } else if (c == '~' && i + 1 < len && gTxt[i + 1] == '~') {
+            j = FindClose(i + 3, 2, c, len);          /* ~~strike~~ */
+            if (j > 0) {
+                Mark(i, 2, mark);
+                Mark(j, 2, mark);
+                ApplyStyle(i + 2, j, MD_STRIKE);
+                i += 1;
+            } else if (cpos == i + 2 && i + 3 < len
+                       && gTxt[i + 2] == c && gTxt[i + 3] == c) {
+                Mark(i, 4, mark);                     /* ~~|~~ */
+                i += 3;
+            } else if (cpos >= i + 2) {               /* typing after an open ~~ */
+                Mark(i, 2, mark);
+                ApplyStyle(i + 2, len, MD_STRIKE);
+                i += 1;
+            }
         } else if (c == '*' || c == '_') {
             if (c == '_' && i > 0 && IsAlnum(gTxt[i - 1]))
                 continue;                /* intra-word underscore */

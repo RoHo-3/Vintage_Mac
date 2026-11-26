@@ -259,7 +259,7 @@ static void DoCommandKey(EventRecord *ev)
     case '-': App_StepSize(-1); break;
     case '\\': Drawer_Open(); break;                 /* Cmd-\ : the drawer */
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
-    case 'x': Ed_Cut(); break;
+    case 'x': if (shift) Ed_Format('~', 2); else Ed_Cut(); break;   /* Cmd-Shift-X: strike */
     case 'c': Ed_Copy(); break;
     case 'v': Ed_Paste(); break;
     case 'a': Ed_SelectAll(); break;

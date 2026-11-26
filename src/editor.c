@@ -296,6 +296,13 @@ static void DrawRun(short level, unsigned char style, short x, short base, short
     gCodeRun = gMarkRun = false;
     MoveTo(x, base);
     DrawText(gRun, 0, n);
+    if (style & MD_STRIKE) {             /* QuickDraw has no strike style: draw it */
+        Point e;
+        short y = base - (gAsc[level] * 3) / 10;
+        GetPen(&e);
+        MoveTo(x, y);
+        LineTo(e.h - 1, y);
+    }
 }
 
 static void DrawLine(long line, short y)
@@ -334,7 +341,7 @@ static void DrawLine(long line, short y)
         st = StyleAt(&li, p);
         if (st & MD_HIDDEN)
             continue;
-        st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK);
+        st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK | MD_STRIKE);
         w = CW(li.level, st, TB_Char(p));
         if (x + w > kLeft + kColumnW)
             break;                       /* trailing spaces hang past the edge */
@@ -679,7 +686,7 @@ static void CollapseEmptyPair(void)
     /* an opener left with nothing after it ("**|" at a line or word start,
        its text deleted) goes too */
     m = TB_Char(c - 1);
-    if ((m == '*' || m == '_' || m == '`') && (c >= len || TB_Char(c) == '\r' || TB_Char(c) == ' ')) {
+    if ((m == '*' || m == '_' || m == '`' || m == '~') && (c >= len || TB_Char(c) == '\r' || TB_Char(c) == ' ')) {
         long a = c;
         while (a > 0 && TB_Char(a - 1) == m && c - a < 3) a--;
         if (a == MD_ParaStart(c) || TB_Char(a - 1) == ' ') {
@@ -689,8 +696,8 @@ static void CollapseEmptyPair(void)
     }
     if (c >= len) return;
     m = TB_Char(c - 1);
-    if (m != '*' && m != '_' && m != '`') return;
-    for (k = (m == '`') ? 1 : 2; k >= 1; k--) {
+    if (m != '*' && m != '_' && m != '`' && m != '~') return;
+    for (k = (m == '`') ? 1 : 2; k >= (m == '~' ? 2 : 1); k--) {
         Boolean ok = c - k >= 0 && c + k <= len;
         for (i = 1; ok && i <= k; i++)
             ok = TB_Char(c - i) == m && TB_Char(c + i - 1) == m;
@@ -754,6 +761,7 @@ static short Markers(unsigned char st, char *out)
     short n = 0;
     if (st & MD_BOLD)   { out[n++] = '*'; out[n++] = '*'; }
     if (st & MD_ITALIC) out[n++] = '*';
+    if (st & MD_STRIKE) { out[n++] = '~'; out[n++] = '~'; }
     if (st & MD_CODE)   out[n++] = '`';
     return n;
 }
@@ -770,7 +778,7 @@ static unsigned char TextStyleAt(long pos)
     if (pos >= pe) return 0;
     sty = MD_Parse(ps, pe, false, &lvl);
     if (!sty || (sty[pos - ps] & MD_MARK)) return 0;
-    return sty[pos - ps] & (MD_BOLD | MD_ITALIC | MD_CODE);
+    return sty[pos - ps] & (MD_BOLD | MD_ITALIC | MD_CODE | MD_STRIKE);
 }
 
 /* Copy keeps Markdown balanced: a selection that starts or ends inside a

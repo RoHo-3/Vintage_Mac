@@ -19,6 +19,7 @@
 #define MD_CODE    0x08
 #define MD_PREFIX  0x10     /* heading prefix: hangs in the margin */
 #define MD_MARK    0x20     /* a syntax marker (shown only when active) */
+#define MD_STRIKE  0x40     /* ~~strikethrough~~ (GitHub Markdown) */
 
 /* Styles for the paragraph [start, end) (end = its '\r' or text end).
    *level is 0 for body text, 1-6 for headings. The returned array is
