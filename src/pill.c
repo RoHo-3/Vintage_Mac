@@ -23,29 +23,29 @@ typedef struct {
     short cmd;           /* 0: none */
     short go;            /* level to open, or -1 */
     char  look;          /* 'b' bold, 'i' italic, 's' struck, 'x' box, 0 plain */
-} Item;
+} PillItem;
 
-static const Item kTopItems[] = {
+static const PillItem kTopItems[] = {
     { "Cut", cCut, -1, 0 }, { "Copy", cCopy, -1, 0 }, { "Paste", cPaste, -1, 0 },
     { "Format \310", 0, kFormat, 0 },
 };
-static const Item kFormatItems[] = {
+static const PillItem kFormatItems[] = {
     { "\307", 0, kTop, 0 }, { "B", cBold, -1, 'b' }, { "I", cItalic, -1, 'i' },
     { "S", cStrike, -1, 's' }, { "Code", cCode, -1, 0 },
     { "Paragraph \310", 0, kPara, 0 },
 };
-static const Item kParaRow1[] = {
+static const PillItem kParaRow1[] = {
     { "H1", cH1, -1, 0 }, { "H2", cH2, -1, 0 }, { "H3", cH3, -1, 0 },
     { "H4", cH4, -1, 0 }, { "H5", cH5, -1, 0 }, { "H6", cH6, -1, 0 },
 };
-static const Item kParaRow2[] = {
+static const PillItem kParaRow2[] = {
     { "\245 List", cBullets, -1, 0 }, { "1. List", cNumbers, -1, 0 },
     { "Task", cTasks, -1, 'x' }, { "\322 Quote", cQuote, -1, 0 },
 };
-static const Item kBack = { "\307", 0, kFormat, 0 };
+static const PillItem kBack = { "\307", 0, kFormat, 0 };
 
 typedef struct {
-    const Item *item;
+    const PillItem *item;
     Rect r;
 } Placed;
 
@@ -72,7 +72,7 @@ static short CW(const char *s)
     return TextWidth(s, 0, n);
 }
 
-static short ItemW(const Item *it)
+static short ItemW(const PillItem *it)
 {
     short w;
     if (it->look == 'b') TextFace(bold);
@@ -83,7 +83,7 @@ static short ItemW(const Item *it)
 }
 
 /* Lay a row of items out from x, stretched to width w (0: natural). */
-static short PlaceRow(const Item *items, short n, short x, short y, short w)
+static short PlaceRow(const PillItem *items, short n, short x, short y, short w)
 {
     short i, total = 0, extra, at = x;
     for (i = 0; i < n; i++) total += ItemW(&items[i]);
@@ -105,7 +105,7 @@ static void Layout(short *w, short *h)
     gN = 0;
     UIFont();
     if (gLevel == kTop || gLevel == kFormat) {
-        const Item *items = gLevel == kTop ? kTopItems : kFormatItems;
+        const PillItem *items = gLevel == kTop ? kTopItems : kFormatItems;
         short n = gLevel == kTop ? N(kTopItems) : N(kFormatItems);
         *w = PlaceRow(items, n, 0, 0, 0);
         *h = kRowH;
@@ -126,7 +126,7 @@ static void Layout(short *w, short *h)
 
 static void DrawItem(Placed *p)
 {
-    const Item *it = p->item;
+    const PillItem *it = p->item;
     short tx = p->r.left + kPad / 2, base = p->r.top + 13, n = 0;
     while (it->label[n]) n++;
     if (it->look == 'x') {               /* the task box */
@@ -148,7 +148,7 @@ static void DrawItem(Placed *p)
     TextFace(0);
 }
 
-static void Draw(void)
+static void DrawPill(void)
 {
     Rect s = gPill;
     short i;
@@ -181,7 +181,7 @@ static void HitRect(Placed *p, Rect *r)
 }
 
 /* Place the level over the selection and draw it. */
-static void Open(short level)
+static void OpenLevel(short level)
 {
     Rect first, last, save;
     short w, h, x, y, i, cx;
@@ -207,7 +207,7 @@ static void Open(short level)
     save.bottom += 2;
     Under_Save(gWin, &save);
     gShown = true;
-    Draw();
+    DrawPill();
 }
 
 void Pill_Init(WindowPtr w) { gWin = w; }
@@ -216,7 +216,7 @@ void Pill_Show(void)
 {
     if (gShown) Pill_Hide();
     if (!Ed_HasSelection()) return;
-    Open(kTop);
+    OpenLevel(kTop);
 }
 
 void Pill_Hide(void)
@@ -233,7 +233,7 @@ void Pill_Redraw(void)
     if (!gShown) return;
     Under_Forget();
     gShown = false;
-    Open(gLevel);
+    OpenLevel(gLevel);
 }
 
 Boolean Pill_Click(Point pt)
@@ -258,10 +258,10 @@ Boolean Pill_Click(Point pt)
     if (!in) return true;
     InvertRect(&r);
     {
-        const Item *it = gPlaced[hit].item;
+        const PillItem *it = gPlaced[hit].item;
         if (it->go >= 0) {               /* another level, in the same place */
             Pill_Hide();
-            Open(it->go);
+            OpenLevel(it->go);
         } else if (it->cmd) {
             Pill_Hide();                 /* the page shows again, then changes */
             Cmd_Run(it->cmd);
