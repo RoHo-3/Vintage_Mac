@@ -45,7 +45,7 @@ short   JR_Recover(void);
 enum { kPrefShowMarks = 1,
        kPrefNameFollows = 2 };            /* app-named: name tracks line 1 */
 void          JR_HistoryName(const unsigned char *md, unsigned char *out);
-void          JR_Rename(const unsigned char *newMd);
+Boolean       JR_Rename(const unsigned char *newMd);
 void          JR_MarkRenamed(const unsigned char *md, short vRef);
 void          JR_SetPrefs(unsigned char prefs);
 unsigned char JR_Prefs(void);

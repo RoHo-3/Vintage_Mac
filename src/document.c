@@ -67,8 +67,9 @@ static void SuggestName(unsigned char *name)
     }
     if (p < len && TB_Char(p) != '\r' && lastSpace > 0)
         n = lastSpace;                   /* cut at a word boundary */
-    while (n > 0 && name[n] == ' ')
-        n--;
+    while (n > 0 && (name[n] == ' ' || name[n] == '.' || name[n] == ','
+                     || name[n] == ';' || name[n] == '-'))
+        n--;                             /* "Woke up laughing." -> no "..md" */
     if (n == 0) {
         const char *u = "Untitled";
         while (*u) name[++n] = (unsigned char)*u++;
@@ -138,7 +139,10 @@ static void FollowFirstLine(void)
         return;
     if (Rename(gName, gVRef, want) != noErr)
         return;
-    JR_Rename(want);
+    if (!JR_Rename(want)) {              /* the journal couldn't follow: undo, */
+        Rename(want, gVRef, gName);      /* so the pair stays together */
+        return;
+    }
     CopyPString(want, gName);
     Chrome_SetTitle(gName);
 }
@@ -359,7 +363,10 @@ Boolean Doc_RenameFile(short wd, const unsigned char *from, const unsigned char 
     JR_HistoryName(from, h1);
     JR_HistoryName(to, h2);
     if (open) {
-        JR_Rename(to);                   /* renames the .history too */
+        if (!JR_Rename(to)) {            /* renames the .history too */
+            Rename(to, wd, from);
+            return false;
+        }
         CopyPString(to, gName);
         Chrome_SetTitle(gName);
     } else

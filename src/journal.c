@@ -98,17 +98,20 @@ void JR_HistoryName(const unsigned char *md, unsigned char *out)
     out[0] = (unsigned char)k;
 }
 
-/* The .md was renamed: the journal follows it. */
-void JR_Rename(const unsigned char *newMd)
+/* The .md was renamed: the journal follows it. False if its file couldn't
+   be renamed (then nothing changes, so no orphan journal is left). */
+Boolean JR_Rename(const unsigned char *newMd)
 {
     unsigned char nn[40];
-    if (!gAttached) return;
+    OSErr err;
+    short i;
+    if (!gAttached) return true;
     JR_HistoryName(newMd, nn);
-    Rename(gName, gVRef, nn);            /* fnfErr is fine: no journal yet */
-    {
-        short i;
-        for (i = 0; i <= nn[0]; i++) gName[i] = nn[i];
-    }
+    err = Rename(gName, gVRef, nn);
+    if (err != noErr && err != fnfErr)   /* fnfErr: no journal written yet */
+        return false;
+    for (i = 0; i <= nn[0]; i++) gName[i] = nn[i];
+    return true;
 }
 
 void JR_Attach(const unsigned char *md, short vRef)
