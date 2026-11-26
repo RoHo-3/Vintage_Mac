@@ -74,7 +74,7 @@ static const char kWelcome[] =
     "(or pick a template), choose a folder and a name, and start writing. "
     "Command-S saves; an untitled page asks for a name first. An untitled "
     "page you never save is named from its first line when you pause, in "
-    "My Documents (in the \"Library\" folder next to the app). Quit "
+    "My Documents (in the \"Writings\" folder next to the app). Quit "
     "and relaunch: your last "
     "document reopens where you left off. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "

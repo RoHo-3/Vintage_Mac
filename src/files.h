@@ -1,15 +1,14 @@
 /*
  * Where documents live, and the small preferences file.
  *
- * A "Library" folder next to the application (the same word as the app's
- * Library screen) holds three peers:
+ * A "Writings" folder next to the application holds three peers:
  * "My Documents" (loose documents), "My Projects" (project folders) and
  * "Templates", plus the prefs. The Library shows the first two together on
  * one shelf, MY STUFF.
  * Folders are reached through working-directory refnums, so the rest of the
  * app keeps using the classic (name, vRefNum) file calls on System 6 and 7.
  *
- * The preferences file ("Mac MD Write Prefs", in "Library") remembers the
+ * The preferences file ("Mac MD Write Prefs", in "Writings") remembers the
  * last document and its caret, so launch reopens it where you left off.
  */
 #ifndef FILES_H
