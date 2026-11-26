@@ -23,6 +23,8 @@
 #include "app.h"
 #include "document.h"
 #include "chrome.h"
+#include "pill.h"
+#include "palette.h"
 #include "build_number.h"
 
 #define kWaitNextEventTrap 0xA860
@@ -229,6 +231,18 @@ static void DoCommandKey(EventRecord *ev)
 
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
+    if (Palette_IsOpen()) {              /* palette: Cmd-K closes, Q quits */
+        if (c == 'k') Palette_Close();
+        else if (c == 'q') { Palette_Close(); App_Quit(); }
+        return;
+    }
+    Pill_Hide();                         /* any command puts the pill away */
+    if (c == 'k' && !Lib_IsOpen()) {     /* Cmd-K: the command palette */
+        if (Drawer_IsOpen()) Drawer_Close();   /* its update redraws the page,
+                                                  then the card over it */
+        Palette_Open();
+        return;
+    }
     if (Drawer_IsOpen()) {               /* drawer: Cmd-\ closes; Q, O, N work */
         if (c == 'q') App_Quit();
         else if (c == 'o') { Drawer_Close(); Lib_Open(); }
@@ -300,8 +314,16 @@ static void DoMouseDown(EventRecord *ev)
             GlobalToLocal(&pt);
             if (Lib_IsOpen()) Lib_Click(pt, ev);
             else if (Drawer_IsOpen()) Drawer_Click(pt, ev);
-            else if (Chrome_HamburgerClick(pt)) Drawer_Open();
-            else Ed_Click(pt, ev);
+            else if (Palette_IsOpen()) Palette_Click(pt);
+            else if (Pill_Click(pt)) ;   /* the pill's own button */
+            else {
+                Pill_Hide();
+                if (Chrome_HamburgerClick(pt)) Drawer_Open();
+                else {
+                    Ed_Click(pt, ev);
+                    if (Ed_HasSelection()) Pill_Show();   /* mouse selections only */
+                }
+            }
         }
         break;
     }
@@ -323,8 +345,14 @@ static void HandleEvent(EventRecord *ev)
             Lib_Key(ev);
         else if (Drawer_IsOpen())
             Drawer_Key(ev);
+        else if (Palette_IsOpen())
+            Palette_Key(ev);
         else {
             unsigned char ch = (unsigned char)(ev->message & charCodeMask);
+            if (Pill_IsShown()) {        /* typing puts it away; Esc only that */
+                Pill_Hide();
+                if (ch == 0x1B) break;
+            }
             if ((ch >= 0x20 && ch != 0x7F) || ch == '\r' || ch == 0x03 || ch == '\t')
                 Chrome_CharTyped();      /* the session clock starts with writing */
             Ed_Key(ev);
@@ -340,6 +368,8 @@ static void HandleEvent(EventRecord *ev)
             else {
                 Ed_DrawAll();
                 Chrome_Draw();
+                Pill_Redraw();           /* a card floats over the page again */
+                Palette_Redraw();
             }
             EndUpdate(gWindow);
         }
@@ -352,6 +382,8 @@ static void HandleEvent(EventRecord *ev)
         /* suspend / resume under MultiFinder: bit 0 of message = resume */
         if (((ev->message >> 24) & 0xFF) == 1) {
             if (!(ev->message & 1)) {
+                Pill_Hide();
+                Palette_Close();
                 Doc_Suspend();           /* save before another app runs */
                 Chrome_ShowMenuBar();    /* other apps need the menu bar */
             } else {
@@ -391,6 +423,8 @@ int main(void)
     Doc_Init();
     Lib_Init(gWindow);
     Drawer_Init(gWindow);
+    Pill_Init(gWindow);
+    Palette_Init(gWindow);
     if (Doc_Reopen()) {
         /* back where you left off */
     } else if (Prefs_Exist()) {
@@ -419,8 +453,8 @@ int main(void)
         UpdateCursor();
         if (Lib_IsOpen())
             Lib_Idle();
-        else if (Drawer_IsOpen())
-            ;                            /* the drawer has nothing to blink */
+        else if (Drawer_IsOpen() || Palette_IsOpen())
+            ;                            /* nothing may draw under a card */
         else {
             Ed_Idle();
             Chrome_Idle();

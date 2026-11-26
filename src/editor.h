@@ -57,5 +57,9 @@ short   Ed_BodySize(void);
 short   Ed_StepBodySize(short dir); /* next real body size up/down (wraps) */      /* true while the Library covers the text */
 
 void    Ed_SetCaret(long pos);      /* places the cursor and scrolls to it */
+Boolean Ed_HasSelection(void);
+void    Ed_SelectionBounds(Rect *firstLine, Rect *lastLine);   /* on screen */
+Boolean Ed_HasHeadings(void);
+void    Ed_JumpSection(short dir);   /* next (1) / previous (-1) heading */
 
 #endif

@@ -502,8 +502,23 @@ void Drawer_Open(void)
     if (gDepth > 1 && !(gStack[1].kind == kProject
                         && ProjectOfDoc(&vol, &dir, &proj) && proj == gStack[1].dir))
         gDepth = 1;
+    {
+        Prefs p;                         /* the palette may have changed them */
+        Prefs_Load(&p);
+        gWords = !(p.hide & 1);
+        gClock = !(p.hide & 2);
+    }
     gOpen = true;
     Drawer_Draw();
+}
+
+/* Straight to a blade: 's' Sections, 't' Settings (the palette). */
+void Drawer_OpenBlade(char which)
+{
+    if (gOpen) Drawer_Close();
+    gDepth = 1;
+    Drawer_Open();
+    Push(which == 's' ? kSections : kSettings, 0);
 }
 
 void Drawer_Close(void)

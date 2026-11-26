@@ -17,6 +17,10 @@ set(SOURCES
     src/files.c
     src/library.c
     src/drawer.c
+    src/commands.c
+    src/overlay.c
+    src/pill.c
+    src/palette.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r

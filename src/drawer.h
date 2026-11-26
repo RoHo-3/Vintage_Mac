@@ -21,6 +21,7 @@
 void    Drawer_Init(WindowPtr w);
 void    Drawer_Open(void);
 void    Drawer_Close(void);
+void    Drawer_OpenBlade(char which);    /* 's' Sections, 't' Settings */
 Boolean Drawer_IsOpen(void);
 void    Drawer_Draw(void);               /* update events */
 void    Drawer_Key(EventRecord *ev);

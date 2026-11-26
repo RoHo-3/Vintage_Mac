@@ -1594,6 +1594,61 @@ void Ed_SetShowMarks(Boolean on)
 
 Boolean Ed_ShowMarks(void) { return gShowMarks; }
 
+Boolean Ed_HasSelection(void) { return HasSel(); }
+
+/* Rects of the selection on its first and last lines (window coords). */
+void Ed_SelectionBounds(Rect *first, Rect *last)
+{
+    LineInfo li;
+    long a = SelStart(), b = SelEnd(), la = LY_LineOf(a), lb = LY_LineOf(b);
+    short ya, yb;
+    if (la < gTop) la = gTop;
+    if (lb > LastVisible()) lb = LastVisible();
+    if (lb < la) lb = la;
+    ya = LineTop(la);
+    yb = LineTop(lb);
+    GetLine(la, &li);
+    SetRect(first, XOf(&li, a < li.s ? li.s : a), ya, li.right, ya + LineH(la));
+    GetLine(lb, &li);
+    SetRect(last, li.x0, yb, XOf(&li, b > li.e ? li.e : b), yb + LineH(lb));
+    if (la == lb) first->right = last->right;
+}
+
+/* Headings: whether there are any, and moving to the next / previous. */
+static long FindHeading(long from, short dir)
+{
+    long len = TB_Len(), p = MD_ParaStart(from), pe;
+    short lvl;
+    for (;;) {
+        if (dir > 0) {
+            p = MD_ParaEnd(p);
+            if (p >= len) return -1;
+            p++;
+        } else {
+            if (p == 0) return -1;
+            p = MD_ParaStart(p - 1);
+        }
+        pe = MD_ParaEnd(p);
+        MD_Parse(p, pe, gShowMarks, &lvl);
+        if (lvl > 0 && pe > p) return p;
+    }
+}
+
+Boolean Ed_HasHeadings(void)
+{
+    short lvl;
+    MD_Parse(0, MD_ParaEnd(0), gShowMarks, &lvl);
+    return lvl > 0 || FindHeading(0, 1) >= 0;
+}
+
+void Ed_JumpSection(short dir)
+{
+    long p = FindHeading(gCaret, dir);
+    if (p < 0) { SysBeep(1); return; }
+    gTyping = false;
+    Ed_SetCaret(p);
+}
+
 void Ed_SetCaret(long pos)
 {
     if (pos < 0) pos = 0;
