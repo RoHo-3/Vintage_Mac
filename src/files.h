@@ -52,6 +52,7 @@ Boolean Files_NewFolder(short vol, long parent, ConstStr255Param name, long *dir
 Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Param to);
 Boolean Files_Trash(short vol, long dirID, ConstStr255Param name);
 Boolean Files_Copy(short wdRef, ConstStr255Param from, ConstStr255Param to);
+Boolean Files_CopyTo(short wdRef, ConstStr255Param from, short dstWD, ConstStr255Param to);
 Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
 
 #define kMaxRecent 8

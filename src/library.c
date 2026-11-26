@@ -9,6 +9,7 @@
 #include <OSUtils.h>
 #include <ToolUtils.h>
 #include <Memory.h>
+#include <StandardFile.h>
 
 #define PSTR(s) ((ConstStr255Param)(s))
 
@@ -407,6 +408,24 @@ static void DrawRow(short row)
     }
     for (i = gFirst[row]; i < n && i < gFirst[row] + kVisible; i++)
         DrawTile(row, i, kLeft + (i - gFirst[row]) * kTileStep, top);
+    /* the picked tile shows its whole name, as in the Finder, over its
+       neighbours' labels if it must */
+    if (row == gSelRow && !gRenaming && gSelIdx >= gFirst[row]
+        && gSelIdx < gFirst[row] + kVisible && gSelIdx < n) {
+        unsigned char nm[40];
+        short x = kLeft + (gSelIdx - gFirst[row]) * kTileStep, w, lx;
+        TileName(row, gSelIdx, nm);
+        Fit(nm, gWin->portRect.right - 2 * kLeft);
+        w = StringWidth(nm);
+        lx = x + (kTileW - w) / 2;
+        if (lx < 4) lx = 4;
+        if (lx + w > gWin->portRect.right - 4) lx = gWin->portRect.right - 4 - w;
+        SetRect(&r, lx - 3, top + kLabelBase - 9, lx + w + 3, top + kLabelBase + 2);
+        EraseRect(&r);
+        MoveTo(lx, top + kLabelBase);
+        DrawString(nm);
+        InvertRect(&r);
+    }
     if (gFirst[row] > 0) {                          /* more to the left */
         MoveTo(3, top + kIconTop + 20);
         DrawString(PSTR("\p\307"));                 /* << */
@@ -636,27 +655,44 @@ static void DoNew(Boolean project)
     Redraw();
 }
 
+/* Duplicate: the Save dialog, in the original's folder with "<name> copy"
+   filled in, so the copy can be renamed or put elsewhere. */
 static void DoDuplicate(void)
 {
     unsigned char base[40], name[40];
     short n;
     Target t;
+    SFReply reply;
+    Point where;
     if (!GetTarget(&t) || t.isFolder) return;
     ShownName(t.name, base);
     n = base[0];
-    if (n > 19) n = 19;                  /* room for " copy 99.md" */
+    if (n > 20) n = 20;                  /* room for " copy.md" */
     base[0] = (unsigned char)n;
     {
         const char *c = " copy";
         while (*c) base[++base[0]] = (unsigned char)*c++;
     }
-    if (!FreeName(base, true, t.vol, t.dir, name) || !Files_Copy(t.wd, t.name, name)) {
-        SysBeep(1);
-        return;
+    if (!FreeName(base, true, t.vol, t.dir, name))
+        CopyP(base, name);
+    Files_SetDialogFolder(t.wd);
+    SetPt(&where, (gWin->portRect.right - 304) / 2, 60);
+    SFPutFile(where, PSTR("\pSave the copy as:"), name, NULL, &reply);
+    if (reply.good) {
+        short v;
+        long d;
+        Boolean same = Files_DirOfWD(reply.vRefNum, &v, &d) && v == t.vol && d == t.dir
+                       && reply.fName[0] == t.name[0];
+        for (n = 1; same && n <= t.name[0]; n++)
+            same = (reply.fName[n] | 0x20) == (t.name[n] | 0x20);
+        if (same || !Files_CopyTo(t.wd, t.name, reply.vRefNum, reply.fName))
+            SysBeep(1);                  /* onto itself, or the copy failed */
+        else {
+            Reload();
+            if (gSelRow == kRowFiles) SelectFileNamed(reply.fName);
+        }
     }
-    Reload();
-    if (gSelRow == kRowFiles) SelectFileNamed(name);
-    Redraw();
+    Lib_Draw();                          /* the dialog drew over us */
 }
 
 static void DoTrash(void)

@@ -375,6 +375,13 @@ Boolean Files_Trash(short vol, long dirID, ConstStr255Param name)
 
 Boolean Files_Copy(short wd, ConstStr255Param from, ConstStr255Param to)
 {
+    return Files_CopyTo(wd, from, wd, to);
+}
+
+/* Copy a document's data into (dstWD, to); an existing file there is
+   replaced (the Save dialog already asked). */
+Boolean Files_CopyTo(short wd, ConstStr255Param from, short dstWD, ConstStr255Param to)
+{
     short in, out;
     long n;
     char buf[1024];
@@ -383,10 +390,12 @@ Boolean Files_Copy(short wd, ConstStr255Param from, ConstStr255Param to)
     if (FSOpen(from, wd, &in) != noErr)
         return false;
     if (GetFInfo(from, wd, &fi) != noErr) { fi.fdCreator = kCreator; fi.fdType = 'TEXT'; }
-    if (Create(to, wd, fi.fdCreator, fi.fdType) != noErr || FSOpen(to, wd, &out) != noErr) {
+    err = Create(to, dstWD, fi.fdCreator, fi.fdType);
+    if ((err != noErr && err != dupFNErr) || FSOpen(to, dstWD, &out) != noErr) {
         FSClose(in);
         return false;
     }
+    SetEOF(out, 0);
     do {
         n = sizeof(buf);
         err = FSRead(in, &n, buf);
