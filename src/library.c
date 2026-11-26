@@ -12,6 +12,10 @@
 
 #define PSTR(s) ((ConstStr255Param)(s))
 
+/* Low-memory globals (Retro68 has no GetDblTime/GetCaretTime glue). */
+#define DblTime()   (*(volatile unsigned long *)0x02F0)
+#define CaretTime() (*(volatile unsigned long *)0x02F4)
+
 /* layout (DESIGN.md / Library mockup) */
 #define kHeaderH   20
 #define kActionsH  16
@@ -804,7 +808,7 @@ void Lib_Click(Point pt, EventRecord *ev)
     if (gRenaming && !(row == gSelRow && idx == gSelIdx))
         EndRename(true);
     if (row == gLastRow && idx == gLastIdx
-        && ev->when - gLastClick <= GetDblTime() && !gRenaming) {
+        && ev->when - gLastClick <= DblTime() && !gRenaming) {
         gLastRow = -1;
         Select(row, idx);
         DoOpen();
@@ -822,7 +826,7 @@ void Lib_Click(Point pt, EventRecord *ev)
 void Lib_Idle(void)
 {
     if (!gOpen || !gRenaming || gEditAll) return;
-    if (TickCount() - gBlinkAt >= GetCaretTime()) {
+    if (TickCount() - gBlinkAt >= CaretTime()) {
         gBlinkAt = TickCount();
         gCaretOn = !gCaretOn;
         SetPort(gWin);
