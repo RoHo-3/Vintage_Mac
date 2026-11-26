@@ -12,6 +12,8 @@
 #include <ToolUtils.h>
 #include <Memory.h>
 #include <StandardFile.h>
+#include <Dialogs.h>
+#include <TextUtils.h>
 
 #define PSTR(s) ((ConstStr255Param)(s))
 
@@ -653,19 +655,51 @@ static void EndRename(Boolean commit)
     Redraw();
 }
 
+/* Ask for the new project's (or folder's) name: a small classic dialog.
+   False if cancelled. */
+static Boolean AskName(Boolean project, unsigned char *name)
+{
+    DialogPtr d;
+    short hit, type, i;
+    Handle h;
+    Rect box;
+    ParamText(project ? PSTR("\pName the new project:") : PSTR("\pName the new folder:"),
+              PSTR("\p"), PSTR("\p"), PSTR("\p"));
+    d = GetNewDialog(200, NULL, (WindowPtr)-1);
+    if (!d) return false;
+    GetDialogItem(d, 4, &type, &h, &box);
+    SetDialogItemText(h, project ? PSTR("\pUntitled Project") : PSTR("\pUntitled Folder"));
+    SelectDialogItemText(d, 4, 0, 32767);         /* typing replaces it */
+    ShowWindow(d);
+    do {
+        ModalDialog(NULL, &hit);
+    } while (hit != 1 && hit != 2);
+    if (hit == 1) {
+        GetDialogItem(d, 4, &type, &h, &box);
+        GetDialogItemText(h, name);
+        while (name[0] > 0 && name[name[0]] == ' ') name[0]--;
+        if (name[0] > 31) name[0] = 31;
+        for (i = 1; i <= name[0]; i++)
+            if (name[i] == ':') name[i] = '-';     /* illegal in HFS */
+    }
+    DisposeDialog(d);
+    return hit == 1 && name[0] > 0;
+}
+
 static void DoNew(Boolean project)
 {
     unsigned char name[40];
     long dir;
-    if (!FreeName(project ? PSTR("\pUntitled Project") : PSTR("\pUntitled Folder"),
-                  false, gVol, HereDir(project), name)
+    Boolean ok = AskName(project, name);
+    Lib_Draw();                          /* the dialog drew over us */
+    if (!ok) return;
+    if (Files_Exists(gVol, HereDir(project), name)
         || !Files_NewFolder(gVol, HereDir(project), name, &dir)) {
-        SysBeep(1);
+        SysBeep(1);                      /* that name is taken */
         return;
     }
     LoadFiles();
     SelectFileNamed(name);
-    StartRename();                       /* its name is selected for typing */
     Redraw();
 }
 

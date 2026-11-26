@@ -22,3 +22,27 @@ resource 'SIZE' (-1) {
     1024 * 1024,
     768 * 1024
 };
+
+#include "Dialogs.r"
+
+/* "Name the new project:" / "Name the new folder:" (the prompt is set at
+   run time through ^0). Centered on a 512 x 342 screen. */
+resource 'DLOG' (200) {
+    {110, 106, 210, 406},
+    dBoxProc,
+    invisible,
+    noGoAway,
+    0,
+    200,
+    "",
+    centerMainScreen
+};
+
+resource 'DITL' (200) {
+    {
+        {68, 214, 88, 284}, Button { enabled, "Create" },
+        {68, 130, 88, 200}, Button { enabled, "Cancel" },
+        {10, 16, 26, 284},  StaticText { disabled, "^0" },
+        {36, 19, 52, 281},  EditText { enabled, "" }
+    }
+};
