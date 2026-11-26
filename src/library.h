@@ -2,8 +2,9 @@
  * The Library (DESIGN.md): a full-screen browser that replaces the classic
  * Open dialog. Three shelves of 32x32 tiles: Templates, My Files (folders,
  * projects, breadcrumb), Recent. An action bar above them offers what fits
- * the picked tile: Open, Duplicate, Rename (in place), Move to Trash,
- * New Project / New Folder, and Other... (the classic dialog).
+ * the picked tile: New Document and New Project / New Folder always, then
+ * Open, Duplicate, Rename (in place), Move to Trash, and Open File... (the
+ * classic dialog, for a .md anywhere on the disk).
  *
  * Keyboard: arrows move, Return opens, Esc returns to writing, Cmd-R
  * renames, Cmd-D duplicates, Cmd-Delete moves to the Trash, typing a letter
@@ -17,7 +18,8 @@
 
 void    Lib_Init(WindowPtr w);
 void    Lib_Open(void);
-void    Lib_OpenNew(void);      /* Cmd-N: Blank picked, ready for Return */
+void    Lib_OpenNew(void);      /* Cmd-N: nothing picked, New Document leads;
+                                   Return (or Cmd-N again) makes one */
 void    Lib_Close(void);         /* back to writing */
 Boolean Lib_IsOpen(void);
 void    Lib_Draw(void);

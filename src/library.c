@@ -34,11 +34,12 @@
 
 enum { kRowTpl, kRowFiles, kRowRecent, kRows };
 enum { kActOpen, kActDuplicate, kActRename, kActTrash,
-       kActNewProject, kActNewFolder, kActOther, kActCount };
+       kActNewProject, kActNewFolder, kActOther, kActNewDoc, kActCount };
 
 static const char *kActName[kActCount] = {
     "Open", "Duplicate", "Rename", "Move to Trash",
-    "New Project", "New Folder", "Other\311"     /* \311 = MacRoman ellipsis */
+    "New Project", "New Folder", "Open File\311",   /* \311 = MacRoman ellipsis */
+    "New Document"
 };
 
 static WindowPtr gWin;
@@ -243,9 +244,19 @@ static void SelectFileNamed(const unsigned char *name)
     }
 }
 
+/* The bar: what you can make (always there, left), then what you can do
+   with the picked tile, then Open File... (any .md on the disk) at the right. */
+static short gActSplit;                  /* index of the first picked-tile action */
+
 static void BuildActions(void)
 {
     gActN = 0;
+    gActs[gActN++] = kActNewDoc;
+    if (gDepth == 0)
+        gActs[gActN++] = kActNewProject;
+    else if (gDepth == 1)
+        gActs[gActN++] = kActNewFolder;  /* folders only inside a project */
+    gActSplit = gActN;
     if (gSelRow == kRowTpl || IsUp(gSelRow, gSelIdx)) {
         gActs[gActN++] = kActOpen;
     } else if (gSelRow == kRowFiles || gSelRow == kRowRecent) {
@@ -254,10 +265,6 @@ static void BuildActions(void)
             gActs[gActN++] = kActDuplicate;
         gActs[gActN++] = kActRename;
         gActs[gActN++] = kActTrash;
-    } else if (gDepth == 0) {
-        gActs[gActN++] = kActNewProject;
-    } else if (gDepth == 1) {
-        gActs[gActN++] = kActNewFolder;  /* folders only inside a project */
     }
     gActs[gActN++] = kActOther;
 }
@@ -454,8 +461,13 @@ static void DrawActions(void)
     TextSize(9);
     for (i = 0; i < gActN; i++) {
         CStr(kActName[gActs[i]], s);
-        if (gActs[i] == kActOther)      /* Other... sits at the right */
+        if (gActs[i] == kActOther)      /* Open File... sits at the right */
             x = gWin->portRect.right - kLeft - StringWidth(s);
+        else if (i == gActSplit && gActs[i] != kActOther) {   /* divider */
+            MoveTo(x - 6, kHeaderH + 3);
+            LineTo(x - 6, kRowsTop - 4);
+            x += 6;
+        }
         MoveTo(x, kHeaderH + 11);
         DrawString(s);
         SetRect(&gActRect[i], x - 4, kHeaderH, x + StringWidth(s) + 4, kRowsTop - 1);
@@ -727,6 +739,25 @@ static void DoOther(void)
         Lib_Draw();                      /* the dialog drew over us */
 }
 
+/* New Document: Blank, through the Save dialog, in the folder being browsed
+   (My Documents at the top). */
+static void DoNewDocument(void)
+{
+    short i;
+    unsigned char n[40];
+    for (i = 0; i < gTplN; i++) {
+        ShownName(gTpl[i].name, n);
+        if (n[0] == 5 && (n[1] | 0x20) == 'b' && (n[2] | 0x20) == 'l'
+            && (n[3] | 0x20) == 'a' && (n[4] | 0x20) == 'n' && (n[5] | 0x20) == 'k')
+            break;
+    }
+    if (Doc_NewFromTemplate(i < gTplN ? gTpl[i].name : (const unsigned char *)"\pBlank.md",
+                            Files_TemplatesWD(), WDOfDir(HereDir(false))))
+        Lib_Close();
+    else
+        Lib_Draw();                      /* cancelled: the dialog drew over us */
+}
+
 static void Run(short act)
 {
     switch (act) {
@@ -737,6 +768,7 @@ static void Run(short act)
     case kActNewProject: DoNew(true); break;
     case kActNewFolder:  DoNew(false); break;
     case kActOther:      DoOther(); break;
+    case kActNewDoc:     DoNewDocument(); break;
     }
 }
 
@@ -795,12 +827,13 @@ void Lib_OpenNew(void)
 {
     short i;
     unsigned char n[40];
-    if (!gOpen) Lib_Open();
-    for (i = 0; i < gTplN; i++) {
-        ShownName(gTpl[i].name, n);
-        if (n[0] == 5 && (n[1] | 0x20) == 'b' && (n[2] | 0x20) == 'l') break;
+    (void)i; (void)n;
+    if (gOpen) {                         /* Cmd-N inside the Library: make it */
+        DoNewDocument();
+        return;
     }
-    if (gTplN > 0) Select(kRowTpl, i < gTplN ? i : 0);
+    Lib_Open();
+    Select(-1, 0);                       /* nothing picked: New Document leads */
     Redraw();
 }
 
@@ -895,7 +928,10 @@ void Lib_Key(EventRecord *ev)
     }
     switch (c) {
     case 0x1B: Lib_Close(); break;
-    case '\r': case 0x03: if (gSelRow >= 0) DoOpen(); break;
+    case '\r': case 0x03:
+        if (gSelRow >= 0) DoOpen();
+        else DoNewDocument();            /* Cmd-N, Return: a new document */
+        break;
     case 0x1C: MoveSel(0, -1); break;
     case 0x1D: MoveSel(0, 1); break;
     case 0x1E: MoveSel(-1, 0); break;
