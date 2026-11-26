@@ -55,13 +55,40 @@ static void SuggestName(unsigned char *name)
     short n = 0, lastSpace = 0;
     unsigned char c;
 
-    while (p < len && (TB_Char(p) == '#' || TB_Char(p) == ' '))
-        p++;
+    /* skip line markers: headings "## ", quotes "> ", bullets "- " "* " "+ ",
+       numbers "1. ", tasks "[ ] " */
+    for (;;) {
+        long q = p;
+        while (p < len && (TB_Char(p) == '#' || TB_Char(p) == '>' || TB_Char(p) == ' '))
+            p++;
+        if (p + 1 < len && (TB_Char(p) == '-' || TB_Char(p) == '*' || TB_Char(p) == '+')
+            && TB_Char(p + 1) == ' ')
+            p += 2;
+        while (p < len && TB_Char(p) >= '0' && TB_Char(p) <= '9' && p - q < 4)
+            p++;
+        if (p > q && p + 1 < len && (TB_Char(p) == '.' || TB_Char(p) == ')')
+            && TB_Char(p - 1) >= '0' && TB_Char(p - 1) <= '9' && TB_Char(p + 1) == ' ')
+            p += 2;
+        if (p + 3 < len && TB_Char(p) == '[' && TB_Char(p + 2) == ']' && TB_Char(p + 3) == ' ')
+            p += 4;
+        if (p == q) break;
+    }
     for (; p < len && n < 28; p++) {
         c = TB_Char(p);
         if (c == '\r') break;
-        if (c == '*' || c == '_' || c == '`' || c < 0x20) continue;
-        if (c == ':') c = '-';
+        if (c == ']' && p + 1 < len && TB_Char(p + 1) == '(') {   /* link target */
+            while (p < len && TB_Char(p) != ')' && TB_Char(p) != '\r') p++;
+            if (p < len && TB_Char(p) == '\r') break;
+            continue;
+        }
+        if (c == '!' && p + 1 < len && TB_Char(p + 1) == '[') continue;   /* image */
+        /* Markdown markers, and what Windows and FAT drives refuse in names */
+        if (c == '*' || c == '_' || c == '`' || c == '~' || c == '[' || c == ']'
+            || c == '<' || c == '>' || c == '|' || c == '\\' || c == '"' || c == '?'
+            || c < 0x20)
+            continue;
+        if (c == ':' || c == '/') c = '-';
+        if (c == ' ' && (n == 0 || name[n] == ' ')) continue;   /* no doubled spaces */
         if (c == ' ') lastSpace = n;
         name[++n] = c;
     }
