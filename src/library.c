@@ -137,6 +137,8 @@ static short WDOfDir(long dir)
 
 static short ItemWD(short idx) { return WDOfDir(gFiles[idx].parent); }
 
+static void LoadFiles(void);
+
 /* The picked file or folder, on My Stuff or Recent, with its folder. */
 typedef struct {
     short   vol;
