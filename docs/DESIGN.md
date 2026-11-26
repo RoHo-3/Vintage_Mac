@@ -111,8 +111,9 @@ interface is visually distinct from the prose.
   full-height blade over the drawer; a 14 px strip of the panel underneath
   stays visible with `‹` as the back target (no vertical labels — QuickDraw
   can't rotate text). Max stack: drawer → Project → one folder, matching the
-  three-level project rule. The drawer reopens to the last blade used, so
-  switching files stays one click. Keys: ↑↓ move, → opens, ← / Esc back.
+  three-level project rule. The drawer reopens to the project/folder blade
+  last used, so switching files stays one click (other blades reopen at the
+  main panel). Panels underneath show as a clean white strip with their edge. Keys: ↑↓ move, → opens, ← / Esc back.
   The project row is hidden for standalone documents. Blade slide is a few frames
   on an SE/30, instant on a Plus. 50%
   dither over the canvas behind it.

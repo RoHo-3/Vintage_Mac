@@ -253,18 +253,12 @@ static void DrawFrame(short x)
     LineTo(x + kPanelW - 1, kHeadH - 1);
 }
 
-/* A panel lower in the stack: only its 14 px strip shows, dimmed with the
-   same 50% dither as the page, so it reads as "behind". */
+/* A panel lower in the stack: a clean white strip with its edge (14 px of
+   a panel's text can't be read anyway); the top blade's edge and shadow
+   show it lies over. A click on the strip goes back to it. */
 static void DrawUnder(short level)
 {
-    short x = level * kStep;
-    Rect r;
-    DrawFrame(x);
-    SetRect(&r, x, 0, x + kPanelW, gWin->portRect.bottom);
-    PenPat(&qd.gray);
-    PenMode(patOr);
-    PaintRect(&r);
-    PenNormal();
+    DrawFrame(level * kStep);
 }
 
 static void DrawHeader(short x, Boolean root)
@@ -488,9 +482,11 @@ void Drawer_Open(void)
     short vol;
     long dir, proj;
     if (gOpen) { Drawer_Close(); return; }   /* Cmd-\ toggles */
-    /* reopen to the last blade, unless it was another project's */
-    if (gDepth > 1 && (gStack[1].kind == kProject)
-        && !(ProjectOfDoc(&vol, &dir, &proj) && proj == gStack[1].dir))
+    /* reopen to the project/folder blade last used (switching files stays
+       one click), if it's still this document's project; otherwise the
+       main panel (Settings and Sections open fresh) */
+    if (gDepth > 1 && !(gStack[1].kind == kProject
+                        && ProjectOfDoc(&vol, &dir, &proj) && proj == gStack[1].dir))
         gDepth = 1;
     gOpen = true;
     Drawer_Draw();
