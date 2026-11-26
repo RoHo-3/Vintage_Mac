@@ -42,9 +42,17 @@ static Boolean WDInfo(short wd, short *vol, long *dirID)
 static Boolean SubFolder(short vol, long parent, ConstStr255Param name, long *dirID)
 {
     CInfoPBRec ci;
-    OSErr err = DirCreate(vol, parent, name, dirID);
-    if (err == noErr)
+    HParamBlockRec pb;
+    OSErr err;
+    pb.fileParam.ioCompletion = NULL;
+    pb.fileParam.ioNamePtr = (StringPtr)name;
+    pb.fileParam.ioVRefNum = vol;
+    pb.fileParam.ioDirID = parent;
+    err = PBDirCreateSync(&pb);
+    if (err == noErr) {
+        *dirID = pb.fileParam.ioDirID;   /* the new folder's ID comes back here */
         return true;
+    }
     if (err != dupFNErr)
         return false;
     ci.dirInfo.ioCompletion = NULL;
