@@ -253,11 +253,18 @@ static void DrawFrame(short x)
     LineTo(x + kPanelW - 1, kHeadH - 1);
 }
 
-/* A panel lower in the stack: only its 14 px strip shows (with its ‹). */
+/* A panel lower in the stack: only its 14 px strip shows, dimmed with the
+   same 50% dither as the page, so it reads as "behind". */
 static void DrawUnder(short level)
 {
     short x = level * kStep;
+    Rect r;
     DrawFrame(x);
+    SetRect(&r, x, 0, x + kPanelW, gWin->portRect.bottom);
+    PenPat(&qd.gray);
+    PenMode(patOr);
+    PaintRect(&r);
+    PenNormal();
 }
 
 static void DrawHeader(short x, Boolean root)
@@ -273,10 +280,9 @@ static void DrawHeader(short x, Boolean root)
             SetRect(&bar, x + 8, 5 + i * 4, x + 20, 7 + i * 4);
             EraseRect(&bar);
         }
-    } else {                             /* back */
-        FrameRect(&r);
+    } else {                             /* back: a plain chevron, as in the Library */
         UIFont(systemFont, 12, 0);
-        MoveTo(x + 10, 15);
+        MoveTo(x + 8, 15);
         DrawString(PSTR("\p\307"));      /* << (MacRoman) */
     }
     UIFont(systemFont, 12, 0);
@@ -339,6 +345,14 @@ static void DrawTop(void)
     if (b->sel < b->top) b->top = b->sel;
     if (b->sel >= b->top + vis) b->top = b->sel - vis + 1;
     DrawFrame(x);
+    if (gDepth > 1) {                    /* a blade on top: edge + shadow on its
+                                            left too, like a card lying over */
+        Rect sh;
+        MoveTo(x, 0);
+        LineTo(x, gWin->portRect.bottom);
+        SetRect(&sh, x - 2, 0, x, gWin->portRect.bottom);
+        PaintRect(&sh);
+    }
     DrawHeader(x, gDepth == 1);
     for (i = b->top, y = kRowsTop; i < gRowN && i < b->top + vis; i++, y += kRowH)
         DrawRow(i, x, y, i == b->sel && !gRows[i].current);
