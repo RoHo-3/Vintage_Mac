@@ -102,3 +102,11 @@ changes the bytes the writer actually edited.
   side.
 - The `.history` journal stays with the file but is meaningless to other
   editors; they simply ignore it.
+
+## Out of sight
+
+Each `<name>.history` sits next to its document (so renames and moves in the
+app keep the pair together) but carries the Finder's invisible flag, as the
+system's own bookkeeping files do: the Finder shows only the documents. The
+prefs file ("Mac MD Write Prefs", in Writings) is invisible too. On a modern
+Mac the flag is ignored and the files are simply visible.

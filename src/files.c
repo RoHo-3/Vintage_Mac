@@ -482,4 +482,11 @@ void Prefs_Save(const Prefs *p)
     if (FSWrite(ref, &n, (Ptr)p) == noErr)
         SetEOF(ref, sizeof(Prefs));
     FSClose(ref);
+    {
+        FInfo fi;                        /* bookkeeping: invisible in the Finder */
+        if (GetFInfo(kPrefsName, gRootWD, &fi) == noErr && !(fi.fdFlags & 0x4000)) {
+            fi.fdFlags |= 0x4000;
+            SetFInfo(kPrefsName, gRootWD, &fi);
+        }
+    }
 }

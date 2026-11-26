@@ -84,6 +84,17 @@ static void Record(unsigned char *buf, long *n, char type,
                    const unsigned char *head, long headLen,
                    const char *body, long bodyLen, Boolean bodyFromText);
 
+/* Journals are bookkeeping: the Finder's invisible flag keeps them out of
+   sight beside their documents (as the system's own files are). */
+static void Hide(const unsigned char *name, short vRef)
+{
+    FInfo fi;
+    if (GetFInfo(name, vRef, &fi) == noErr && !(fi.fdFlags & 0x4000)) {
+        fi.fdFlags |= 0x4000;            /* fInvisible */
+        SetFInfo(name, vRef, &fi);
+    }
+}
+
 void JR_HistoryName(const unsigned char *md, unsigned char *out)
 {
     short n = md[0], i, k = 0;
@@ -111,6 +122,7 @@ Boolean JR_Rename(const unsigned char *newMd)
     if (err != noErr && err != fnfErr)   /* fnfErr: no journal written yet */
         return false;
     for (i = 0; i <= nn[0]; i++) gName[i] = nn[i];
+    Hide(gName, gVRef);
     return true;
 }
 
@@ -128,6 +140,7 @@ void JR_Attach(const unsigned char *md, short vRef)
     gName[0] = (unsigned char)k;
     gVRef = vRef;
     gAttached = true;
+    Hide(gName, gVRef);                   /* journals from older builds too */
     gPrefs = 0;                           /* until the journal says otherwise */
     gPrefsDirty = false;
 }
@@ -234,6 +247,7 @@ Boolean JR_Checkpoint(long caret, const char *label)
     err = FSOpen(gName, gVRef, &ref);
     if (err == fnfErr) {                  /* first checkpoint: new journal */
         Create(gName, gVRef, kCreator, kJournalType);
+        Hide(gName, gVRef);
         err = FSOpen(gName, gVRef, &ref);
         snapshot = true;
     }
