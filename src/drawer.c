@@ -23,6 +23,10 @@
 #define kRowH     16
 #define kFootH    14
 #define kGeneva   3
+#define kInset    6                      /* a blade floats this far from top and bottom */
+
+static short gY;                         /* top of the panel being drawn: 0, or kInset */
+#define PanelBottom() (gWin->portRect.bottom - gY)
 
 enum { kRoot, kProject, kFolder, kSections, kSettings };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
@@ -223,7 +227,7 @@ static void BuildRows(void)
 
 static short VisibleRows(void)
 {
-    return (gWin->portRect.bottom - kRowsTop - kFootH) / kRowH;
+    return (gWin->portRect.bottom - 2 * kInset - kRowsTop - kFootH) / kRowH;
 }
 
 static void UIFont(short font, short size, short face)
@@ -258,7 +262,14 @@ static void DrawFrame(short x)
    show it lies over. A click on the strip goes back to it. */
 static void DrawUnder(short level)
 {
-    DrawFrame(level * kStep);
+    short x = level * kStep;
+    Rect r;
+    SetRect(&r, x, 0, x + kPanelW + 2, gWin->portRect.bottom);
+    FillRect(&r, &qd.gray);              /* around the floating card: dimmed */
+    SetRect(&r, x, 0, x + kStep, gWin->portRect.bottom);
+    EraseRect(&r);                       /* the panel's strip: clean white */
+    MoveTo(x + kStep, 0);
+    LineTo(x + kStep, gWin->portRect.bottom);
 }
 
 static void DrawHeader(short x, Boolean root)
@@ -266,22 +277,22 @@ static void DrawHeader(short x, Boolean root)
     Rect r;
     unsigned char t[64];
     short i;
-    SetRect(&r, x + 6, 2, x + 22, 18);
+    SetRect(&r, x + 6, gY + 2, x + 22, gY + 18);
     if (root) {                          /* the hamburger, as in the strip */
         for (i = 0; i < 3; i++) {
             Rect bar;
-            SetRect(&bar, x + 8, 5 + i * 4, x + 20, 7 + i * 4);
+            SetRect(&bar, x + 8, gY + 5 + i * 4, x + 20, gY + 7 + i * 4);
             PaintRect(&bar);
         }
     } else {                             /* back: a plain chevron, as in the Library */
         UIFont(systemFont, 12, 0);
-        MoveTo(x + 8, 15);
+        MoveTo(x + 8, gY + 15);
         DrawString(PSTR("\p\307"));      /* << (MacRoman) */
     }
     UIFont(systemFont, 12, 0);
     CopyP(gBladeTitle, t, 63);
     FitTo(t, kPanelW - 34);
-    MoveTo(x + 28, 15);
+    MoveTo(x + 28, gY + 15);
     DrawString(t);
 }
 
@@ -337,20 +348,27 @@ static void DrawTop(void)
     short x = (gDepth - 1) * kStep, i, y, vis = VisibleRows();
     if (b->sel < b->top) b->top = b->sel;
     if (b->sel >= b->top + vis) b->top = b->sel - vis + 1;
-    DrawFrame(x);
-    if (gDepth > 1) {                    /* a blade on top: edge + shadow on its
-                                            left too, like a card lying over */
-        Rect sh;
-        MoveTo(x, 0);
-        LineTo(x, gWin->portRect.bottom);
-        SetRect(&sh, x - 2, 0, x, gWin->portRect.bottom);
-        PaintRect(&sh);
+    if (gDepth > 1) {                    /* a blade floats: inset card, 1 px
+                                            frame, classic 1 px drop shadow */
+        Rect c;
+        gY = kInset;
+        SetRect(&c, x, gY, x + kPanelW, PanelBottom());
+        EraseRect(&c);
+        FrameRect(&c);
+        MoveTo(c.left + 1, c.bottom);    /* shadow: bottom and right */
+        LineTo(c.right, c.bottom);
+        LineTo(c.right, c.top + 1);
+        MoveTo(x, gY + kHeadH - 1);
+        LineTo(x + kPanelW - 1, gY + kHeadH - 1);
+    } else {
+        gY = 0;
+        DrawFrame(x);
     }
     DrawHeader(x, gDepth == 1);
-    for (i = b->top, y = kRowsTop; i < gRowN && i < b->top + vis; i++, y += kRowH)
+    for (i = b->top, y = gY + kRowsTop; i < gRowN && i < b->top + vis; i++, y += kRowH)
         DrawRow(i, x, y, i == b->sel && !gRows[i].current);
     UIFont(kGeneva, 9, 0);
-    MoveTo(x + 10, gWin->portRect.bottom - 5);
+    MoveTo(x + 10, PanelBottom() - 5);
     if (gDepth == 1) DrawString(PSTR("\pCmd-\\ closes"));
     else if (b->kind == kSettings) DrawString(PSTR("\pApp preferences"));
     else DrawString(PSTR("\pArrows move \245 Esc back"));
@@ -541,12 +559,13 @@ void Drawer_Click(Point pt, EventRecord *ev)
         Drawer_Draw();
         return;
     }
-    if (pt.v < kHeadH) {
+    gY = gDepth > 1 ? kInset : 0;
+    if (pt.v < gY + kHeadH) {
         if (pt.h >= x + 4 && pt.h < x + 24) Pop();       /* hamburger / back */
         return;
     }
-    if (pt.v < kRowsTop) return;
-    i = gStack[gDepth - 1].top + (pt.v - kRowsTop) / kRowH;
+    if (pt.v < gY + kRowsTop) return;
+    i = gStack[gDepth - 1].top + (pt.v - gY - kRowsTop) / kRowH;
     if (i < gRowN && !gRows[i].sep && (gRows[i].act != aNone)) {
         if (gRows[i].act == aSize && (ev->modifiers & optionKey)) {
             App_StepSize(-1);            /* Option-click: smaller */
