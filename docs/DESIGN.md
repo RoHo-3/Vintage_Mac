@@ -434,9 +434,11 @@ buffer within the 1 MB partition, plus undo stack and fonts (<100 KB).
 
 See [STORAGE.md](STORAGE.md). Summary:
 
-- Autosave fires only when the user **pauses (~2 s)** *and* **≥250 weighted
-  characters** changed — or the oldest unsaved change is **>3 min** old.
-  Paste / selection-delete / heading change count as ≥50.
+- Autosave fires on every **3 s pause** (the footer shows the open ring at
+  2 s, then the save), and every **3 min** during nonstop typing. It only
+  appends the changes to the journal, so it stays cheap on a floppy. (Builds
+  3-39 also waited for 250 weighted characters; that made the dot's timing
+  look random, so it was dropped.)
 - Always save on quit, close, draft switch, suspend, and Cmd+S.
 - Save state shown only by the footer's three-state dot (see §4, Save state) — no "Saved" toast.
 

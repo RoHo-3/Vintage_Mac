@@ -11,10 +11,9 @@
 #include <Events.h>
 #include <OSUtils.h>
 
-#define kPauseTicks    120               /* 2 s without typing */
-#define kThreshold     250               /* weighted characters */
-#define kIdleSaveTicks (10L * 60)  /* a 10 s pause saves any change */
-#define kMaxAgeTicks   (3L * 60 * 60)    /* 3 minutes */
+#define kSaveTicks     180               /* a 3 s pause saves: the footer shows
+                                            the open ring at 2 s, then this */
+#define kMaxAgeTicks   (3L * 60 * 60)    /* nonstop typing: every 3 minutes */
 #define kCreator       'MMDW'
 #define kFileType      'TEXT'
 
@@ -553,11 +552,10 @@ void Doc_Idle(void)
     if (Ed_ChangeWeight() == 0)
         return;
     now = TickCount();
-    if (now - Ed_LastEditTick() < kPauseTicks)
+    if (now - Ed_LastEditTick() < kSaveTicks
+        && now - Ed_FirstChangeTick() < kMaxAgeTicks)
         return;                          /* still typing */
-    if (Ed_ChangeWeight() >= kThreshold
-        || now - Ed_FirstChangeTick() >= kMaxAgeTicks
-        || now - Ed_LastEditTick() >= kIdleSaveTicks) {
+    {
         if (!gHasFile) {                 /* first save names it in place */
             static unsigned long failedAt;
             if (failedAt == Ed_FirstChangeTick())

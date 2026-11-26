@@ -34,7 +34,7 @@ one checkpoint** in a single write.
 
 | Event | Journal | `.md` |
 |---|---|---|
-| Autosave (pause + threshold) | append batch + checkpoint | — |
+| Autosave (3 s pause, or 3 min) | append batch + checkpoint | — |
 | Cmd+S, quit, close, draft switch, suspend | append batch + checkpoint | full rewrite |
 
 ## Recovery
