@@ -5,6 +5,7 @@
  *   Cut · Copy · Paste · Format »
  *   « · B · I · S · Code · Paragraph »
  *   « | H1-H6 / • List · 1. List · Task · Quote
+ * Press and hold on the page (no selection) shows Paste · Select All.
  * Typing, Esc or a click elsewhere puts it away.
  */
 #ifndef PILL_H
@@ -14,6 +15,7 @@
 
 void    Pill_Init(WindowPtr w);
 void    Pill_Show(void);                 /* after a mouse selection */
+void    Pill_ShowAtCaret(void);          /* press and hold: Paste · Select All */
 void    Pill_Hide(void);
 Boolean Pill_IsShown(void);
 Boolean Pill_Click(Point local);         /* true: the click was the pill's */

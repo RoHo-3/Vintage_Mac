@@ -219,6 +219,9 @@ pill is this app's context menu.
   column; flips below when the selection is near the top of the screen.
 - **Timing:** appears on mouse-up (never during the drag); disappears on
   typing, clicking elsewhere, or Esc.
+- **Press and hold** on the page (half a second, no drag, nothing selected)
+  shows a small pill at the cursor: Paste · Select All (Select All then
+  shows the full pill). The one-button Mac's stand-in for a context menu.
 - **Mouse selections only.** Keyboard selections (Shift-arrows) never show
   the pill — the keyboard path is shortcuts and the Cmd-K palette.
 - **Not supported:** superscript and subscript (not standard Markdown, so

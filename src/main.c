@@ -321,7 +321,8 @@ static void DoMouseDown(EventRecord *ev)
                 if (Chrome_HamburgerClick(pt)) Drawer_Open();
                 else {
                     Ed_Click(pt, ev);
-                    if (Ed_HasSelection()) Pill_Show();   /* mouse selections only */
+                    if (Ed_ClickWasHold()) Pill_ShowAtCaret();
+                    else if (Ed_HasSelection()) Pill_Show();   /* mouse selections only */
                 }
             }
         }

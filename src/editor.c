@@ -1535,8 +1535,14 @@ static long HitTest(Point pt)
     return PrefixEnd(PosAt(&li, pt.h));
 }
 
+#define kHoldTicks 30                    /* half a second */
+static Boolean gPressHeld;
+
+Boolean Ed_ClickWasHold(void) { return gPressHeld; }
+
 void Ed_Click(Point pt, EventRecord *ev)
 {
+    Point start;
     long pos = HitTest(pt), wordA = 0, wordB = 0, p, a, b;
     Boolean word = false;
 
@@ -1561,9 +1567,21 @@ void Ed_Click(Point pt, EventRecord *ev)
         SetSel(pos, pos);
     gLastClick = ev->when;
     gLastClickPos = pos;
+    gPressHeld = false;
+    start = pt;
 
     while (StillDown()) {
         GetMouse(&pt);
+        if (!word && !HasSel() && !(ev->modifiers & shiftKey)) {
+            short dh = pt.h - start.h, dv = pt.v - start.v;
+            if (dh < -3 || dh > 3 || dv < -3 || dv > 3)
+                start.h = -1000;         /* it moved: a drag, not a hold */
+            else if (start.h != -1000 && TickCount() - ev->when >= kHoldTicks) {
+                gPressHeld = true;       /* press and hold: Paste pill */
+                gLastClick = 0;          /* the release isn't half a double-click */
+                return;
+            }
+        }
         if ((pt.v < kTopPad || pt.v > bottom) && TickCount() - lastScroll > 4) {
             long old = gTop;             /* drag past an edge: autoscroll */
             if (pt.v < kTopPad && gTop > 0) gTop--;

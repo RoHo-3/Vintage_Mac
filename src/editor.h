@@ -58,6 +58,7 @@ short   Ed_StepBodySize(short dir); /* next real body size up/down (wraps) */   
 
 void    Ed_SetCaret(long pos);      /* places the cursor and scrolls to it */
 Boolean Ed_HasSelection(void);
+Boolean Ed_ClickWasHold(void);      /* the last click was a press and hold */
 void    Ed_SelectionBounds(Rect *firstLine, Rect *lastLine);   /* on screen */
 Boolean Ed_HasHeadings(void);
 void    Ed_JumpSection(short dir);   /* next (1) / previous (-1) heading */

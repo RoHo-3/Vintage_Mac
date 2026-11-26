@@ -16,7 +16,7 @@
 #define kMaxItems 12
 
 /* What an item does: run a command, or go to another level. */
-enum { kTop, kFormat, kPara };
+enum { kTop, kFormat, kPara, kCaret };
 
 typedef struct {
     const char *label;
@@ -28,6 +28,9 @@ typedef struct {
 static const PillItem kTopItems[] = {
     { "Cut", cCut, -1, 0 }, { "Copy", cCopy, -1, 0 }, { "Paste", cPaste, -1, 0 },
     { "Format \310", 0, kFormat, 0 },
+};
+static const PillItem kCaretItems[] = {      /* press and hold, no selection */
+    { "Paste", cPaste, -1, 0 }, { "Select All", cSelectAll, -1, 0 },
 };
 static const PillItem kFormatItems[] = {
     { "\307", 0, kTop, 0 }, { "B", cBold, -1, 'b' }, { "I", cItalic, -1, 'i' },
@@ -104,9 +107,11 @@ static void Layout(short *w, short *h)
     short i, w1 = 0, w2 = 0, bw;
     gN = 0;
     UIFont();
-    if (gLevel == kTop || gLevel == kFormat) {
-        const PillItem *items = gLevel == kTop ? kTopItems : kFormatItems;
-        short n = gLevel == kTop ? N(kTopItems) : N(kFormatItems);
+    if (gLevel != kPara) {
+        const PillItem *items = gLevel == kTop ? kTopItems
+                              : gLevel == kCaret ? kCaretItems : kFormatItems;
+        short n = gLevel == kTop ? N(kTopItems)
+                : gLevel == kCaret ? N(kCaretItems) : N(kFormatItems);
         *w = PlaceRow(items, n, 0, 0, 0);
         *h = kRowH;
         return;
@@ -226,6 +231,12 @@ void Pill_Hide(void)
     Under_Restore();
 }
 
+void Pill_ShowAtCaret(void)
+{
+    if (gShown) Pill_Hide();
+    OpenLevel(kCaret);
+}
+
 Boolean Pill_IsShown(void) { return gShown; }
 
 void Pill_Redraw(void)
@@ -265,6 +276,8 @@ Boolean Pill_Click(Point pt)
         } else if (it->cmd) {
             Pill_Hide();                 /* the page shows again, then changes */
             Cmd_Run(it->cmd);
+            if (it->cmd == cSelectAll)   /* as on the iPhone: now act on it */
+                Pill_Show();
         }
     }
     return true;
