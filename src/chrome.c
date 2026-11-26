@@ -236,12 +236,18 @@ void Chrome_ShowTitleBriefly(void)
     gStripUntil = TickCount() + 120;
 }
 
+/* A character was typed: the first one starts the session clock (arrows,
+   Delete and Cmd-keys don't). */
+void Chrome_CharTyped(void)
+{
+    if (gClockStart == 0)
+        gClockStart = TickCount();
+}
+
 void Chrome_KeyPressed(void)
 {
     Rect r;
     gLastKey = TickCount();
-    if (gClockStart == 0)
-        gClockStart = gLastKey;          /* writing begins: the clock starts */
     if (!gWin) return;
     gStripUntil = 0;
     SetStrip(false);

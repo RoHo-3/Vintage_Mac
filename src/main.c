@@ -220,8 +220,12 @@ static void HandleEvent(EventRecord *ev)
             DoCommandKey(ev);
         else if (Lib_IsOpen())
             Lib_Key(ev);
-        else
+        else {
+            unsigned char ch = (unsigned char)(ev->message & charCodeMask);
+            if ((ch >= 0x20 && ch != 0x7F) || ch == '\r' || ch == 0x03 || ch == '\t')
+                Chrome_CharTyped();      /* the session clock starts with writing */
             Ed_Key(ev);
+        }
         break;
     case updateEvt:
         if ((WindowPtr)ev->message == gWindow) {
