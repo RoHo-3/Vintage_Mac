@@ -274,7 +274,8 @@ int main(void)
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
     }
-    Files_Init();                /* My Files beside the app */
+    Files_Init();                /* Writings beside the app */
+    Files_TidyJournals();        /* journals whose document left via the Finder */
     Doc_Init();
     Lib_Init(gWindow);
     if (Doc_Reopen()) {

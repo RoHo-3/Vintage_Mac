@@ -1,4 +1,5 @@
 #include "files.h"
+#include "journal.h"
 
 #include <Memory.h>
 #include <OSUtils.h>
@@ -209,6 +210,61 @@ void Files_SetDialogFolder(short wd)
         *(short *)0x0214 = -vol;         /* SFSaveDisk */
         *(long *)0x0398 = dir;           /* CurDirStore */
     }
+}
+
+static Boolean IsDoc(const unsigned char *name, OSType type);
+
+/* A document was moved or deleted in the Finder: its invisible journal is
+   left behind. Move such orphans to the Trash (recoverable), in this folder
+   and up to `depth` levels below. */
+static void TrashOrphans(short vol, long dir, short depth)
+{
+    static unsigned char hist[96][32];   /* journal names the documents here use */
+    CInfoPBRec ci;
+    Str63 name;
+    long subs[16];
+    short nh = 0, ns = 0, idx, i, j;
+    Boolean found;
+
+    for (idx = 1; ; idx++) {             /* pass 1: documents and subfolders */
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = dir;
+        if (PBGetCatInfoSync(&ci) != noErr) break;
+        if (ci.hFileInfo.ioFlAttrib & 0x10) {
+            if (ns < 16) subs[ns++] = ci.dirInfo.ioDrDirID;
+        } else if (IsDoc(name, ci.hFileInfo.ioFlFndrInfo.fdType) && nh < 96)
+            JR_HistoryName(name, hist[nh++]);
+    }
+    for (idx = 1; ; ) {                  /* pass 2: journals nobody uses */
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = dir;
+        if (PBGetCatInfoSync(&ci) != noErr) break;
+        idx++;
+        if ((ci.hFileInfo.ioFlAttrib & 0x10) || ci.hFileInfo.ioFlFndrInfo.fdType != 'MDWJ')
+            continue;
+        found = false;
+        for (i = 0; i < nh && !found; i++) {
+            found = hist[i][0] == name[0];
+            for (j = 1; found && j <= name[0]; j++) found = hist[i][j] == name[j];
+        }
+        if (!found && Files_Trash(vol, dir, name))
+            idx--;                       /* the folder's indexes shifted */
+    }
+    if (depth > 0)
+        for (i = 0; i < ns; i++)
+            TrashOrphans(vol, subs[i], depth - 1);
+}
+
+void Files_TidyJournals(void)
+{
+    TrashOrphans(gDocsVol, gDocsDir, 1);
+    TrashOrphans(gProjVol, gProjDir, 3);  /* projects, their folders */
 }
 
 void Files_ProjectsDir(short *vol, long *dirID) { *vol = gProjVol; *dirID = gProjDir; }

@@ -48,3 +48,13 @@
 - Fonts are automatic rasterizations, not hand-tuned.
 - H6 uses capitals as a stand-in for small caps; testing focuses on System
   7.1 until a full System 6.0.8 pass later.
+
+## Future exploration
+
+- **Cross-device `.history` (old Mac ↔ new Mac).** Journals sit beside their
+  documents, flagged invisible for the classic Finder; modern macOS ignores
+  the flag, and Finder-level moves leave journals behind (cleaned up on
+  launch). If a modern-Mac version is built, decide then how history
+  travels (e.g. a sidecar folder, extended attributes, or a sync format).
+  Until then: nothing in the file format may preclude it. Documents are plain
+  UTF-8 Markdown; the journal format is documented in STORAGE.md.
