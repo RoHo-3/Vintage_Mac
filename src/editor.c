@@ -794,7 +794,21 @@ void Ed_Key(EventRecord *ev)
         return;
     default:
         if (c >= 0x20 && !cmd) {
+            char two[2];
+            long ps = MD_ParaStart(gCaret), k;
             ch = (char)c;
+            /* "##text": Markdown needs a space after a heading's #s; put it in
+               (2-6 #s only, so a "#hashtag" stays as typed) */
+            if (!HasSel() && c != '#' && c != ' ' && gCaret - ps >= 2 && gCaret - ps <= 6) {
+                for (k = ps; k < gCaret && TB_Char(k) == '#'; k++)
+                    ;
+                if (k == gCaret) {
+                    two[0] = ' ';
+                    two[1] = ch;
+                    InsertText(two, 2, true);
+                    return;
+                }
+            }
             InsertText(&ch, 1, true);
         }
         return;

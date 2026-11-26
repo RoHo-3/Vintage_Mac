@@ -1,8 +1,10 @@
 /*
  * Where documents live, and the small preferences file.
  *
- * A "Mac MD Write" folder next to the application holds two peers: "My
- * Files" (your documents and projects) and "Templates", plus the prefs.
+ * A "Mac MD Write" folder next to the application holds three peers:
+ * "My Documents" (loose documents), "My Projects" (project folders) and
+ * "Templates", plus the prefs. The Library shows the first two together on
+ * one shelf, MY STUFF.
  * Folders are reached through working-directory refnums, so the rest of the
  * app keeps using the classic (name, vRefNum) file calls on System 6 and 7.
  *
@@ -29,7 +31,8 @@ Boolean Files_WDOf(const FolderLoc *loc, short *wdRef);
 
 /* Folders as (volume, dirID); a working directory is opened (and kept)
    for each folder the app touches, so (name, wdRef) calls work on it. */
-void    Files_DocsDir(short *vol, long *dirID);
+void    Files_DocsDir(short *vol, long *dirID);       /* My Documents */
+void    Files_ProjectsDir(short *vol, long *dirID);   /* My Projects */
 Boolean Files_WDFor(short vol, long dirID, short *wdRef);
 Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
 Boolean Files_IsInside(short vol, long dir, long ancestor);
@@ -40,6 +43,7 @@ typedef struct {
     Str31   name;
     Boolean isFolder;
     long    dirID;                   /* folders: their own ID */
+    long    parent;                  /* the folder it is in */
 } DirItem;
 short   Files_List(short vol, long dirID, DirItem *items, short max);
 

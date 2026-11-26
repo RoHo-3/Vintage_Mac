@@ -229,16 +229,16 @@ static Boolean SaveIfNeeded(void)
     return Doc_Save();
 }
 
-/* Cmd-N inside a project creates the document in that project: the new
-   document goes where the current one lives, if that is inside My Files. */
+/* Cmd-N inside a project creates the document in that project; otherwise
+   new documents go to My Documents. */
 static void NewGoesBesideCurrent(void)
 {
     short vol, mvol;
     long dir, mdir;
     gNewWD = 0;
     if (gHasFile && Files_DirOfWD(gVRef, &vol, &dir)) {
-        Files_DocsDir(&mvol, &mdir);
-        if (vol == mvol && Files_IsInside(vol, dir, mdir))
+        Files_ProjectsDir(&mvol, &mdir);           /* inside a project */
+        if (vol == mvol && dir != mdir && Files_IsInside(vol, dir, mdir))
             gNewWD = gVRef;
     }
 }

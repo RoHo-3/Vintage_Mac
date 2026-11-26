@@ -391,18 +391,21 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    chapter files + notes), Script. `Open` on a template creates a new untitled document from it; the
    template itself is never changed (edit templates in the Finder — a
    power-user feature). Cmd-N skips the Library and opens Blank.
-2. **My Files** — real folder hierarchy in the "My Files" folder, read with
-   HFS catalog calls (`PBGetCatInfo`). On disk, a "Mac MD Write" folder next
-   to the app holds two peers, `My Files` and `Templates`, plus the prefs
-   file. Loose documents and projects both live at the top of My Files. The row label is a
-   breadcrumb (`MY FILES › THE KEEPER'S LOG`) with an up tile.
+2. **My Stuff** — projects (as folders) and loose documents side by side.
+   On disk, a "Mac MD Write" folder next to the app holds three peers:
+   `My Documents` (loose documents), `My Projects` (project folders) and
+   `Templates`, plus the prefs file; the shelf shows the first two together,
+   read with HFS catalog calls (`PBGetCatInfo`). Inside a project the row
+   label is a breadcrumb (`MY STUFF › THE KEEPER'S LOG`) with an up tile.
+   New Project goes to My Projects; Cmd-N goes to My Documents, or to the
+   project you are working in.
 3. **Recent** — recently opened files.
 
 **Project structure (max three levels):**
 
 | Level | Can contain |
 |---|---|
-| My Files (top level) | Documents and projects |
+| My Stuff (top level) | Documents (My Documents) and projects (My Projects) |
 | Project | Documents and folders |
 | Folder inside a project | Documents only |
 

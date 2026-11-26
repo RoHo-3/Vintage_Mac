@@ -116,12 +116,26 @@ static DirItem *FileItem(short idx)
     return &gFiles[idx];
 }
 
-static short CurWD(void)
+/* The folder new things go in here: My Documents / My Projects at the top
+   (MY STUFF), otherwise the folder being browsed. */
+static long HereDir(Boolean forProject)
+{
+    short v;
+    long d;
+    if (gDepth > 0) return gDir[gDepth];
+    if (forProject) Files_ProjectsDir(&v, &d);
+    else Files_DocsDir(&v, &d);
+    return d;
+}
+
+static short WDOfDir(long dir)
 {
     short wd = 0;
-    Files_WDFor(gVol, gDir[gDepth], &wd);
+    Files_WDFor(gVol, dir, &wd);
     return wd;
 }
+
+static short ItemWD(short idx) { return WDOfDir(gFiles[idx].parent); }
 
 static void LoadFiles(void)
 {
@@ -130,9 +144,15 @@ static void LoadFiles(void)
         CopyP(gDirName[gDepth - 1], gFiles[0].name);
         gFiles[0].isFolder = true;
         gFiles[0].dirID = gDir[gDepth - 1];
+        gFiles[0].parent = 0;
         n = 1;
     }
-    gFilesN = n + Files_List(gVol, gDir[gDepth], gFiles + n, kMaxItems - n);
+    if (gDepth == 0) {                   /* MY STUFF: projects, then documents */
+        n += Files_List(gVol, HereDir(true), gFiles + n, kMaxItems - n);
+        n += Files_List(gVol, HereDir(false), gFiles + n, kMaxItems - n);
+        gFilesN = n;
+    } else
+        gFilesN = n + Files_List(gVol, gDir[gDepth], gFiles + n, kMaxItems - n);
 }
 
 static void LoadAll(void)
@@ -325,7 +345,7 @@ static void DrawRow(short row)
     if (row == kRowTpl) DrawString(PSTR("\pTEMPLATES"));
     else if (row == kRowRecent) DrawString(PSTR("\pRECENT"));
     else {
-        DrawString(PSTR("\pMY FILES"));
+        DrawString(PSTR("\pMY STUFF"));
         for (i = 1; i <= gDepth; i++) {
             DrawString(PSTR("\p \310 "));          /* \310 = MacRoman >> */
             ShownName(gDirName[i], s);
@@ -449,14 +469,14 @@ static void DoOpen(void)
     short wd;
     if (gSelRow == kRowTpl) {
         if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD())) {
-            Doc_SetNewFolder(CurWD());   /* saved where you were browsing */
+            Doc_SetNewFolder(WDOfDir(HereDir(false)));   /* saved where you were browsing */
             Lib_Close();
         }
         else SysBeep(1);
     } else if (gSelRow == kRowFiles) {
         if (gFiles[gSelIdx].isFolder)
             Navigate(gSelIdx);
-        else if (Doc_OpenAt(gFiles[gSelIdx].name, CurWD()))
+        else if (Doc_OpenAt(gFiles[gSelIdx].name, ItemWD(gSelIdx)))
             Lib_Close();
         else SysBeep(1);
     } else if (gSelRow == kRowRecent) {
@@ -481,7 +501,7 @@ static void DoOpen(void)
 }
 
 /* "Name copy.md", "Name copy 2.md" ... / "Untitled Project", "... 2" */
-static Boolean FreeName(const unsigned char *base, Boolean md, unsigned char *out)
+static Boolean FreeName(const unsigned char *base, Boolean md, long dir, unsigned char *out)
 {
     short k, i, n;
     for (k = 1; k < 100; k++) {
@@ -494,7 +514,7 @@ static Boolean FreeName(const unsigned char *base, Boolean md, unsigned char *ou
         }
         if (md) { out[++n] = '.'; out[++n] = 'm'; out[++n] = 'd'; }
         out[0] = (unsigned char)n;
-        if (!Files_Exists(gVol, gDir[gDepth], out))
+        if (!Files_Exists(gVol, dir, out))
             return true;
     }
     return false;
@@ -536,9 +556,9 @@ static void EndRename(Boolean commit)
             if (!same) {
                 Boolean ok;
                 if (gFiles[gSelIdx].isFolder)
-                    ok = Files_Rename(gVol, gDir[gDepth], from, to);
+                    ok = Files_Rename(gVol, gFiles[gSelIdx].parent, from, to);
                 else
-                    ok = Doc_RenameFile(CurWD(), from, to);
+                    ok = Doc_RenameFile(ItemWD(gSelIdx), from, to);
                 if (ok) {
                     LoadFiles();
                     Prefs_Load(&gPrefs);
@@ -556,8 +576,8 @@ static void DoNew(Boolean project)
     unsigned char name[40];
     long dir;
     if (!FreeName(project ? PSTR("\pUntitled Project") : PSTR("\pUntitled Folder"),
-                  false, name)
-        || !Files_NewFolder(gVol, gDir[gDepth], name, &dir)) {
+                  false, HereDir(project), name)
+        || !Files_NewFolder(gVol, HereDir(project), name, &dir)) {
         SysBeep(1);
         return;
     }
@@ -580,7 +600,8 @@ static void DoDuplicate(void)
         const char *c = " copy";
         while (*c) base[++base[0]] = (unsigned char)*c++;
     }
-    if (!FreeName(base, true, name) || !Files_Copy(CurWD(), gFiles[gSelIdx].name, name)) {
+    if (!FreeName(base, true, gFiles[gSelIdx].parent, name)
+        || !Files_Copy(ItemWD(gSelIdx), gFiles[gSelIdx].name, name)) {
         SysBeep(1);
         return;
     }
@@ -601,12 +622,12 @@ static void DoTrash(void)
         /* not the folder the open document lives in (it would keep saving
            into the Trash) */
         if (Doc_Location(&v, &d) && v == gVol && d == it->dirID) { SysBeep(1); return; }
-        if (!Files_Trash(gVol, gDir[gDepth], it->name)) { SysBeep(1); return; }
+        if (!Files_Trash(gVol, it->parent, it->name)) { SysBeep(1); return; }
     } else {
-        Doc_FileTrashed(CurWD(), it->name);
-        if (!Files_Trash(gVol, gDir[gDepth], it->name)) { SysBeep(1); return; }
+        Doc_FileTrashed(ItemWD(gSelIdx), it->name);
+        if (!Files_Trash(gVol, it->parent, it->name)) { SysBeep(1); return; }
         JR_HistoryName(it->name, hist);
-        Files_Trash(gVol, gDir[gDepth], hist);       /* its journal, if any */
+        Files_Trash(gVol, it->parent, hist);         /* its journal, if any */
     }
     LoadFiles();
     Prefs_Load(&gPrefs);
@@ -650,8 +671,9 @@ static Boolean Offered(short act)
 void Lib_Init(WindowPtr w)
 {
     gWin = w;
-    Files_DocsDir(&gVol, &gDir[0]);
-    gDirName[0][0] = 0;
+    Files_DocsDir(&gVol, &gDir[0]);      /* depth 0 is MY STUFF (two folders) */
+    gDirName[0][0] = 8;
+    BlockMove("My Stuff", gDirName[0] + 1, 8);
     gDepth = 0;
 }
 

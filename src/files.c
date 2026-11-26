@@ -98,15 +98,67 @@ static Boolean SameP(const unsigned char *a, const unsigned char *b)
     return true;
 }
 
-/* Builds 29-34 kept documents directly in "Mac MD Write": move them (and
-   any project folders) into My Files once, and point the prefs there. */
-static void MoveIntoMyFiles(short vol, long root, long myFiles);
+static short gProjVol;
+static long  gProjDir;
+
+/* Earlier builds kept documents directly in "Mac MD Write" (29-34) or in a
+   "My Files" folder (35). Each launch tidies the top: documents move to My
+   Documents, folders (projects) to My Projects; the prefs follow. */
+static void Tidy(short vol, long from, long root, long docs, long projs, Prefs *p)
+{
+    CInfoPBRec ci;
+    CMovePBRec mv;
+    Str63 name;
+    short idx = 1, i;
+    Boolean isDir;
+    long sub;
+    while (true) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = from;
+        if (PBGetCatInfoSync(&ci) != noErr)
+            break;
+        isDir = (ci.hFileInfo.ioFlAttrib & 0x10) != 0;
+        sub = ci.dirInfo.ioDrDirID;
+        if (from == root && (SameP(name, (ConstStr255Param)"\pMy Documents")
+            || SameP(name, (ConstStr255Param)"\pMy Projects")
+            || SameP(name, (ConstStr255Param)"\pTemplates")
+            || SameP(name, (ConstStr255Param)"\pMac MD Write Prefs"))) {
+            idx++;
+            continue;
+        }
+        if (from == root && isDir && SameP(name, (ConstStr255Param)"\pMy Files")) {
+            HParamBlockRec del;
+            Tidy(vol, sub, root, docs, projs, p);       /* empty it, then remove it */
+            del.fileParam.ioCompletion = NULL;
+            del.fileParam.ioNamePtr = name;
+            del.fileParam.ioVRefNum = vol;
+            del.fileParam.ioDirID = root;
+            if (PBHDeleteSync(&del) != noErr) idx++;
+            continue;
+        }
+        mv.ioCompletion = NULL;
+        mv.ioNamePtr = name;
+        mv.ioVRefNum = vol;
+        mv.ioNewName = NULL;
+        mv.ioNewDirID = isDir ? projs : docs;
+        mv.ioDirID = from;
+        if (PBCatMoveSync(&mv) != noErr)
+            idx++;                       /* a name clash: leave it */
+        /* on success the indexes shift: same idx again */
+    }
+    if (p->lastDir.dirID == from) p->lastDir.dirID = docs;   /* moved documents */
+    for (i = 0; i < p->recentCount; i++)
+        if (p->recent[i].dir.dirID == from) p->recent[i].dir.dirID = docs;
+}
 
 Boolean Files_Init(void)
 {
     short appWD, vol;
-    long appDir, rootDir, docsDir, tplDir;
-    Boolean fresh;
+    long appDir, rootDir, docsDir, projDir, tplDir;
+    Prefs p;
 
     GetVol(NULL, &appWD);                /* launch sets it to the app's folder */
     gDocsWD = gTemplatesWD = gRootWD = appWD;   /* fallback: beside the app */
@@ -116,14 +168,17 @@ Boolean Files_Init(void)
         || !OpenWD(vol, rootDir, &gRootWD))
         return false;
     gDocsWD = gTemplatesWD = gRootWD;
-    gDocsVol = vol;
-    gDocsDir = rootDir;
-    fresh = !Files_Exists(vol, rootDir, (ConstStr255Param)"\pMy Files");
-    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Files", &docsDir)
-        && OpenWD(vol, docsDir, &gDocsWD)) {
+    gDocsVol = gProjVol = vol;
+    gDocsDir = gProjDir = rootDir;
+    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Documents", &docsDir)
+        && OpenWD(vol, docsDir, &gDocsWD))
         gDocsDir = docsDir;
-        if (fresh)
-            MoveIntoMyFiles(vol, rootDir, docsDir);
+    if (SubFolder(vol, rootDir, (ConstStr255Param)"\pMy Projects", &projDir))
+        gProjDir = projDir;
+    if (gDocsDir != rootDir && gProjDir != rootDir) {
+        Prefs_Load(&p);
+        Tidy(vol, rootDir, rootDir, gDocsDir, gProjDir, &p);
+        Prefs_Save(&p);
     }
     if (SubFolder(vol, rootDir, (ConstStr255Param)"\pTemplates", &tplDir)
         && OpenWD(vol, tplDir, &gTemplatesWD)) {
@@ -136,42 +191,7 @@ Boolean Files_Init(void)
     return true;
 }
 
-static void MoveIntoMyFiles(short vol, long root, long myFiles)
-{
-    CInfoPBRec ci;
-    CMovePBRec mv;
-    Str63 name;
-    short idx = 1, i;
-    Prefs p;
-    while (true) {
-        ci.hFileInfo.ioCompletion = NULL;
-        ci.hFileInfo.ioNamePtr = name;
-        ci.hFileInfo.ioVRefNum = vol;
-        ci.hFileInfo.ioFDirIndex = idx;
-        ci.hFileInfo.ioDirID = root;
-        if (PBGetCatInfoSync(&ci) != noErr)
-            break;
-        if (SameP(name, (ConstStr255Param)"\pMy Files") || SameP(name, (ConstStr255Param)"\pTemplates")
-            || SameP(name, (ConstStr255Param)"\pMac MD Write Prefs")) {
-            idx++;
-            continue;
-        }
-        mv.ioCompletion = NULL;
-        mv.ioNamePtr = name;
-        mv.ioVRefNum = vol;
-        mv.ioNewName = NULL;
-        mv.ioNewDirID = myFiles;
-        mv.ioDirID = root;
-        if (PBCatMoveSync(&mv) != noErr)
-            idx++;                       /* leave it; look at the next */
-        /* on success the folder's indexes shift: same idx again */
-    }
-    Prefs_Load(&p);                      /* the remembered places moved too */
-    if (p.lastDir.dirID == root) p.lastDir.dirID = myFiles;
-    for (i = 0; i < p.recentCount; i++)
-        if (p.recent[i].dir.dirID == root) p.recent[i].dir.dirID = myFiles;
-    Prefs_Save(&p);
-}
+void Files_ProjectsDir(short *vol, long *dirID) { *vol = gProjVol; *dirID = gProjDir; }
 
 /* Is dir the folder anc, or inside it? (walks up the parents) */
 Boolean Files_IsInside(short vol, long dir, long anc)
@@ -261,6 +281,7 @@ short Files_List(short vol, long dirID, DirItem *items, short max)
         }
         if (name[0] > 31) name[0] = 31;
         for (i = 0; i <= name[0]; i++) items[n].name[i] = name[i];
+        items[n].parent = dirID;
         n++;
     }
     /* "Outline" pinned first, then folders and documents by name */
