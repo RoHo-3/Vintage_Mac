@@ -70,12 +70,12 @@ static const char kWelcome[] =
     "## Files\r"
     "\r"
     "Command-O opens the Library: templates, your documents and projects, "
-    "and recent files. Command-N starts a new document. Command-S saves; the "
-    "first time, it asks for a name (the first line is filled in). If you "
-    "never save, a pause names the document from its first line and keeps "
-    "it in My Documents (in the \"Mac MD Write\" folder next to the app), "
-    "or in the project you are working in; that name follows the first line "
-    "as you edit. Quit and relaunch: your last "
+    "and recent files. Command-N opens it with Blank picked: press Return "
+    "(or pick a template), choose a folder and a name, and start writing. "
+    "Command-S saves; an untitled page asks for a name first. An untitled "
+    "page you never save is named from its first line when you pause, in "
+    "My Documents (in the \"Mac MD Write\" folder next to the app). Quit "
+    "and relaunch: your last "
     "document reopens where you left off. Once a document has a file it saves itself when you pause "
     "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
     "original line endings, so they round-trip with modern editors. "
@@ -165,13 +165,13 @@ static void DoCommandKey(EventRecord *ev)
         c += 'a' - 'A';
     if (Lib_IsOpen()) {                  /* Library: its own keys, plus Q and N */
         if (c == 'q') { if (Doc_CanQuit()) gQuit = true; }
-        else if (c == 'n') { Doc_New(); Lib_Close(); }
+        else if (c == 'n') Lib_OpenNew();
         else Lib_Key(ev);
         return;
     }
     switch (c) {
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
-    case 'n': Doc_New(); break;
+    case 'n': Lib_OpenNew(); break;      /* pick Blank or a template */
     case 'o': Lib_Open(); break;
     case 's': Doc_SaveCommand(); break;
     case 'm': Doc_ToggleMarks(); break;

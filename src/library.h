@@ -17,6 +17,7 @@
 
 void    Lib_Init(WindowPtr w);
 void    Lib_Open(void);
+void    Lib_OpenNew(void);      /* Cmd-N: Blank picked, ready for Return */
 void    Lib_Close(void);         /* back to writing */
 Boolean Lib_IsOpen(void);
 void    Lib_Draw(void);

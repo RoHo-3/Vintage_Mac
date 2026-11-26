@@ -397,8 +397,11 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    `Templates`, plus the prefs file; the shelf shows the first two together,
    read with HFS catalog calls (`PBGetCatInfo`). Inside a project the row
    label is a breadcrumb (`MY STUFF › THE KEEPER'S LOG`) with an up tile.
-   New Project goes to My Projects; Cmd-N goes to My Documents, or to the
-   project you are working in.
+   New Project goes to My Projects. Cmd-N opens the Library with Blank
+   picked; starting from Blank or any template shows the Save dialog first
+   (in the folder being browsed, template name filled in), then writing
+   begins. Cmd-S in the writing view always saves by hand; an untitled page
+   asks for a name.
 3. **Recent** — recently opened files.
 
 **Project structure (max three levels):**

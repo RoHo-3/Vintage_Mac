@@ -515,11 +515,12 @@ static void DoOpen(void)
 {
     short wd;
     if (gSelRow == kRowTpl) {
-        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD())) {
-            Doc_SetNewFolder(WDOfDir(HereDir(false)));   /* saved where you were browsing */
+        /* the Save dialog comes first, in the folder being browsed */
+        if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD(),
+                                WDOfDir(HereDir(false))))
             Lib_Close();
-        }
-        else SysBeep(1);
+        else
+            Lib_Draw();                  /* cancelled: the dialog drew over us */
     } else if (gSelRow == kRowFiles) {
         if (gFiles[gSelIdx].isFolder)
             Navigate(gSelIdx);
@@ -744,6 +745,20 @@ void Lib_Close(void)
 }
 
 Boolean Lib_IsOpen(void) { return gOpen; }
+
+/* Cmd-N: the Library with Blank picked; Return starts it. */
+void Lib_OpenNew(void)
+{
+    short i;
+    unsigned char n[40];
+    if (!gOpen) Lib_Open();
+    for (i = 0; i < gTplN; i++) {
+        ShownName(gTpl[i].name, n);
+        if (n[0] == 5 && (n[1] | 0x20) == 'b' && (n[2] | 0x20) == 'l') break;
+    }
+    if (gTplN > 0) Select(kRowTpl, i < gTplN ? i : 0);
+    Redraw();
+}
 
 /* ---- input -------------------------------------------------------------- */
 

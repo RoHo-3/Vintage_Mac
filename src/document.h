@@ -27,7 +27,7 @@ Boolean Doc_HasFile(void);
 Boolean Doc_Location(short *vol, long *dirID);
 Boolean Doc_IsOpen(short wd, const unsigned char *name);
 Boolean Doc_OpenAt(const unsigned char *name, short wd);
-Boolean Doc_NewFromTemplate(const unsigned char *name, short wd);
+Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD);
 void    Doc_SetNewFolder(short wd); /* where the next new document is saved */
 Boolean Doc_RenameFile(short wd, const unsigned char *from, const unsigned char *to);
 void    Doc_FileTrashed(short wd, const unsigned char *name);

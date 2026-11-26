@@ -398,15 +398,28 @@ Boolean Doc_OpenAt(const unsigned char *name, short wd)
     return true;
 }
 
-/* A new untitled document with a template's text; the template itself is
-   never changed. Named from its first line at the first save. */
-Boolean Doc_NewFromTemplate(const unsigned char *name, short wd)
+/* A new document from a template (Blank is one): the Save dialog comes
+   first, in destWD with the template's name filled in ("Untitled" for
+   Blank); then the template's text fills the new file and writing begins.
+   The template itself is never changed. Cancel: nothing changes. */
+Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
 {
+    SFReply reply;
+    unsigned char suggest[40];
     short ref;
     long size, n, len = -1;
     Ptr raw = NULL, text = NULL;
     FileFormat fmt;
     if (!SaveIfNeeded())
+        return false;
+    if (name[0] == 8 && (name[1] | 0x20) == 'b' && (name[2] | 0x20) == 'l'
+        && (name[3] | 0x20) == 'a' && (name[4] | 0x20) == 'n' && (name[5] | 0x20) == 'k')
+        CopyPString((const unsigned char *)"\pUntitled.md", suggest);
+    else
+        CopyPString(name, suggest);
+    Files_SetDialogFolder(destWD);
+    SFPutFile(DialogSpot(), (ConstStringPtr)"\pSave new document as:", suggest, NULL, &reply);
+    if (!reply.good)
         return false;
     if (FSOpen(name, wd, &ref) != noErr)
         return false;
@@ -429,6 +442,8 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd)
         Chrome_SetTitle((const unsigned char *)"\pUntitled");
         Chrome_TextChanged();
         Chrome_ResetClock();
+        if (BecomeFile(reply.fName, reply.vRefNum, false))
+            Doc_Save();                  /* the file exists from the start */
         Doc_Remember();
     }
     if (raw) DisposePtr(raw);
