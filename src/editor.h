@@ -40,6 +40,7 @@ Boolean Ed_SetText(const char *text, long len);
 void    Ed_SetShowMarks(Boolean on);
 Boolean Ed_ShowMarks(void);
 void    Ed_Hold(Boolean hold);
+void    Ed_Format(char marker, short count);   /* Cmd-B ('*',2), Cmd-I ('*',1), Cmd-E ('`',1) */
 
 /* Fonts: 0 = MDW Mono, else a system font ID (Monaco 4, Courier 22, New
    York 2, Geneva 3, Times 20, Helvetica 21, Palatino 16), fixed-width or

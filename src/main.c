@@ -252,6 +252,9 @@ static void DoCommandKey(EventRecord *ev)
     case 'o': Lib_Open(); break;
     case 's': Doc_SaveCommand(); break;
     case 'm': Doc_ToggleMarks(); break;
+    case 'b': Ed_Format('*', 2); break;           /* bold */
+    case 'i': Ed_Format('*', 1); break;           /* italic */
+    case 'e': Ed_Format('`', 1); break;           /* inline code */
     case '=': case '+': App_StepSize(1); break;     /* text size */
     case '-': App_StepSize(-1); break;
     case '\\': Drawer_Open(); break;                 /* Cmd-\ : the drawer */

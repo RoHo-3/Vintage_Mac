@@ -747,17 +747,95 @@ void Ed_Redo(void)
 
 /* ---- clipboard --------------------------------------------------------- */
 
+/* The markers a style needs, in nesting order (outermost first). */
+static short Markers(unsigned char st, char *out)
+{
+    short n = 0;
+    if (st & MD_BOLD)   { out[n++] = '*'; out[n++] = '*'; }
+    if (st & MD_ITALIC) out[n++] = '*';
+    if (st & MD_CODE)   out[n++] = '`';
+    return n;
+}
+
+/* Style of the text at pos (0 if it's a marker or outside text). */
+static unsigned char TextStyleAt(long pos)
+{
+    long ps, pe;
+    short lvl;
+    const unsigned char *sty;
+    if (pos < 0 || pos >= TB_Len()) return 0;
+    ps = MD_ParaStart(pos);
+    pe = MD_ParaEnd(pos);
+    if (pos >= pe) return 0;
+    sty = MD_Parse(ps, pe, false, &lvl);
+    if (!sty || (sty[pos - ps] & MD_MARK)) return 0;
+    return sty[pos - ps] & (MD_BOLD | MD_ITALIC | MD_CODE);
+}
+
+/* Copy keeps Markdown balanced: a selection that starts or ends inside a
+   styled phrase gets the missing opening / closing markers added. */
 void Ed_Copy(void)
 {
-    long n = SelEnd() - SelStart();
+    long a = SelStart(), b = SelEnd(), n = b - a, k;
+    char pre[8], post[8];
+    short np, nq, i;
     Ptr p;
     if (n <= 0) return;
-    p = NewPtr(n);
+    np = Markers(TextStyleAt(a), pre);
+    nq = Markers(TextStyleAt(b - 1), post);
+    for (i = 0; i < nq / 2; i++) {       /* close in reverse order */
+        char t = post[i]; post[i] = post[nq - 1 - i]; post[nq - 1 - i] = t;
+    }
+    p = NewPtr(n + np + nq);
     if (!p) { SysBeep(1); return; }
-    TB_Copy(SelStart(), n, p);
+    for (k = 0; k < np; k++) p[k] = pre[k];
+    TB_Copy(a, n, p + np);
+    for (k = 0; k < nq; k++) p[np + n + k] = post[k];
     ZeroScrap();
-    PutScrap(n, 'TEXT', p);
+    PutScrap(n + np + nq, 'TEXT', p);
     DisposePtr(p);
+}
+
+/* Cmd-B / Cmd-I / Cmd-E: wrap the selection in marker m (k of them), or
+   unwrap it if it's already wrapped; with no selection, put an empty pair
+   at the cursor so what's typed next has the style. One undo step. */
+void Ed_Format(char m, short k)
+{
+    long a = SelStart(), b = SelEnd(), len = TB_Len(), n, q;
+    short i;
+    Boolean wrapped;
+    char *buf;
+    if (a == b) {
+        char pair[4];
+        for (i = 0; i < 2 * k; i++) pair[i] = m;
+        Edit(a, 0, pair, 2 * k, false);
+        SetSel(a + k, a + k);
+        return;
+    }
+    for (q = a; q < b; q++)
+        if (TB_Char(q) == '\r') { SysBeep(1); return; }   /* one paragraph */
+    while (a < b && TB_Char(a) == ' ') a++;      /* "** text**" isn't Markdown */
+    while (b > a && TB_Char(b - 1) == ' ') b--;
+    n = b - a;
+    if (n == 0) return;
+    wrapped = a >= k && b + k <= len;
+    for (i = 1; wrapped && i <= k; i++)
+        wrapped = TB_Char(a - i) == m && TB_Char(b + i - 1) == m;
+    if (wrapped && k == 1)               /* "*x*", not the edge of "**x**" */
+        wrapped = (a < 2 || TB_Char(a - 2) != m) && (b + 1 >= len || TB_Char(b + 1) != m);
+    buf = NewPtr(n + 2 * k);
+    if (!buf) { SysBeep(1); return; }
+    if (wrapped) {
+        TB_Copy(a, n, buf);
+        Edit(a - k, n + 2 * k, buf, n, false);
+        SetSel(a - k, b - k);
+    } else {
+        for (i = 0; i < k; i++) buf[i] = buf[k + n + i] = m;
+        TB_Copy(a, n, buf + k);
+        Edit(a, n, buf, n + 2 * k, false);
+        SetSel(a + k, b + k);
+    }
+    DisposePtr(buf);
 }
 
 void Ed_Cut(void)

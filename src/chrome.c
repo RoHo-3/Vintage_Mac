@@ -124,6 +124,8 @@ static void DrawStrip(void)
     DrawString(gTitle);
 }
 
+static void DrawStatus(void);
+
 const unsigned char *Chrome_Title(void) { return gTitle; }
 
 void Chrome_SetStatusParts(Boolean words, Boolean clock)
