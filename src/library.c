@@ -246,29 +246,29 @@ static void SelectFileNamed(const unsigned char *name)
     }
 }
 
-/* The bar: what you can make (always there, left), then what you can do
-   with the picked tile, then Open File... (any .md on the disk) at the right. */
-static short gActSplit;                  /* index of the first picked-tile action */
+/* The bar shows every action, always: what you can make, a divider, then
+   what you can do with a file. Those that don't fit what's picked are
+   greyed. Open with nothing picked is the classic dialog (any .md on disk). */
+static short gActSplit;                  /* index of the first file action */
+static Boolean gActOn[kActCount];        /* by slot: enabled now */
 
 static void BuildActions(void)
 {
+    Boolean file = gSelRow == kRowFiles || gSelRow == kRowRecent;
+    Boolean up = IsUp(gSelRow, gSelIdx);
+    Boolean folder = gSelRow == kRowFiles && !up && FileItem(gSelIdx)->isFolder;
     gActN = 0;
-    gActs[gActN++] = kActNewDoc;
-    if (gDepth == 0)
-        gActs[gActN++] = kActNewProject;
-    else if (gDepth == 1)
-        gActs[gActN++] = kActNewFolder;  /* folders only inside a project */
-    gActSplit = gActN;
-    if (gSelRow == kRowTpl || IsUp(gSelRow, gSelIdx)) {
-        gActs[gActN++] = kActOpen;
-    } else if (gSelRow == kRowFiles || gSelRow == kRowRecent) {
-        gActs[gActN++] = kActOpen;       /* Recent offers what My Stuff does */
-        if (gSelRow == kRowRecent || !FileItem(gSelIdx)->isFolder)
-            gActs[gActN++] = kActDuplicate;
-        gActs[gActN++] = kActRename;
-        gActs[gActN++] = kActTrash;
+    gActOn[gActN] = true;  gActs[gActN++] = kActNewDoc;
+    if (gDepth <= 1) {
+        gActOn[gActN] = true;  gActs[gActN++] = gDepth == 0 ? kActNewProject : kActNewFolder;
+    } else {
+        gActOn[gActN] = false; gActs[gActN++] = kActNewFolder;   /* 3 levels at most */
     }
-    gActs[gActN++] = kActOther;
+    gActSplit = gActN;
+    gActOn[gActN] = true;                   gActs[gActN++] = kActOpen;
+    gActOn[gActN] = file && !up && !folder; gActs[gActN++] = kActDuplicate;
+    gActOn[gActN] = file && !up;            gActs[gActN++] = kActRename;
+    gActOn[gActN] = file && !up;            gActs[gActN++] = kActTrash;
 }
 
 /* ---- drawing ------------------------------------------------------------ */
@@ -463,9 +463,7 @@ static void DrawActions(void)
     TextSize(9);
     for (i = 0; i < gActN; i++) {
         CStr(kActName[gActs[i]], s);
-        if (gActs[i] == kActOther)      /* Open File... sits at the right */
-            x = gWin->portRect.right - kLeft - StringWidth(s);
-        else if (i == gActSplit && gActs[i] != kActOther) {   /* divider */
+        if (i == gActSplit) {           /* divider */
             MoveTo(x - 6, kHeaderH + 3);
             LineTo(x - 6, kRowsTop - 4);
             x += 6;
@@ -473,6 +471,14 @@ static void DrawActions(void)
         MoveTo(x, kHeaderH + 11);
         DrawString(s);
         SetRect(&gActRect[i], x - 4, kHeaderH, x + StringWidth(s) + 4, kRowsTop - 1);
+        if (!gActOn[i]) {               /* not for what's picked: grey */
+            Rect g = gActRect[i];
+            InsetRect(&g, 0, 2);
+            PenPat(&qd.gray);
+            PenMode(patBic);
+            PaintRect(&g);
+            PenNormal();
+        }
         x += StringWidth(s) + 12;
     }
     MoveTo(0, kRowsTop - 1);
@@ -546,9 +552,15 @@ static void Navigate(short idx)
     Redraw();
 }
 
+static void DoOther(void);
+
 static void DoOpen(void)
 {
     short wd;
+    if (gSelRow < 0) {                   /* nothing picked: any file on disk */
+        DoOther();
+        return;
+    }
     if (gSelRow == kRowTpl) {
         /* the Save dialog comes first, in the folder being browsed */
         if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD(),
@@ -767,6 +779,7 @@ static void DoTrash(void)
 
 static void DoOther(void)
 {
+    Files_SetDialogFolder(WDOfDir(HereDir(false)));   /* start where you browse */
     if (Doc_Open())
         Lib_Close();
     else
@@ -811,7 +824,7 @@ static Boolean Offered(short act)
     short i;
     BuildActions();
     for (i = 0; i < gActN; i++)
-        if (gActs[i] == act) return true;
+        if (gActs[i] == act) return gActOn[i];
     return false;
 }
 
@@ -981,7 +994,10 @@ void Lib_Click(Point pt, EventRecord *ev)
     if (PtInRect(pt, &gBackRect)) { Lib_Close(); return; }
     if (pt.v >= kHeaderH && pt.v < kRowsTop) {
         for (i = 0; i < gActN; i++)
-            if (PtInRect(pt, &gActRect[i])) { Run(gActs[i]); return; }
+            if (PtInRect(pt, &gActRect[i])) {
+                if (gActOn[i]) Run(gActs[i]);
+                return;
+            }
         return;
     }
     if (pt.v < kRowsTop) return;

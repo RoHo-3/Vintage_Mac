@@ -2,9 +2,9 @@
  * The Library (DESIGN.md): a full-screen browser that replaces the classic
  * Open dialog. Three shelves of 32x32 tiles: Templates, My Files (folders,
  * projects, breadcrumb), Recent. An action bar above them offers what fits
- * the picked tile: New Document and New Project / New Folder always, then
- * Open, Duplicate, Rename (in place), Move to Trash, and Open File... (the
- * classic dialog, for a .md anywhere on the disk).
+ * the picked tile. Always shown: New Document, New Project / New Folder |
+ * Open, Duplicate, Rename (in place), Move to Trash; what doesn't fit the
+ * pick is greyed. Open with nothing picked: the classic dialog (any .md).
  *
  * Keyboard: arrows move, Return opens, Esc returns to writing, Cmd-R
  * renames, Cmd-D duplicates, Cmd-Delete moves to the Trash, typing a letter
