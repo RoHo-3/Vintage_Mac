@@ -567,6 +567,7 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
                        long newCaret)
 {
     long first, oldCount, newCount, oldCaret = gCaret;
+    short oldLevel = LY_Count() > 0 ? LY_Level(LY_LineOf(from)) : 0;
 
     HideCaret();
     if (oldLen > 0 || newLen > 0)        /* journal sees the change first */
@@ -591,7 +592,7 @@ static Boolean Replace(long from, long oldLen, const char *src, long newLen,
         newCount = 1;
     }
     if (!ScrollToCaret()) {
-        if (oldCount == newCount)
+        if (oldCount == newCount && LY_Level(LY_LineOf(from)) == oldLevel)
             DrawLines(first, first + newCount);
         else
             DrawLines(first, kToEnd);    /* lines below moved */
