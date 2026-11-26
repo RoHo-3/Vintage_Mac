@@ -214,6 +214,7 @@ static short LineTop(long line)
 }
 
 static Boolean gCodeRun;                  /* SetFont: inline code (Monaco) */
+static Boolean gMarkRun;                  /* SetFont: Markdown markers (no underline) */
 
 static void SetFont(short level, Boolean isBold, Boolean isItalic)
 {
@@ -229,8 +230,8 @@ static void SetFont(short level, Boolean isBold, Boolean isItalic)
         if (isItalic) face |= italic;
     } else
         f = kFontMDW + (isBold ? 1 : 0) + (isItalic ? 2 : 0);
-    if (level == 4)
-        face |= underline;
+    if (level == 4 && !gMarkRun)
+        face |= underline;               /* H4: the words, not their markers */
     TextFont(f);
     TextSize(kSize[level]);
     TextFace(face);
@@ -289,8 +290,9 @@ static void DrawRun(short level, unsigned char style, short x, short base, short
 {
     if (n <= 0) return;
     gCodeRun = (style & MD_CODE) != 0;
+    gMarkRun = (style & MD_MARK) != 0;
     SetFont(level, (style & MD_BOLD) != 0, (style & MD_ITALIC) != 0);
-    gCodeRun = false;
+    gCodeRun = gMarkRun = false;
     MoveTo(x, base);
     DrawText(gRun, 0, n);
 }
@@ -322,7 +324,7 @@ static void DrawLine(long line, short y)
         n = (short)(li.prefixEnd - li.ps);
         if (n > kRunMax) n = kRunMax;
         TB_Copy(li.ps, n, gRun);
-        DrawRun(li.level, 0, XOf(&li, li.ps), base, n);
+        DrawRun(li.level, MD_MARK, XOf(&li, li.ps), base, n);
         n = 0;
     }
 
@@ -331,7 +333,7 @@ static void DrawLine(long line, short y)
         st = StyleAt(&li, p);
         if (st & MD_HIDDEN)
             continue;
-        st &= (MD_BOLD | MD_ITALIC | MD_CODE);
+        st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK);
         w = CW(li.level, st, TB_Char(p));
         if (x + w > kLeft + kColumnW)
             break;                       /* trailing spaces hang past the edge */
