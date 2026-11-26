@@ -139,9 +139,8 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
             while (e > p && gTxt[e - 1] == ' ') e--;
             for (q = e; q > p && gTxt[q - 1] == '#'; q--)
                 ;
-            if (q < e && (q == p || gTxt[q - 1] == ' ' || e - q >= 2)) {
-                /* after a space, as Markdown has it; also "Title##" (two or
-                   more #s), which writers expect to close; "C#" stays */
+            if (q < e && (q == p || gTxt[q - 1] == ' ')) {
+                /* only after a space, as in CommonMark: "Title##" stays text */
                 for (k = q; k > p && gTxt[k - 1] == ' '; k--)
                     ;
                 Mark(k, len - k, MD_MARK | (active ? 0 : MD_HIDDEN));
