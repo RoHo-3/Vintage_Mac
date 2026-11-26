@@ -2,8 +2,6 @@
 
 #include <Memory.h>
 #include <OSUtils.h>
-#include <Gestalt.h>
-#include <Folders.h>
 
 #define kCreator    'MMDW'
 #define kPrefsType  'pref'
@@ -232,19 +230,10 @@ Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Pa
     return PBHRenameSync(&pb) == noErr;
 }
 
-static Boolean TrapAvailable(unsigned short trap, short kind)
-{
-    return NGetTrapAddress(trap, kind) != NGetTrapAddress(0xA89F, ToolTrap);
-}
-
-/* The Trash: FindFolder on System 7, the root "Trash" folder on System 6. */
+/* The Trash: on System 6 and 7 alike, the Finder keeps it in a folder
+   named "Trash" at the root of each disk. */
 static Boolean TrashDir(short vol, long *dir)
 {
-    long resp;
-    short tvol;
-    if (TrapAvailable(0xA1AD, OSTrap) && Gestalt('fold', &resp) == noErr && (resp & 1)
-        && FindFolder(vol, 'trsh', true, &tvol, dir) == noErr)
-        return true;
     return SubFolder(vol, 2, (ConstStr255Param)"\pTrash", dir);
 }
 
