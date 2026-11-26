@@ -518,11 +518,16 @@ void Prefs_Load(Prefs *p)
     p->lastName[0] = 0;
     p->lastCaret = 0;
     p->recentCount = 0;
+    p->fontID = 0;
+    p->bodySize = 0;
     if (FSOpen(kPrefsName, gRootWD, &ref) != noErr)
         return;
-    if (FSRead(ref, &n, (Ptr)&tmp) == noErr && n == sizeof(Prefs)
-        && tmp.version == kPrefsVers)
-        *p = tmp;
+    FSRead(ref, &n, (Ptr)&tmp);          /* eofErr: an older, shorter file */
+    if (tmp.version == kPrefsVers && n >= (long)((char *)&tmp.fontID - (char *)&tmp)) {
+        long k;
+        for (k = 0; k < n; k++)          /* what the file has; defaults after */
+            ((char *)p)[k] = ((char *)&tmp)[k];
+    }
     FSClose(ref);
 }
 

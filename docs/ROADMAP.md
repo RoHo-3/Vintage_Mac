@@ -39,9 +39,11 @@
    Move to Trash, Other... ✅ builds 34-53
 3. **Fonts** — one font and size for the whole app (body, headings, bold
    and italic follow it, at real bitmap sizes).
-   - 3a. Font switcher with fixed-width fonts: MDW Mono, Monaco, Courier;
-     Cmd-Option-F cycles fonts, Cmd-= / Cmd-- change size (temporary keys
-     until the Settings blade), remembered in the prefs.
+   - 3a. Font switcher with fixed-width fonts: MDW Mono, Monaco, Courier.
+     A font & size pill at the right of the title strip (click the name to
+     cycle fonts, the size to step it; Option-click steps down), plus
+     Cmd-Option-F and Cmd-= / Cmd--; remembered in the prefs. Moves into the
+     Settings blade with the drawer. ✅ build 57
    - 3b. Proportional layout (lines measured per character) so New York,
      Geneva, Times, Helvetica, Palatino can be tried.
 4. **Drawer** — project blade, Sections (jump to heading), Settings (font,
@@ -59,6 +61,9 @@
 - Block quotes, lists (Return continues a list), task boxes, horizontal
   rules, fenced code blocks, setext headings, hard line breaks.
 - Selection pill, Cmd-K palette with synonyms.
+- Tabled until the items above are done: **tables and footnotes**, which need
+  special handling at 512 x 342. First research how other editors render
+  them, looking for permissively licensed (BSD/MIT) solutions we may reuse.
 
 ## Later alphas
 

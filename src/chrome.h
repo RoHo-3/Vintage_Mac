@@ -19,7 +19,9 @@ void Chrome_Draw(void);                 /* redraw if shown (update events) */
 void Chrome_Idle(void);                 /* show on pause / mouse move, tick clock */
 void Chrome_KeyPressed(void);           /* hide */
 void Chrome_CharTyped(void);            /* first typed character starts the clock */
-void Chrome_Hold(Boolean hold);         /* true while the Library is up */
+void Chrome_Hold(Boolean hold);
+void  Chrome_SetFontLabel(const unsigned char *name, short size);   /* the pill */
+short Chrome_StripClick(Point local);   /* 1 font, 2 size, 0 elsewhere */         /* true while the Library is up */
 void Chrome_ShowTitleBriefly(void);     /* a document opened: its name, ~2 s */
 void Chrome_ShowSaveDot(void);          /* Cmd-S: footer up, so the dot shows the save */
 void Chrome_SetTitle(const unsigned char *pascalTitle);

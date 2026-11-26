@@ -39,7 +39,15 @@ Boolean Ed_SetText(const char *text, long len);
 /* Markdown markers shown or hidden (a per-document setting). */
 void    Ed_SetShowMarks(Boolean on);
 Boolean Ed_ShowMarks(void);
-void    Ed_Hold(Boolean hold);      /* true while the Library covers the text */
+void    Ed_Hold(Boolean hold);
+
+/* Fonts: 0 = MDW Mono, else a system font ID (Monaco 4, Courier 22). One
+   choice for the whole app; headings scale from the body size. */
+void    Ed_SetFontChoice(short fontID, short bodySize);
+Boolean Ed_FontAvailable(short fontID);
+short   Ed_FontID(void);
+short   Ed_BodySize(void);
+short   Ed_StepBodySize(short dir); /* next real body size up/down (wraps) */      /* true while the Library covers the text */
 
 void    Ed_SetCaret(long pos);      /* places the cursor and scrolls to it */
 

@@ -2,6 +2,7 @@
 #include "textbuf.h"
 
 #include <Fonts.h>
+#include <TextUtils.h>
 #include <Menus.h>
 #include <Events.h>
 #include <OSUtils.h>
@@ -18,7 +19,10 @@
 static WindowPtr gWin;
 static Boolean   gShown;                 /* footer */
 static Boolean   gStripShown;            /* top strip */
-static Boolean   gHold;                  /* the Library is up: draw nothing */
+static Boolean   gHold;
+static Str63     gFontLabel;             /* the pill: "Monaco" */
+static short     gFontSize;
+static Rect      gPillFont, gPillSize;                  /* the Library is up: draw nothing */
 static unsigned long gStripUntil;       /* shown briefly (a document opened): hide then */
 static Point     gLastMouse;
 static unsigned long gClockStart, gLastKey;   /* gClockStart 0: not started */
@@ -119,6 +123,42 @@ static void DrawStrip(void)
     w = StringWidth(gTitle);
     MoveTo((gWin->portRect.right - w) / 2, 14);
     DrawString(gTitle);
+    if (gFontLabel[0]) {                 /* font & size pill, right side */
+        unsigned char num[8];
+        short wf, ws, x;
+        NumToString(gFontSize, num);
+        UIFont(3, 9, 0);                 /* Geneva 9 */
+        wf = StringWidth(gFontLabel);
+        ws = StringWidth(num);
+        x = gWin->portRect.right - 10 - (wf + ws + 20);
+        SetRect(&r, x, 3, x + wf + ws + 20, kStripH - 4);
+        FrameRoundRect(&r, 12, 12);
+        SetRect(&gPillFont, r.left, r.top, r.left + wf + 10, r.bottom);
+        SetRect(&gPillSize, gPillFont.right, r.top, r.right, r.bottom);
+        MoveTo(gPillFont.right, r.top + 2);          /* divider */
+        LineTo(gPillFont.right, r.bottom - 3);
+        MoveTo(r.left + 6, 13);
+        DrawString(gFontLabel);
+        MoveTo(gPillSize.left + 5, 13);
+        DrawString(num);
+    }
+}
+
+void Chrome_SetFontLabel(const unsigned char *name, short size)
+{
+    short i;
+    for (i = 0; i <= name[0] && i < 63; i++) gFontLabel[i] = name[i];
+    gFontSize = size;
+    if (gStripShown && !gHold) { SetPort(gWin); DrawStrip(); }
+}
+
+/* A click in the shown strip: 1 = font name, 2 = size, 0 = elsewhere. */
+short Chrome_StripClick(Point pt)
+{
+    if (!gStripShown || gHold || pt.v >= kStripH) return 0;
+    if (PtInRect(pt, &gPillFont)) return 1;
+    if (PtInRect(pt, &gPillSize)) return 2;
+    return 0;
 }
 
 static void DrawDot(void)

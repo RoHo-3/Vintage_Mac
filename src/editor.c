@@ -26,7 +26,11 @@
 #define kRunMax       256
 
 /* body (0) and heading levels 1-6: size, then metrics measured at init */
-static const short kSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
+/* One font and body size for the whole app; headings scale from the body
+   and snap to sizes the font really has (crisp bitmaps, or TrueType). */
+static short gSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
+static short gFontID;                    /* 0: MDW Mono (our families) */
+#define kSize gSize
 static short gAsc[7], gLH[7], gCW[7], gCols[7];
 
 static WindowPtr gWin;
@@ -199,9 +203,10 @@ static void SetFont(short level, Boolean isBold, Boolean isItalic)
     short f;
     Style face = 0;
     if (level > 0) isBold = true;
-    if (gFallbackFont) {                 /* Monaco: let QuickDraw style it */
-        f = kFontMonaco;
-        if (isBold) face |= bold;
+    if (gFontID != 0 || gFallbackFont) { /* a system font: QuickDraw styles it */
+        f = gFontID != 0 ? gFontID : kFontMonaco;
+        if (isBold) face |= bold | condense;   /* condense cancels bold's extra
+                                                  pixel: the grid stays even */
         if (isItalic) face |= italic;
     } else
         f = kFontMDW + (isBold ? 1 : 0) + (isItalic ? 2 : 0);
@@ -987,17 +992,12 @@ Boolean Ed_SetText(const char *text, long len)
     return true;
 }
 
-Boolean Ed_Init(WindowPtr w)
+#define kStripMaxH 48                    /* offscreen strip height */
+
+static void Measure(void)
 {
     FontInfo fi;
     short i;
-
-    gWin = w;
-    SetPort(w);
-    gFallbackFont = !RealFont(kFontMDW, kSize[0]);
-#if defined(DIAG_NO_MDWFONT) || defined(DIAG_MINIMAL)
-    gFallbackFont = true;
-#endif
     for (i = 0; i < 7; i++) {            /* measure body and each heading */
         SetFont(i, false, false);
         GetFontInfo(&fi);
@@ -1007,9 +1007,86 @@ Boolean Ed_Init(WindowPtr w)
         gCols[i] = kColumnW / gCW[i];
     }
     SetFont(0, false, false);
+}
 
-    {   /* offscreen line strip, as tall as the tallest line */
-        short maxH = 0, rowBytes = ((w->portRect.right + 15) / 16) * 2;
+/* The nearest size the font really has (RealFont: a bitmap, or TrueType). */
+static short Snap(short font, short want)
+{
+    static const short kTry[] = { 9, 10, 12, 14, 16, 18, 20, 24 };
+    short i, best = want, bestD = 999, d;
+    for (i = 0; i < 8; i++)
+        if (RealFont(font, kTry[i])) {
+            d = kTry[i] > want ? kTry[i] - want : want - kTry[i];
+            if (d < bestD) { bestD = d; best = kTry[i]; }
+        }
+    return best;
+}
+
+Boolean Ed_FontAvailable(short fontID)
+{
+    return fontID == 0 ? !gFallbackFont : RealFont(fontID, 12) || RealFont(fontID, 9)
+                                           || RealFont(fontID, 10);
+}
+
+short Ed_FontID(void)   { return gFontID; }
+
+/* The next body size this font really has, up (dir > 0) or down; wraps. */
+short Ed_StepBodySize(short dir)
+{
+    static const short kBody[] = { 9, 10, 12, 14, 16, 18 };
+    short f = gFontID != 0 ? gFontID : (gFallbackFont ? kFontMonaco : kFontMDW);
+    short j, k, idx = 0;
+    for (j = 0; j < 6; j++)
+        if (kBody[j] <= gSize[0]) idx = j;          /* where we are now */
+    for (k = 1; k < 6; k++) {
+        j = (short)((idx + (dir > 0 ? k : 6 - k)) % 6);
+        if (RealFont(f, kBody[j])) return kBody[j];
+    }
+    return gSize[0];
+}
+
+short Ed_BodySize(void) { return gSize[0]; }
+
+/* One font and body size for everything. Heading ladder: H1 2x, H2 1.6x,
+   H3 1.4x, H4/H5 1.2x, H6 1x, each snapped to a real size. */
+void Ed_SetFontChoice(short fontID, short body)
+{
+    static const short kPct[7] = { 100, 200, 160, 140, 120, 120, 100 };
+    short i, f;
+    if (!Ed_FontAvailable(fontID)) fontID = 0;
+    gFontID = fontID;
+    f = fontID != 0 ? fontID : (gFallbackFont ? kFontMonaco : kFontMDW);
+    for (i = 0; i < 7; i++)
+        gSize[i] = Snap(f, (short)((long)body * kPct[i] / 100));
+    if (gSize[1] > 24) gSize[1] = Snap(f, 24);
+    SetPort(gWin);
+    Measure();
+    gOffOK = gOffBits.baseAddr != 0;     /* the offscreen strip is fixed-height */
+#if defined(DIAG_NO_OFFSCREEN) || defined(DIAG_MINIMAL)
+    gOffOK = false;
+#endif
+    for (i = 0; i < 7; i++)
+        if (gLH[i] > kStripMaxH) gOffOK = false;
+    MD_Invalidate();
+    LY_Init(gCols);
+    if (!ScrollToCaret())
+        Ed_DrawAll();
+}
+
+Boolean Ed_Init(WindowPtr w)
+{
+    short i;
+
+    gWin = w;
+    SetPort(w);
+    gFallbackFont = !RealFont(kFontMDW, kSize[0]);
+#if defined(DIAG_NO_MDWFONT) || defined(DIAG_MINIMAL)
+    gFallbackFont = true;
+#endif
+    Measure();
+
+    {   /* offscreen line strip, tall enough for any font choice's lines */
+        short maxH = kStripMaxH, rowBytes = ((w->portRect.right + 15) / 16) * 2;
         Rect b;
         for (i = 0; i < 7; i++)
             if (gLH[i] > maxH) maxH = gLH[i];

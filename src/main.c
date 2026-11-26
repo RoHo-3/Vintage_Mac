@@ -156,6 +156,55 @@ static void UpdateCursor(void)
     }
 }
 
+/* ---- fonts (whole app; the strip's pill until the Settings blade) ---- */
+
+static const short kFontIDs[] = { 0, 4, 22 };   /* MDW Mono, Monaco, Courier */
+static const char *kFontNames[] = { "MDW Mono", "Monaco", "Courier" };
+#define kFontCount 3
+
+static void ShowFontChoice(void)
+{
+    unsigned char name[32];
+    short i, k = 0, id = Ed_FontID();
+    const char *c;
+    for (i = 0; i < kFontCount; i++)
+        if (kFontIDs[i] == id) k = i;
+    if (id == 0 && Ed_UsingFallbackFont()) k = 1;   /* MDW missing: Monaco */
+    for (c = kFontNames[k], i = 0; *c; c++) name[++i] = (unsigned char)*c;
+    name[0] = (unsigned char)i;
+    Chrome_SetFontLabel(name, Ed_BodySize());
+}
+
+static void SetFontChoice(short id, short body)
+{
+    Prefs p;
+    Ed_SetFontChoice(id, body);
+    ShowFontChoice();
+    Prefs_Load(&p);                      /* remembered for the next launch */
+    p.fontID = Ed_FontID();
+    p.bodySize = Ed_BodySize();
+    Prefs_Save(&p);
+}
+
+static void CycleFont(void)
+{
+    short i, k = 0, id = Ed_FontID();
+    for (i = 0; i < kFontCount; i++)
+        if (kFontIDs[i] == id) k = i;
+    for (i = 1; i <= kFontCount; i++) {  /* the next one this Mac has */
+        short next = kFontIDs[(k + i) % kFontCount];
+        if (Ed_FontAvailable(next)) {
+            SetFontChoice(next, Ed_BodySize());
+            return;
+        }
+    }
+}
+
+static void StepSize(short dir)
+{
+    SetFontChoice(Ed_FontID(), Ed_StepBodySize(dir));
+}
+
 static void DoCommandKey(EventRecord *ev)
 {
     char c = ev->message & charCodeMask;
@@ -169,12 +218,18 @@ static void DoCommandKey(EventRecord *ev)
         else Lib_Key(ev);
         return;
     }
+    if ((ev->modifiers & optionKey) && ((ev->message & keyCodeMask) >> 8) == 0x03) {
+        CycleFont();                     /* Cmd-Option-F (temporary) */
+        return;
+    }
     switch (c) {
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
     case 'n': Lib_OpenNew(); break;      /* pick Blank or a template */
     case 'o': Lib_Open(); break;
     case 's': Doc_SaveCommand(); break;
     case 'm': Doc_ToggleMarks(); break;
+    case '=': case '+': StepSize(1); break;     /* text size (temporary keys */
+    case '-': StepSize(-1); break;               /* until the Settings blade) */
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
     case 'x': Ed_Cut(); break;
     case 'c': Ed_Copy(); break;
@@ -200,7 +255,12 @@ static void DoMouseDown(EventRecord *ev)
             pt = ev->where;
             GlobalToLocal(&pt);
             if (Lib_IsOpen()) Lib_Click(pt, ev);
-            else Ed_Click(pt, ev);
+            else {
+                short hit = Chrome_StripClick(pt);   /* the font & size pill */
+                if (hit == 1) CycleFont();
+                else if (hit == 2) StepSize((ev->modifiers & optionKey) ? -1 : 1);
+                else Ed_Click(pt, ev);
+            }
         }
         break;
     }
@@ -276,6 +336,13 @@ int main(void)
     }
     Files_Init();                /* Writings beside the app */
     Files_TidyJournals();        /* journals whose document left via the Finder */
+    {
+        Prefs p;                 /* the font and size chosen last time */
+        Prefs_Load(&p);
+        if (p.bodySize > 0)
+            Ed_SetFontChoice(p.fontID, p.bodySize);
+        ShowFontChoice();
+    }
     Doc_Init();
     Lib_Init(gWindow);
     if (Doc_Reopen()) {

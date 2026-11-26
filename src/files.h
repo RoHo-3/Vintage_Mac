@@ -69,6 +69,8 @@ typedef struct {
     long       lastCaret;
     short      recentCount;
     RecentItem recent[kMaxRecent];   /* newest first; includes the last doc */
+    short      fontID;               /* 0 = MDW Mono, else a system font ID */
+    short      bodySize;             /* 0 = default */
 } Prefs;
 
 Boolean Prefs_Exist(void);           /* false on the very first launch */
