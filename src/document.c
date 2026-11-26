@@ -105,7 +105,7 @@ static void SuggestName(unsigned char *name)
     if (!sentence && p < len && TB_Char(p) != '\r' && lastSpace > 0)
         n = lastSpace;                   /* too long: cut at a word boundary */
     while (n > 0 && (name[n] == ' ' || name[n] == '.' || name[n] == ','
-                     || name[n] == ';' || name[n] == '-'))
+                     || name[n] == ';' || name[n] == '-' || name[n] == '#'))
         n--;                             /* "Woke up laughing." -> no "..md" */
     {   /* Title Case: each word's first letter up, but leave words with a
            period or digit ("e.g.", "v1.2") or a capital already ("iPhone") */

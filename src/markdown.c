@@ -133,6 +133,18 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         while (p < len && gTxt[p] == ' ')
             p++;
         Mark(0, p, MD_PREFIX | MD_HIDDEN);
+        {   /* optional closing run, "## Title ##": only after a space (or
+               alone); "Title##" stays text, as in every Markdown app */
+            long e = len, q, k;
+            while (e > p && gTxt[e - 1] == ' ') e--;
+            for (q = e; q > p && gTxt[q - 1] == '#'; q--)
+                ;
+            if (q < e && (q == p || gTxt[q - 1] == ' ')) {
+                for (k = q; k > p && gTxt[k - 1] == ' '; k--)
+                    ;
+                Mark(k, len - k, MD_MARK | (active ? 0 : MD_HIDDEN));
+            }
+        }
     } else
         p = 0;
 
