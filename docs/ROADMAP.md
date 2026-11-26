@@ -48,7 +48,9 @@
      Geneva, Times, Helvetica, Palatino can be tried; inline code is drawn in
      Monaco. ✅ build 60
 4. **Drawer** — project blade, Sections (jump to heading), Settings (font,
-   size, Markdown switch replacing Cmd-M), Library... row. With it:
+   size, word count, session clock, Show Markdown for this document),
+   Library... and Quit rows; Cmd-\ toggles. ✅ build 67 (Cmd-M still works
+   as a shortcut). With it:
    - Formatting keys: Cmd-B bold, Cmd-I italic, Cmd-E inline code (Cmd-K
      stays the command palette); they wrap or unwrap the selection, or turn
      the style on for what is typed next.
