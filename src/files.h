@@ -20,7 +20,7 @@ short   Files_TemplatesWD(void);
 
 /* A folder as a lasting location (volume name + dirID) and back. */
 typedef struct {
-    Str27 volName;
+    unsigned char volName[28];       /* Pascal string, HFS max 27 */
     long  dirID;
 } FolderLoc;
 
