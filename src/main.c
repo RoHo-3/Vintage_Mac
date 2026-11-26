@@ -158,9 +158,12 @@ static void UpdateCursor(void)
 
 /* ---- fonts (whole app; the strip's pill until the Settings blade) ---- */
 
-static const short kFontIDs[] = { 0, 4, 22 };   /* MDW Mono, Monaco, Courier */
-static const char *kFontNames[] = { "MDW Mono", "Monaco", "Courier" };
-#define kFontCount 3
+/* MDW Mono, then the Mac's own families (IDs fixed since the 128K Mac;
+   missing ones are skipped). */
+static const short kFontIDs[] = { 0, 4, 22, 2, 3, 20, 21, 16 };
+static const char *kFontNames[] = { "MDW Mono", "Monaco", "Courier", "New York",
+                                    "Geneva", "Times", "Helvetica", "Palatino" };
+#define kFontCount 8
 
 static void ShowFontChoice(void)
 {

@@ -45,7 +45,8 @@
      Cmd-Option-F and Cmd-= / Cmd--; remembered in the prefs. Moves into the
      Settings blade with the drawer. ✅ build 57
    - 3b. Proportional layout (lines measured per character) so New York,
-     Geneva, Times, Helvetica, Palatino can be tried.
+     Geneva, Times, Helvetica, Palatino can be tried; inline code is drawn in
+     Monaco. ✅ build 60
 4. **Drawer** — project blade, Sections (jump to heading), Settings (font,
    size, Markdown switch replacing Cmd-M), Library... row. With it:
    - Formatting keys: Cmd-B bold, Cmd-I italic, Cmd-E inline code (Cmd-K

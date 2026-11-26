@@ -8,7 +8,8 @@
 static long          *gStart;     /* first char of each line */
 static unsigned char *gPara;      /* kParaBit | heading level */
 static long           gN, gCapLines;
-static short          gCols[7];
+static short          gWidth;             /* the text column, in pixels */
+static LY_Measure     gMeasure;           /* pixel width of one character */
 static long           gCaret;
 static Boolean gShowMarks;
 
@@ -49,10 +50,10 @@ static Boolean Grow(long **starts, unsigned char **paras, long *cap, long need)
    paragraph [ps, pe) whose styles are sty. Hidden characters take no
    column. *hard is true when the line ended with a paragraph break. */
 static long WrapLine(long s, long len, long ps, long pe,
-                     const unsigned char *sty, short cols, Boolean *hard)
+                     const unsigned char *sty, short level, Boolean *hard)
 {
     long p = s, lastBreak = -1;
-    short col = 0;
+    short px = 0, w;
     unsigned char c;
 
     *hard = false;
@@ -69,7 +70,8 @@ static long WrapLine(long s, long len, long ps, long pe,
             continue;
         }
         c = TB_Char(p);
-        if (col >= cols) {
+        w = gMeasure(level, sty ? sty[p - ps] : 0, c);
+        if (px + w > gWidth && px > 0) {
             if (c == ' ') {              /* trailing spaces hang past the edge */
                 while (p < pe && TB_Char(p) == ' ')
                     p++;
@@ -81,7 +83,7 @@ static long WrapLine(long s, long len, long ps, long pe,
         }
         if (c == ' ')
             lastBreak = p + 1;
-        col++;
+        px += w;
         p++;
     }
     return len;
@@ -115,7 +117,7 @@ static Boolean Generate(long s, long stop)
         }
         if (!TmpAdd(s, (unsigned char)((newPara ? kParaBit : 0) | level)))
             return false;
-        next = WrapLine(s, len, ps, pe, sty, gCols[level], &hard);
+        next = WrapLine(s, len, ps, pe, sty, level, &hard);
         if (stop >= 0 && next >= stop)   /* reached an untouched paragraph */
             break;
         if (next >= len) {
@@ -129,11 +131,10 @@ static Boolean Generate(long s, long stop)
     return true;
 }
 
-Boolean LY_Init(const short *cols)
+Boolean LY_Init(short width, LY_Measure measure)
 {
-    short i;
-    for (i = 0; i < 7; i++)
-        gCols[i] = cols[i];
+    gWidth = width;
+    gMeasure = measure;
     return LY_Rebuild();
 }
 

@@ -31,7 +31,8 @@
 static short gSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
 static short gFontID;                    /* 0: MDW Mono (our families) */
 #define kSize gSize
-static short gAsc[7], gLH[7], gCW[7], gCols[7];
+static short gAsc[7], gLH[7], gCW[7];
+static short CW(short level, unsigned char sty, unsigned char c);
 
 static WindowPtr gWin;
 static Boolean   gShowMarks;            /* per document: Markdown markers visible */
@@ -154,35 +155,49 @@ static unsigned char StyleAt(LineInfo *li, long p)
 /* Pixel x of position p on this line (prefix positions hang left). */
 static short XOf(LineInfo *li, long p)
 {
-    short cw = gCW[li->level], n = 0;
+    short x = 0, w;
     long q;
-    if (p < li->prefixEnd)
-        return kLeft - (short)(li->prefixEnd - p) * cw;
-    for (q = li->s; q < p && q < li->e; q++)
-        if (!(StyleAt(li, q) & MD_HIDDEN) && n < gCols[li->level])
-            n++;
-    return kLeft + n * cw;
+    unsigned char st;
+    if (p < li->prefixEnd) {             /* in the hanging "## " */
+        for (q = p; q < li->prefixEnd; q++)
+            x += CW(li->level, 0, TB_Char(q));
+        return kLeft - x;
+    }
+    for (q = li->s; q < p && q < li->e; q++) {
+        st = StyleAt(li, q);
+        if (st & MD_HIDDEN) continue;
+        w = CW(li->level, st, TB_Char(q));
+        if (x + w > kColumnW) break;
+        x += w;
+    }
+    return kLeft + x;
 }
 
 /* Text position nearest pixel x on this line. */
 static long PosAt(LineInfo *li, short x)
 {
-    short cw = gCW[li->level], col, n = 0;
+    short at = kLeft, w;
     long p;
-    col = (x - kLeft + (x >= kLeft ? cw / 2 : -cw / 2)) / cw;
-    if (col < 0) {
+    unsigned char st;
+    if (x < kLeft) {
         if (li->active && li->prefixEnd > li->ps && li->s == li->ps) {
-            p = li->prefixEnd + col;     /* click into the hanging "##" */
-            return p < li->ps ? li->ps : p;
+            for (p = li->prefixEnd; p > li->ps; p--) {   /* the hanging "##" */
+                w = CW(li->level, 0, TB_Char(p - 1));
+                if (x >= at - w / 2) return p;
+                at -= w;
+            }
+            return li->ps;
         }
-        col = 0;
+        x = kLeft;
     }
     for (p = li->s; p < li->e; p++) {
-        if (StyleAt(li, p) & MD_HIDDEN)
+        st = StyleAt(li, p);
+        if (st & MD_HIDDEN)
             continue;
-        if (n >= col)
+        w = CW(li->level, st, TB_Char(p));
+        if (x < at + w / 2)
             return p;
-        n++;
+        at += w;
     }
     return li->e;
 }
@@ -198,15 +213,19 @@ static short LineTop(long line)
     return y;
 }
 
+static Boolean gCodeRun;                  /* SetFont: inline code (Monaco) */
+
 static void SetFont(short level, Boolean isBold, Boolean isItalic)
 {
     short f;
     Style face = 0;
     if (level > 0) isBold = true;
-    if (gFontID != 0 || gFallbackFont) { /* a system font: QuickDraw styles it */
+    if (gCodeRun && gFontID != 0 && gFontID != kFontMonaco) {
+        f = kFontMonaco;                 /* code reads as code in any font */
+        if (isBold) face |= bold;
+    } else if (gFontID != 0 || gFallbackFont) {   /* a system font */
         f = gFontID != 0 ? gFontID : kFontMonaco;
-        if (isBold) face |= bold | condense;   /* condense cancels bold's extra
-                                                  pixel: the grid stays even */
+        if (isBold) face |= bold;
         if (isItalic) face |= italic;
     } else
         f = kFontMDW + (isBold ? 1 : 0) + (isItalic ? 2 : 0);
@@ -217,10 +236,61 @@ static void SetFont(short level, Boolean isBold, Boolean isItalic)
     TextFace(face);
 }
 
+/* ---- measuring: every character's real width (fonts may be proportional) */
+
+static unsigned char *gWTab[7][5];       /* [level][plain,b,i,bi,code] -> 256 widths */
+
+static void ForgetWidths(void)
+{
+    short l, f;
+    for (l = 0; l < 7; l++)
+        for (f = 0; f < 5; f++)
+            if (gWTab[l][f]) { DisposePtr((Ptr)gWTab[l][f]); gWTab[l][f] = NULL; }
+}
+
+static short FaceIndex(unsigned char sty)
+{
+    if (sty & MD_CODE) return 4;
+    return ((sty & MD_BOLD) ? 1 : 0) + ((sty & MD_ITALIC) ? 2 : 0);
+}
+
+static unsigned char *Widths(short level, short fi)
+{
+    unsigned char *t = gWTab[level][fi];
+    GrafPtr port;
+    short i;
+    if (t) return t;
+    t = (unsigned char *)NewPtr(256);
+    if (!t) return NULL;
+    GetPort(&port);
+    SetPort(gWin);
+    gCodeRun = fi == 4;
+    SetFont(level, fi == 1 || fi == 3, fi == 2 || fi == 3);
+    gCodeRun = false;
+    for (i = 0; i < 256; i++) {
+        short w = CharWidth((short)i);
+        t[i] = (unsigned char)(w > 255 ? 255 : w);
+    }
+    SetPort(port);
+    gWTab[level][fi] = t;
+    return t;
+}
+
+/* The width the screen gives character c (H6 draws capitals). */
+static short CW(short level, unsigned char sty, unsigned char c)
+{
+    unsigned char *t;
+    if (level == 6 && c >= 'a' && c <= 'z') c -= 'a' - 'A';
+    t = Widths(level, FaceIndex(sty));
+    return t ? t[c] : gCW[level];
+}
+
 static void DrawRun(short level, unsigned char style, short x, short base, short n)
 {
     if (n <= 0) return;
+    gCodeRun = (style & MD_CODE) != 0;
     SetFont(level, (style & MD_BOLD) != 0, (style & MD_ITALIC) != 0);
+    gCodeRun = false;
     MoveTo(x, base);
     DrawText(gRun, 0, n);
 }
@@ -229,7 +299,7 @@ static void DrawLine(long line, short y)
 {
     Rect r, dst;
     LineInfo li;
-    short h = LineH(line), base, x, runX, n = 0, cols, vis = 0;
+    short h = LineH(line), base, x, runX, n = 0, w;
     short screenY = y;
     long p, a, b, next;
     unsigned char st, runSt = 0;
@@ -246,23 +316,25 @@ static void DrawLine(long line, short y)
 
     GetLine(line, &li);
     base = y + gAsc[li.level];
-    cols = gCols[li.level];
 
     /* the heading prefix hangs in the margin while the cursor is here */
     if (li.active && li.s == li.ps && li.prefixEnd > li.ps) {
         n = (short)(li.prefixEnd - li.ps);
         if (n > kRunMax) n = kRunMax;
         TB_Copy(li.ps, n, gRun);
-        DrawRun(li.level, 0, kLeft - n * gCW[li.level], base, n);
+        DrawRun(li.level, 0, XOf(&li, li.ps), base, n);
         n = 0;
     }
 
     x = runX = kLeft;
-    for (p = li.s; p < li.e && vis < cols; p++) {
+    for (p = li.s; p < li.e; p++) {
         st = StyleAt(&li, p);
         if (st & MD_HIDDEN)
             continue;
-        st &= (MD_BOLD | MD_ITALIC);
+        st &= (MD_BOLD | MD_ITALIC | MD_CODE);
+        w = CW(li.level, st, TB_Char(p));
+        if (x + w > kLeft + kColumnW)
+            break;                       /* trailing spaces hang past the edge */
         if (n > 0 && (st != runSt || n == kRunMax)) {
             DrawRun(li.level, runSt, runX, base, n);
             runX = x;
@@ -273,8 +345,7 @@ static void DrawLine(long line, short y)
             c -= 'a' - 'A';              /* H6: small caps stand-in */
         gRun[n++] = c;
         runSt = st;
-        x += gCW[li.level];
-        vis++;
+        x += w;
     }
     DrawRun(li.level, runSt, runX, base, n);
 
@@ -285,7 +356,7 @@ static void DrawLine(long line, short y)
         if (a < b) {
             short x1 = XOf(&li, a);
             short x2 = (b >= next && line + 1 < LY_Count())
-                       ? kLeft + cols * gCW[li.level]       /* past line end */
+                       ? kLeft + kColumnW                   /* past line end */
                        : XOf(&li, b);
             if (x2 > x1) {
                 SetRect(&r, x1, y, x2, y + h);
@@ -1004,9 +1075,9 @@ static void Measure(void)
         gAsc[i] = fi.ascent;
         gLH[i] = fi.ascent + fi.descent + fi.leading;
         gCW[i] = CharWidth('m');
-        gCols[i] = kColumnW / gCW[i];
     }
     SetFont(0, false, false);
+    ForgetWidths();                      /* re-measured as needed */
 }
 
 /* The nearest size the font really has (RealFont: a bitmap, or TrueType). */
@@ -1068,7 +1139,7 @@ void Ed_SetFontChoice(short fontID, short body)
     for (i = 0; i < 7; i++)
         if (gLH[i] > kStripMaxH) gOffOK = false;
     MD_Invalidate();
-    LY_Init(gCols);
+    LY_Init(kColumnW, CW);
     if (!ScrollToCaret())
         Ed_DrawAll();
 }
@@ -1110,5 +1181,5 @@ Boolean Ed_Init(WindowPtr w)
 
     if (!TB_Init(kBufferSize))
         return false;
-    return LY_Init(gCols);
+    return LY_Init(kColumnW, CW);
 }

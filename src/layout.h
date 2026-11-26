@@ -10,7 +10,11 @@
 #include <Memory.h>
 
 /* cols[level] = characters per line for body (0) and headings 1-6. */
-Boolean LY_Init(const short *cols);
+/* Width in pixels of character c at heading level (0 = body) with Markdown
+   style flags sty (markdown.h); fonts may be proportional. */
+typedef short (*LY_Measure)(short level, unsigned char sty, unsigned char c);
+
+Boolean LY_Init(short width, LY_Measure measure);   /* column width, pixels */
 Boolean LY_Rebuild(void);
 void    LY_SetShowMarks(Boolean on);   /* markers shown in every paragraph */
 
