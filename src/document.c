@@ -77,6 +77,8 @@ static void SuggestName(unsigned char *name)
     name[0] = (unsigned char)n;
 }
 
+static Boolean OpenFile(const unsigned char *name, short vRef);
+
 static Boolean SameName(const unsigned char *a, const unsigned char *b)
 {
     short i;
@@ -241,20 +243,155 @@ void Doc_New(void)
     Doc_Remember();                      /* nothing to reopen until it's saved */
 }
 
-/* Remember the open document and its caret for the next launch. */
+static Boolean SameLoc(const FolderLoc *a, const FolderLoc *b)
+{
+    return a->dirID == b->dirID && SameName(a->volName, b->volName);
+}
+
+/* Remember the open document and its caret for the next launch, and put
+   it first in Recent. */
 void Doc_Remember(void)
 {
     Prefs p;
+    short i, k;
     Prefs_Load(&p);
     p.lastName[0] = 0;
     if (gHasFile && Files_LocOf(gVRef, &p.lastDir)) {
         CopyPString(gName, p.lastName);
         p.lastCaret = Ed_Caret();
+        for (i = k = 0; i < p.recentCount; i++)      /* drop it, then put it first */
+            if (!(SameLoc(&p.recent[i].dir, &p.lastDir) && SameName(p.recent[i].name, gName)))
+                p.recent[k++] = p.recent[i];
+        if (k == kMaxRecent) k--;
+        for (i = k; i > 0; i--) p.recent[i] = p.recent[i - 1];
+        p.recent[0].dir = p.lastDir;
+        CopyPString(gName, p.recent[0].name);
+        p.recentCount = k + 1;
     }
     Prefs_Save(&p);
 }
 
-static Boolean OpenFile(const unsigned char *name, short vRef);
+/* Recent: a file that is gone, or was renamed or trashed from the Library. */
+void Doc_ForgetRecent(short wd, const unsigned char *name, const unsigned char *newName)
+{
+    Prefs p;
+    FolderLoc loc;
+    short i, k;
+    if (!Files_LocOf(wd, &loc)) return;
+    Prefs_Load(&p);
+    for (i = k = 0; i < p.recentCount; i++) {
+        if (SameLoc(&p.recent[i].dir, &loc) && SameName(p.recent[i].name, name)) {
+            if (!newName) continue;                  /* trashed: drop it */
+            CopyPString(newName, p.recent[i].name);  /* renamed: follow it */
+        }
+        p.recent[k++] = p.recent[i];
+    }
+    p.recentCount = k;
+    if (SameLoc(&p.lastDir, &loc) && SameName(p.lastName, name)) {
+        if (newName) CopyPString(newName, p.lastName);
+        else p.lastName[0] = 0;
+    }
+    Prefs_Save(&p);
+}
+
+Boolean Doc_HasFile(void) { return gHasFile; }
+
+Boolean Doc_IsOpen(short wd, const unsigned char *name)
+{
+    short v1, v2;
+    long d1, d2;
+    if (!gHasFile || !SameName(name, gName)) return false;
+    if (wd == gVRef) return true;
+    return Files_DirOfWD(wd, &v1, &d1) && Files_DirOfWD(gVRef, &v2, &d2)
+        && v1 == v2 && d1 == d2;
+}
+
+/* The Library renamed a file: the open document (and its journal) follow,
+   and a hand-picked name stops following the first line. */
+Boolean Doc_RenameFile(short wd, const unsigned char *from, const unsigned char *to)
+{
+    unsigned char h1[40], h2[40];
+    Boolean open = Doc_IsOpen(wd, from);
+    if (Rename(from, wd, to) != noErr)
+        return false;
+    JR_HistoryName(from, h1);
+    JR_HistoryName(to, h2);
+    if (open) {
+        JR_Rename(to);                   /* renames the .history too */
+        CopyPString(to, gName);
+        Chrome_SetTitle(gName);
+    } else
+        Rename(h1, wd, h2);              /* fnfErr: no journal, fine */
+    JR_MarkRenamed(to, wd);
+    Doc_ForgetRecent(wd, from, to);
+    return true;
+}
+
+/* The Library is trashing a file: if it's the open document, writing goes
+   on in a new untitled one. Its journal goes to the Trash with it. */
+void Doc_FileTrashed(short wd, const unsigned char *name)
+{
+    if (Doc_IsOpen(wd, name)) {
+        gHasFile = false;
+        JR_Detach();
+        Doc_Init();
+        Ed_SetText("", 0);
+        Chrome_SetTitle((const unsigned char *)"\pUntitled");
+        Chrome_TextChanged();
+    }
+    Doc_ForgetRecent(wd, name, NULL);
+}
+
+/* Open a file picked in the Library. */
+Boolean Doc_OpenAt(const unsigned char *name, short wd)
+{
+    if (Doc_IsOpen(wd, name))
+        return true;                     /* already here */
+    if (!SaveIfNeeded())
+        return false;
+    if (!OpenFile(name, wd))
+        return false;
+    Doc_Remember();
+    return true;
+}
+
+/* A new untitled document with a template's text; the template itself is
+   never changed. Named from its first line at the first save. */
+Boolean Doc_NewFromTemplate(const unsigned char *name, short wd)
+{
+    short ref;
+    long size, n, len = -1;
+    Ptr raw = NULL, text = NULL;
+    FileFormat fmt;
+    if (!SaveIfNeeded())
+        return false;
+    if (FSOpen(name, wd, &ref) != noErr)
+        return false;
+    GetEOF(ref, &size);
+    raw = NewPtr(size + 1);
+    text = NewPtr(TB_Capacity());
+    if (raw && text) {
+        n = size;
+        FSRead(ref, &n, raw);
+        len = Enc_Decode((unsigned char *)raw, n, text, TB_Capacity(), &fmt);
+    }
+    FSClose(ref);
+    if (len >= 0) {
+        gHasFile = false;
+        JR_Detach();
+        Doc_Init();
+        gFmt = fmt;
+        Ed_SetShowMarks(false);
+        Ed_SetText(text, len);
+        Chrome_SetTitle((const unsigned char *)"\pUntitled");
+        Chrome_TextChanged();
+        Chrome_ResetClock();
+        Doc_Remember();
+    }
+    if (raw) DisposePtr(raw);
+    if (text) DisposePtr(text);
+    return len >= 0;
+}
 
 /* Launch: reopen the last document at its caret. False: none (first run,
    or the file is gone). */
@@ -265,20 +402,30 @@ Boolean Doc_Reopen(void)
     Prefs_Load(&p);
     if (p.lastName[0] == 0 || !Files_WDOf(&p.lastDir, &wd))
         return false;
-    if (!OpenFile(p.lastName, wd))
+    if (!OpenFile(p.lastName, wd)) {
+        Doc_ForgetRecent(wd, p.lastName, NULL);   /* gone: don't try again */
         return false;
+    }
     Ed_SetCaret(p.lastCaret);
     return true;
 }
 
-void Doc_Open(void)
+Boolean Doc_Open(void)
 {
     SFReply reply;
     if (!SaveIfNeeded())
-        return;
+        return false;
     SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
-    if (reply.good && OpenFile(reply.fName, reply.vRefNum))
-        Doc_Remember();
+    if (!reply.good || !OpenFile(reply.fName, reply.vRefNum))
+        return false;
+    Doc_Remember();
+    return true;
+}
+
+/* The open document's folder (volume, dirID). */
+Boolean Doc_Location(short *vol, long *dirID)
+{
+    return gHasFile && Files_DirOfWD(gVRef, vol, dirID);
 }
 
 static Boolean OpenFile(const unsigned char *name, short vRef)

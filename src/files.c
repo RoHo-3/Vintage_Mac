@@ -1,16 +1,31 @@
 #include "files.h"
 
 #include <Memory.h>
+#include <OSUtils.h>
+#include <Gestalt.h>
+#include <Folders.h>
 
 #define kCreator    'MMDW'
 #define kPrefsType  'pref'
-#define kPrefsVers  1
+#define kPrefsVers  2
 
 static short gDocsWD, gTemplatesWD;
+static short gDocsVol;
+static long  gDocsDir;
+
+#define kMaxWD 24                        /* working directories we keep open */
+static struct { short vol; long dir; short wd; } gWD[kMaxWD];
+static short gWDCount;
 
 static Boolean OpenWD(short vol, long dirID, short *wd)
 {
     WDPBRec pb;
+    short i;
+    for (i = 0; i < gWDCount; i++)
+        if (gWD[i].vol == vol && gWD[i].dir == dirID) {
+            *wd = gWD[i].wd;
+            return true;
+        }
     pb.ioCompletion = NULL;
     pb.ioNamePtr = NULL;
     pb.ioVRefNum = vol;
@@ -19,6 +34,12 @@ static Boolean OpenWD(short vol, long dirID, short *wd)
     if (PBOpenWDSync(&pb) != noErr)
         return false;
     *wd = pb.ioVRefNum;
+    if (gWDCount < kMaxWD) {
+        gWD[gWDCount].vol = vol;
+        gWD[gWDCount].dir = dirID;
+        gWD[gWDCount].wd = *wd;
+        gWDCount++;
+    }
     return true;
 }
 
@@ -78,10 +99,192 @@ Boolean Files_Init(void)
     if (!SubFolder(vol, appDir, (ConstStr255Param)"\pMac MD Write", &docsDir)
         || !OpenWD(vol, docsDir, &gDocsWD))
         return false;
+    gDocsVol = vol;
+    gDocsDir = docsDir;
     gTemplatesWD = gDocsWD;
-    if (SubFolder(vol, docsDir, (ConstStr255Param)"\pTemplates", &tplDir))
-        OpenWD(vol, tplDir, &gTemplatesWD);
+    if (SubFolder(vol, docsDir, (ConstStr255Param)"\pTemplates", &tplDir)
+        && OpenWD(vol, tplDir, &gTemplatesWD)) {
+        /* a Templates folder always offers at least Blank */
+        short ref;
+        if (Create((ConstStr255Param)"\pBlank.md", gTemplatesWD, kCreator, 'TEXT') == noErr
+            && FSOpen((ConstStr255Param)"\pBlank.md", gTemplatesWD, &ref) == noErr)
+            FSClose(ref);
+    }
     return true;
+}
+
+void Files_DocsDir(short *vol, long *dirID) { *vol = gDocsVol; *dirID = gDocsDir; }
+Boolean Files_WDFor(short vol, long dirID, short *wd) { return OpenWD(vol, dirID, wd); }
+Boolean Files_DirOfWD(short wd, short *vol, long *dirID) { return WDInfo(wd, vol, dirID); }
+
+static Boolean IsDoc(const unsigned char *name, OSType type)
+{
+    short n = name[0];
+    if (n > 3 && name[n - 2] == '.' && (name[n - 1] | 0x20) == 'm' && (name[n] | 0x20) == 'd')
+        return true;
+    return type == 'TEXT';
+}
+
+static Boolean LessName(const unsigned char *a, const unsigned char *b)
+{
+    short i, n = a[0] < b[0] ? a[0] : b[0];
+    for (i = 1; i <= n; i++) {
+        unsigned char x = a[i], y = b[i];
+        if (x >= 'A' && x <= 'Z') x += 32;
+        if (y >= 'A' && y <= 'Z') y += 32;
+        if (x != y) return x < y;
+    }
+    return a[0] < b[0];
+}
+
+static Boolean NameEq(const unsigned char *a, const char *c)
+{
+    short i = 0;
+    for (; c[i]; i++) {
+        unsigned char x = a[i + 1], y = (unsigned char)c[i];
+        if (i >= a[0]) return false;
+        if (x >= 'A' && x <= 'Z') x += 32;
+        if (y >= 'A' && y <= 'Z') y += 32;
+        if (x != y) return false;
+    }
+    return a[0] == i;
+}
+
+static Boolean IsOutline(const DirItem *d)
+{
+    return !d->isFolder && (NameEq(d->name, "Outline") || NameEq(d->name, "Outline.md"));
+}
+
+short Files_List(short vol, long dirID, DirItem *items, short max)
+{
+    CInfoPBRec ci;
+    Str63 name;
+    short idx, n = 0, i, j;
+    for (idx = 1; n < max; idx++) {
+        ci.hFileInfo.ioCompletion = NULL;
+        ci.hFileInfo.ioNamePtr = name;
+        ci.hFileInfo.ioVRefNum = vol;
+        ci.hFileInfo.ioFDirIndex = idx;
+        ci.hFileInfo.ioDirID = dirID;    /* reset: the call overwrites it */
+        if (PBGetCatInfoSync(&ci) != noErr)
+            break;
+        if (ci.hFileInfo.ioFlFndrInfo.fdFlags & 0x4000)
+            continue;                    /* invisible */
+        if (ci.hFileInfo.ioFlAttrib & 0x10) {
+            if (dirID == gDocsDir && NameEq(name, "Templates"))
+                continue;                /* Templates has its own row */
+            items[n].isFolder = true;
+            items[n].dirID = ci.dirInfo.ioDrDirID;
+        } else {
+            if (!IsDoc(name, ci.hFileInfo.ioFlFndrInfo.fdType))
+                continue;                /* prefs, journals, other files */
+            items[n].isFolder = false;
+            items[n].dirID = 0;
+        }
+        if (name[0] > 31) name[0] = 31;
+        for (i = 0; i <= name[0]; i++) items[n].name[i] = name[i];
+        n++;
+    }
+    /* "Outline" pinned first, then folders and documents by name */
+    for (i = 1; i < n; i++)
+        for (j = i; j > 0; j--) {
+            DirItem t;
+            DirItem *a = &items[j - 1], *b = &items[j];
+            if (IsOutline(a) || (!IsOutline(b) && !LessName(b->name, a->name)))
+                break;
+            t = *a; *a = *b; *b = t;
+        }
+    return n;
+}
+
+Boolean Files_NewFolder(short vol, long parent, ConstStr255Param name, long *dirID)
+{
+    HParamBlockRec pb;
+    pb.fileParam.ioCompletion = NULL;
+    pb.fileParam.ioNamePtr = (StringPtr)name;
+    pb.fileParam.ioVRefNum = vol;
+    pb.fileParam.ioDirID = parent;
+    if (PBDirCreateSync(&pb) != noErr)
+        return false;
+    *dirID = pb.fileParam.ioDirID;
+    return true;
+}
+
+Boolean Files_Exists(short vol, long dirID, ConstStr255Param name)
+{
+    CInfoPBRec ci;
+    ci.hFileInfo.ioCompletion = NULL;
+    ci.hFileInfo.ioNamePtr = (StringPtr)name;
+    ci.hFileInfo.ioVRefNum = vol;
+    ci.hFileInfo.ioFDirIndex = 0;
+    ci.hFileInfo.ioDirID = dirID;
+    return PBGetCatInfoSync(&ci) == noErr;
+}
+
+Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Param to)
+{
+    HParamBlockRec pb;
+    pb.ioParam.ioCompletion = NULL;
+    pb.ioParam.ioNamePtr = (StringPtr)from;
+    pb.ioParam.ioVRefNum = vol;
+    pb.ioParam.ioMisc = (Ptr)to;
+    pb.fileParam.ioDirID = dirID;
+    return PBHRenameSync(&pb) == noErr;
+}
+
+static Boolean TrapAvailable(unsigned short trap, short kind)
+{
+    return NGetTrapAddress(trap, kind) != NGetTrapAddress(0xA89F, ToolTrap);
+}
+
+/* The Trash: FindFolder on System 7, the root "Trash" folder on System 6. */
+static Boolean TrashDir(short vol, long *dir)
+{
+    long resp;
+    short tvol;
+    if (TrapAvailable(0xA1AD, OSTrap) && Gestalt('fold', &resp) == noErr && (resp & 1)
+        && FindFolder(vol, 'trsh', true, &tvol, dir) == noErr)
+        return true;
+    return SubFolder(vol, 2, (ConstStr255Param)"\pTrash", dir);
+}
+
+Boolean Files_Trash(short vol, long dirID, ConstStr255Param name)
+{
+    CMovePBRec pb;
+    long trash;
+    if (!TrashDir(vol, &trash))
+        return false;
+    pb.ioCompletion = NULL;
+    pb.ioNamePtr = (StringPtr)name;
+    pb.ioVRefNum = vol;
+    pb.ioNewName = NULL;
+    pb.ioNewDirID = trash;
+    pb.ioDirID = dirID;
+    return PBCatMoveSync(&pb) == noErr;
+}
+
+Boolean Files_Copy(short wd, ConstStr255Param from, ConstStr255Param to)
+{
+    short in, out;
+    long n;
+    char buf[1024];
+    OSErr err;
+    FInfo fi;
+    if (FSOpen(from, wd, &in) != noErr)
+        return false;
+    if (GetFInfo(from, wd, &fi) != noErr) { fi.fdCreator = kCreator; fi.fdType = 'TEXT'; }
+    if (Create(to, wd, fi.fdCreator, fi.fdType) != noErr || FSOpen(to, wd, &out) != noErr) {
+        FSClose(in);
+        return false;
+    }
+    do {
+        n = sizeof(buf);
+        err = FSRead(in, &n, buf);
+        if (n > 0 && FSWrite(out, &n, buf) != noErr) { err = -1; break; }
+    } while (err == noErr);
+    FSClose(in);
+    FSClose(out);
+    return err == eofErr;
 }
 
 short Files_DocsWD(void)      { return gDocsWD; }
@@ -123,6 +326,12 @@ Boolean Files_WDOf(const FolderLoc *loc, short *wdRef)
 
 #define kPrefsName ((ConstStr255Param)"\pMac MD Write Prefs")
 
+Boolean Prefs_Exist(void)
+{
+    FInfo fi;
+    return GetFInfo(kPrefsName, gDocsWD, &fi) == noErr;
+}
+
 void Prefs_Load(Prefs *p)
 {
     short ref;
@@ -133,6 +342,7 @@ void Prefs_Load(Prefs *p)
     p->lastDir.dirID = 0;
     p->lastName[0] = 0;
     p->lastCaret = 0;
+    p->recentCount = 0;
     if (FSOpen(kPrefsName, gDocsWD, &ref) != noErr)
         return;
     if (FSRead(ref, &n, (Ptr)&tmp) == noErr && n == sizeof(Prefs)

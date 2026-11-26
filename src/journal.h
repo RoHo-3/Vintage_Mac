@@ -11,7 +11,8 @@
  *   'E' edit batch  time (4) + ops { pos (4), deleted (4), inserted (4), bytes }
  *   'C' checkpoint  time (4) + text length (4) + text hash (4) + caret (4)
  *                   + label length (1) + label
- *   'P' settings    flags (1): kPrefShowMarks
+ *   'P' settings    flags (1): kPrefShowMarks, kPrefNameFollows
+ *   'F' renamed     (none): the name no longer follows the first line
  * Text is the in-memory form (MacRoman + escapes, '\r' paragraphs).
  */
 #ifndef JOURNAL_H
@@ -43,7 +44,9 @@ short   JR_Recover(void);
    JR_Attach resets them; JR_Recover reads the latest. */
 enum { kPrefShowMarks = 1,
        kPrefNameFollows = 2 };            /* app-named: name tracks line 1 */
+void          JR_HistoryName(const unsigned char *md, unsigned char *out);
 void          JR_Rename(const unsigned char *newMd);
+void          JR_MarkRenamed(const unsigned char *md, short vRef);
 void          JR_SetPrefs(unsigned char prefs);
 unsigned char JR_Prefs(void);
 

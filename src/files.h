@@ -27,12 +27,43 @@ typedef struct {
 Boolean Files_LocOf(short wdRef, FolderLoc *loc);
 Boolean Files_WDOf(const FolderLoc *loc, short *wdRef);
 
+/* Folders as (volume, dirID); a working directory is opened (and kept)
+   for each folder the app touches, so (name, wdRef) calls work on it. */
+void    Files_DocsDir(short *vol, long *dirID);
+Boolean Files_WDFor(short vol, long dirID, short *wdRef);
+Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
+
+/* One folder listing: documents (.md / TEXT) and folders, Finder order. */
+#define kMaxItems 64
 typedef struct {
-    short     version;
-    FolderLoc lastDir;
-    Str63     lastName;              /* empty: no last document */
-    long      lastCaret;
+    Str31   name;
+    Boolean isFolder;
+    long    dirID;                   /* folders: their own ID */
+} DirItem;
+short   Files_List(short vol, long dirID, DirItem *items, short max);
+
+Boolean Files_NewFolder(short vol, long parent, ConstStr255Param name, long *dirID);
+Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Param to);
+Boolean Files_Trash(short vol, long dirID, ConstStr255Param name);
+Boolean Files_Copy(short wdRef, ConstStr255Param from, ConstStr255Param to);
+Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
+
+#define kMaxRecent 8
+typedef struct {
+    FolderLoc dir;
+    Str63     name;
+} RecentItem;
+
+typedef struct {
+    short      version;
+    FolderLoc  lastDir;
+    Str63      lastName;             /* empty: no last document */
+    long       lastCaret;
+    short      recentCount;
+    RecentItem recent[kMaxRecent];   /* newest first; includes the last doc */
 } Prefs;
+
+Boolean Prefs_Exist(void);           /* false on the very first launch */
 
 void    Prefs_Load(Prefs *p);        /* defaults when missing or unreadable */
 void    Prefs_Save(const Prefs *p);

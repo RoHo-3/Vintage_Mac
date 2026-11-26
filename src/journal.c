@@ -80,7 +80,11 @@ static Boolean Reserve(long extra)
 
 /* ---- recording ----------------------------------------------------------- */
 
-static void HistoryName(const unsigned char *md, unsigned char *out)
+static void Record(unsigned char *buf, long *n, char type,
+                   const unsigned char *head, long headLen,
+                   const char *body, long bodyLen, Boolean bodyFromText);
+
+void JR_HistoryName(const unsigned char *md, unsigned char *out)
 {
     short n = md[0], i, k = 0;
     if (n > 3 && md[n - 2] == '.' && md[n - 1] == 'm' && md[n] == 'd')
@@ -99,7 +103,7 @@ void JR_Rename(const unsigned char *newMd)
 {
     unsigned char nn[40];
     if (!gAttached) return;
-    HistoryName(newMd, nn);
+    JR_HistoryName(newMd, nn);
     Rename(gName, gVRef, nn);            /* fnfErr is fine: no journal yet */
     {
         short i;
@@ -126,6 +130,34 @@ void JR_Attach(const unsigned char *md, short vRef)
 }
 
 void JR_Detach(void) { gAttached = false; JR_Reset(); gPrefs = 0; gPrefsDirty = false; }
+
+/* The writer renamed this document by hand: its name stops following the
+   first line. Appends an 'F' record to its journal (if it has one), so it
+   works for documents that aren't open. */
+void JR_MarkRenamed(const unsigned char *md, short vRef)
+{
+    unsigned char hist[40], rec[8];
+    long n = 0, count;
+    short ref;
+    JR_HistoryName(md, hist);
+    if (gAttached && vRef == gVRef && hist[0] == gName[0]) {
+        short i;
+        for (i = 1; i <= hist[0] && hist[i] == gName[i]; i++)
+            ;
+        if (i > hist[0]) {               /* the open document */
+            gPrefs &= ~kPrefNameFollows;
+            gPrefsDirty = true;
+            return;
+        }
+    }
+    if (FSOpen(hist, vRef, &ref) != noErr)
+        return;
+    Record(rec, &n, 'F', NULL, 0, NULL, 0, false);
+    count = n;
+    if (SetFPos(ref, fsFromLEOF, 0) == noErr)
+        FSWrite(ref, &count, rec);
+    FSClose(ref);
+}
 
 void JR_SetPrefs(unsigned char p)
 {
@@ -295,6 +327,9 @@ short JR_Recover(void)
             break;
         case 'P':
             if (len >= 1) gPrefs = payload[0];
+            break;
+        case 'F':                        /* renamed by hand */
+            gPrefs &= ~kPrefNameFollows;
             break;
         case 'C':
             if (len >= 12 && nHashes < 64)

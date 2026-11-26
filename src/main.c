@@ -18,6 +18,7 @@
 
 #include "editor.h"
 #include "files.h"
+#include "library.h"
 #include "document.h"
 #include "chrome.h"
 #include "build_number.h"
@@ -140,7 +141,7 @@ static void UpdateCursor(void)
     Point pt;
     Boolean inText;
     GetMouse(&pt);
-    inText = pt.h >= kLeftEdge - 4 && pt.h <= kTextRight + 4
+    inText = !Lib_IsOpen() && pt.h >= kLeftEdge - 4 && pt.h <= kTextRight + 4
           && pt.v >= 0 && pt.v < gWindow->portRect.bottom;
     if (inText && !gIBeam) {
         CursHandle h = GetCursor(kIBeamCursor);
@@ -159,10 +160,16 @@ static void DoCommandKey(EventRecord *ev)
 
     if (c >= 'A' && c <= 'Z')
         c += 'a' - 'A';
+    if (Lib_IsOpen()) {                  /* Library: its own keys, plus Q and N */
+        if (c == 'q') { if (Doc_CanQuit()) gQuit = true; }
+        else if (c == 'n') { Doc_New(); Lib_Close(); }
+        else Lib_Key(ev);
+        return;
+    }
     switch (c) {
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
     case 'n': Doc_New(); break;
-    case 'o': Doc_Open(); break;
+    case 'o': Lib_Open(); break;
     case 's': Doc_Save(); break;
     case 'm': Doc_ToggleMarks(); break;
     case 'z': if (shift) Ed_Redo(); else Ed_Undo(); break;
@@ -189,7 +196,8 @@ static void DoMouseDown(EventRecord *ev)
             SetPort(gWindow);
             pt = ev->where;
             GlobalToLocal(&pt);
-            Ed_Click(pt, ev);
+            if (Lib_IsOpen()) Lib_Click(pt, ev);
+            else Ed_Click(pt, ev);
         }
         break;
     }
@@ -207,14 +215,20 @@ static void HandleEvent(EventRecord *ev)
         Chrome_KeyPressed();
         if (ev->modifiers & cmdKey)
             DoCommandKey(ev);
+        else if (Lib_IsOpen())
+            Lib_Key(ev);
         else
             Ed_Key(ev);
         break;
     case updateEvt:
         if ((WindowPtr)ev->message == gWindow) {
             BeginUpdate(gWindow);
-            Ed_DrawAll();
-            Chrome_Draw();
+            if (Lib_IsOpen())
+                Lib_Draw();
+            else {
+                Ed_DrawAll();
+                Chrome_Draw();
+            }
             EndUpdate(gWindow);
         }
         break;
@@ -255,7 +269,12 @@ int main(void)
     }
     Files_Init();                /* My Files beside the app */
     Doc_Init();
-    if (!Doc_Reopen()) {
+    Lib_Init(gWindow);
+    if (Doc_Reopen()) {
+        /* back where you left off */
+    } else if (Prefs_Exist()) {
+        Lib_Open();              /* no previous document: the Library */
+    } else {
         /* first run: welcome text + which font is in use */
         const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
         long n1 = sizeof(kWelcome) - 1, n2 = 0, i;
@@ -276,9 +295,13 @@ int main(void)
         if (gotEvent)
             HandleEvent(&ev);
         UpdateCursor();
-        Ed_Idle();
+        if (Lib_IsOpen())
+            Lib_Idle();
+        else {
+            Ed_Idle();
+            Chrome_Idle();
+        }
         Doc_Idle();
-        Chrome_Idle();
     }
     Chrome_ShowMenuBar();
     return 0;
