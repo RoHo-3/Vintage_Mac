@@ -267,12 +267,11 @@ static void DrawHeader(short x, Boolean root)
     unsigned char t[64];
     short i;
     SetRect(&r, x + 6, 2, x + 22, 18);
-    if (root) {                          /* inverted hamburger: closes */
-        PaintRect(&r);
+    if (root) {                          /* the hamburger, as in the strip */
         for (i = 0; i < 3; i++) {
             Rect bar;
             SetRect(&bar, x + 8, 5 + i * 4, x + 20, 7 + i * 4);
-            EraseRect(&bar);
+            PaintRect(&bar);
         }
     } else {                             /* back: a plain chevron, as in the Library */
         UIFont(systemFont, 12, 0);
