@@ -29,6 +29,7 @@ Boolean LY_Update(long from, long oldLen, long newLen,
 
 long  LY_Count(void);
 short LY_Level(long line);     /* 0 body, 1-6 heading */
+unsigned char LY_Block(long line);   /* MD_Block() of its paragraph */
 Boolean LY_IsParaStart(long line);
 long  LY_Start(long line);
 long  LY_End(long line);       /* display end: excludes the '\r' */

@@ -14,6 +14,26 @@ static short   gCLevel;
 
 static long    gCaretAbs = -1;             /* where the writer is typing */
 
+static unsigned char gBlock, gCBlock;      /* block info of the last parse */
+static short   gForceFence = -1;           /* layout: fence state, or -1 */
+static short   gCFence = -1;
+static MD_FenceQuery gFenceQuery;
+
+void MD_ForceFence(short inFence) { gForceFence = inFence; }
+void MD_SetFenceQuery(MD_FenceQuery q) { gFenceQuery = q; }
+unsigned char MD_Block(void) { return gBlock; }
+
+short MD_Indent(unsigned char blk)
+{
+    short in = MD_QUOTE(blk) * kQuoteStep;
+    short k = MD_KIND(blk);
+    if (k >= MD_BULLET && k <= MD_TASKDONE)
+        in += (MD_LISTDEPTH(blk) + 1) * kListStep;
+    else if (k == MD_CODELINE)
+        in += kCodeIndent;
+    return in;
+}
+
 void MD_Invalidate(void) { gCStart = -1; }
 
 void MD_SetCaret(long pos)
@@ -62,6 +82,12 @@ static Boolean Reserve(long n)
     gTxt = t;
     gCap = cap;
     return true;
+}
+
+static Boolean IsPunct(char c)
+{
+    return (c >= '!' && c <= '/') || (c >= ':' && c <= '@')
+        || (c >= '[' && c <= '`') || (c >= '{' && c <= '~');
 }
 
 static Boolean IsAlnum(char c)
@@ -170,6 +196,95 @@ static void ApplyStyle(long a, long b, unsigned char s)
         gSty[a] |= s;
 }
 
+/* ---- block structure: raw-text tests on whole lines --------------- */
+
+/* Line [a, b) is a fence: up to 3 spaces, then 3+ backticks. */
+static Boolean IsFence(long a, long b)
+{
+    long i = a, n = 0;
+    while (i < b && i - a < 3 && TB_Char(i) == ' ') i++;
+    while (i < b && TB_Char(i) == '`') { i++; n++; }
+    return n >= 3;
+}
+
+/* Line [a, b) is a thematic break: 3+ of one of - * _, spaces allowed. */
+static Boolean IsRule(long a, long b)
+{
+    long i, n = 0;
+    char m = 0, c;
+    for (i = a; i < b; i++) {
+        c = TB_Char(i);
+        if (c == ' ' || c == '\t') continue;
+        if (c != '-' && c != '*' && c != '_') return false;
+        if (m && c != m) return false;
+        m = c;
+        n++;
+    }
+    return n >= 3;
+}
+
+/* Line [a, b) is a setext underline: up to 3 spaces, then only = or only -
+   (no inner spaces), then optional spaces. Returns 1 for =, 2 for -. */
+static short Underline(long a, long b)
+{
+    long i = a;
+    char m;
+    while (i < b && i - a < 3 && TB_Char(i) == ' ') i++;
+    if (i >= b) return 0;
+    m = TB_Char(i);
+    if (m != '=' && m != '-') return 0;
+    while (i < b && TB_Char(i) == m) i++;
+    while (i < b && TB_Char(i) == ' ') i++;
+    if (i < b) return 0;
+    return m == '=' ? 1 : 2;
+}
+
+/* Length of a list marker at i ("- ", "12. ", "3) "), or 0. */
+static long ListMarker(long i, long b, Boolean *ordered)
+{
+    long j = i;
+    char c;
+    if (i >= b) return 0;
+    c = TB_Char(i);
+    *ordered = false;
+    if (c == '-' || c == '*' || c == '+')
+        j = i + 1;
+    else {
+        while (j < b && j - i < 9 && TB_Char(j) >= '0' && TB_Char(j) <= '9') j++;
+        if (j == i || j >= b || (TB_Char(j) != '.' && TB_Char(j) != ')')) return 0;
+        j++;
+        *ordered = true;
+    }
+    if (j >= b || TB_Char(j) != ' ') return 0;
+    return j + 1 - i;
+}
+
+/* Line [a, b) is plain paragraph text that a setext underline below could
+   turn into a heading: not blank, not a heading, quote, list, fence or
+   rule, and not inside a code block. */
+static Boolean IsParaText(long a, long b, Boolean inFence)
+{
+    long i = a;
+    Boolean ord;
+    if (inFence) return false;
+    while (i < b && i - a < 3 && TB_Char(i) == ' ') i++;
+    if (i >= b) return false;
+    if (b - i >= 4 && TB_Char(i) == ' ') return false;   /* indented code-ish */
+    {
+        char c = TB_Char(i);
+        if (c == '#' || c == '>') return false;
+    }
+    if (IsFence(a, b) || IsRule(a, b) || ListMarker(i, b, &ord)) return false;
+    if (Underline(a, b)) return false;
+    return true;
+}
+
+static Boolean FenceBefore(long start)
+{
+    if (gForceFence >= 0) return gForceFence != 0;
+    return gFenceQuery ? gFenceQuery(start) : false;
+}
+
 const unsigned char *MD_Parse(long start, long end, Boolean active,
                               short *level)
 {
@@ -177,10 +292,14 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
     long cpos = (gCaretAbs >= start && gCaretAbs <= end) ? gCaretAbs - start : -1;
     unsigned char mark = MD_MARK | (active ? 0 : MD_HIDDEN);
     char c;
-    short spaced;
+    short spaced, quote = 0, kind = 0, ldepth = 0;
+    Boolean fenceIn = FenceBefore(start), fenceOut = false, ord;
+    long q, m;
 
-    if (start == gCStart && end == gCEnd && active == gCActive) {
+    if (start == gCStart && end == gCEnd && active == gCActive
+        && (short)fenceIn == gCFence) {
         *level = gCLevel;
+        gBlock = gCBlock;
         return gSty;
     }
     if (!Reserve(len + 1))
@@ -188,13 +307,83 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
     TB_Copy(start, len, gTxt);
     for (i = 0; i < len; i++)
         gSty[i] = 0;
+    *level = 0;
+    p = 0;
+
+    if (fenceIn) {                       /* inside a ``` block: all code */
+        if (IsFence(start, end)) {
+            Mark(0, len, mark);
+            kind = MD_FENCE;
+        } else {
+            ApplyStyle(0, len, MD_CODE);
+            kind = MD_CODELINE;
+            fenceOut = true;
+        }
+        goto finish;
+    }
+
+    /* block quote: "> ", up to three deep */
+    for (;;) {
+        q = p;
+        while (q < len && q - p < 3 && gTxt[q] == ' ') q++;
+        if (q < len && gTxt[q] == '>' && quote < 3) {
+            q++;
+            if (q < len && gTxt[q] == ' ') q++;
+            p = q;
+            quote++;
+        } else
+            break;
+    }
+    if (p > 0)
+        Mark(0, p, MD_PREFIX | MD_HIDDEN);
+
+    if (quote == 0 && IsFence(start, end)) {   /* opening ``` (and info) */
+        Mark(0, len, mark);
+        kind = MD_FENCE;
+        fenceOut = true;
+        goto finish;
+    }
+    if (quote == 0 && start > 0) {       /* setext underline under text */
+        long ps = MD_ParaStart(start - 1);
+        short u = Underline(start, end);
+        Boolean pending = cpos >= 0 && len == 1;   /* a lone "-" being typed */
+        if (u && !pending && IsParaText(ps, start - 1, false)) {
+            Mark(0, len, mark);
+            kind = MD_FENCE;             /* a syntax-only line: nothing drawn */
+            goto finish;
+        }
+    }
+    if (IsRule(start + p, end)) {        /* --- *** ___ */
+        Mark(p, len - p, mark);
+        kind = MD_RULE;
+        goto finish;
+    }
+
+    /* list item: indent, marker, optional task box */
+    q = p;
+    while (q < len && gTxt[q] == ' ') q++;
+    m = ListMarker(start + q, end, &ord);
+    if (m > 0) {
+        ldepth = (short)((q - p) / 2);
+        if (ldepth > 3) ldepth = 3;
+        kind = ord ? MD_ORDERED : MD_BULLET;
+        q += m;
+        if (!ord && q + 3 <= len && gTxt[q] == '['
+            && (gTxt[q + 1] == ' ' || gTxt[q + 1] == 'x' || gTxt[q + 1] == 'X')
+            && gTxt[q + 2] == ']' && (q + 3 == len || gTxt[q + 3] == ' ')) {
+            kind = gTxt[q + 1] == ' ' ? MD_TASK : MD_TASKDONE;
+            q += (q + 3 < len) ? 4 : 3;
+        }
+        Mark(p, q - p, MD_PREFIX | MD_HIDDEN);
+        p = q;
+    }
 
     /* ATX heading: 1-6 '#' then a space */
-    *level = 0;
-    for (p = 0; p < len && p < 6 && gTxt[p] == '#'; p++)
+    q = p;
+    for (; p < len && p - q < 6 && gTxt[p] == '#'; p++)
         ;
-    if (p > 0 && p < len && gTxt[p] == ' ') {
-        *level = (short)p;
+    if (p > q && p < len && gTxt[p] == ' ') {
+        *level = (short)(p - q);
         while (p < len && gTxt[p] == ' ')
             p++;
         Mark(0, p, MD_PREFIX | MD_HIDDEN);
@@ -212,7 +401,21 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
             }
         }
     } else
-        p = 0;
+        p = q;
+
+    /* setext heading: plain text with === or --- on the next line */
+    if (*level == 0 && kind == 0 && quote == 0 && end < TB_Len()) {
+        long ne = MD_ParaEnd(end + 1);
+        short u = Underline(end + 1, ne);
+        Boolean pending = gCaretAbs >= end + 1 && gCaretAbs <= ne && ne - (end + 1) == 1;
+        if (u && !pending && IsParaText(start, end, false))
+            *level = u;
+    }
+
+    /* hard line break: a backslash at the end of a line */
+    if (len > 0 && gTxt[len - 1] == '\\' && end < TB_Len()
+        && (len < 2 || gTxt[len - 2] != '\\'))
+        Mark(len - 1, 1, mark);
 
     for (i = 0; i < len; i++)            /* escapes: one placeholder box */
         if (gTxt[i] == kEscStart)
@@ -227,6 +430,11 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         if (gSty[i] & (MD_MARK | MD_CODE))
             continue;
         c = gTxt[i];
+        if (c == '\\' && i + 1 < len && IsPunct(gTxt[i + 1])) {
+            Mark(i, 1, mark);            /* \* is a literal star */
+            i++;
+            continue;
+        }
         if (c == '`') {
             j = i + 1;
             while (j < len && gTxt[j] != '`')
@@ -296,6 +504,10 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         }
     }
 
+finish:
+    gBlock = (unsigned char)(kind | (quote << 3) | (ldepth << 5) | (fenceOut ? 0x80 : 0));
+    gCBlock = gBlock;
+    gCFence = fenceIn;
     gCStart = start;
     gCEnd = end;
     gCActive = active;

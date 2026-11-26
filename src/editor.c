@@ -119,6 +119,8 @@ typedef struct {
     long  ps, pe;        /* its paragraph */
     long  prefixEnd;     /* end of a heading's "## " (== ps if none) */
     short level;
+    unsigned char blk;   /* MD_Block(): quote, list, rule, code */
+    short x0, right;     /* text column for this paragraph, pixels */
     Boolean active;      /* paragraph holds the cursor: markers shown */
     const unsigned char *sty;   /* styles, indexed from ps */
 } LineInfo;
@@ -141,6 +143,9 @@ static void GetLine(long line, LineInfo *li)
     li->active = gShowMarks;
     li->sty = MD_Parse(li->ps, li->pe, li->active, &lvl);
     li->level = lvl;
+    li->blk = MD_Block();
+    li->x0 = kLeft + MD_Indent(li->blk);
+    li->right = kLeft + kColumnW;
     li->prefixEnd = li->ps;
     if (li->sty)
         while (li->prefixEnd < li->pe && (li->sty[li->prefixEnd - li->ps] & MD_PREFIX))
@@ -161,25 +166,25 @@ static short XOf(LineInfo *li, long p)
     if (p < li->prefixEnd) {             /* in the hanging "## " */
         for (q = p; q < li->prefixEnd; q++)
             x += CW(li->level, 0, TB_Char(q));
-        return kLeft - x;
+        return li->x0 - x;
     }
     for (q = li->s; q < p && q < li->e; q++) {
         st = StyleAt(li, q);
         if (st & MD_HIDDEN) continue;
         w = CW(li->level, st, TB_Char(q));
-        if (x + w > kColumnW) break;
+        if (li->x0 + x + w > li->right) break;
         x += w;
     }
-    return kLeft + x;
+    return li->x0 + x;
 }
 
 /* Text position nearest pixel x on this line. */
 static long PosAt(LineInfo *li, short x)
 {
-    short at = kLeft, w;
+    short at = li->x0, w;
     long p;
     unsigned char st;
-    if (x < kLeft) {
+    if (x < li->x0) {
         if (li->active && li->prefixEnd > li->ps && li->s == li->ps) {
             for (p = li->prefixEnd; p > li->ps; p--) {   /* the hanging "##" */
                 w = CW(li->level, 0, TB_Char(p - 1));
@@ -188,7 +193,7 @@ static long PosAt(LineInfo *li, short x)
             }
             return li->ps;
         }
-        x = kLeft;
+        x = li->x0;
     }
     for (p = li->s; p < li->e; p++) {
         st = StyleAt(li, p);
@@ -305,6 +310,59 @@ static void DrawRun(short level, unsigned char style, short x, short base, short
     }
 }
 
+/* Block decorations, drawn when the markers are hidden: quote bars on
+   every line, the list bullet, number or task box on an item's first line,
+   a rule, a fence's dotted line. */
+static void DrawBlock(LineInfo *li, short y, short h, short base)
+{
+    unsigned char b = li->blk;
+    short k = MD_KIND(b), d, x, cy;
+    Rect r;
+    Boolean first = li->s == li->ps;
+
+    for (d = 0; d < MD_QUOTE(b); d++) {
+        x = kLeft + d * kQuoteStep;
+        SetRect(&r, x, y, x + 2, y + h);
+        PaintRect(&r);
+    }
+    x = li->x0;
+    cy = base - (gAsc[li->level] * 35) / 100;      /* middle of a lowercase letter */
+    if (first && (k == MD_BULLET)) {
+        SetRect(&r, x - 11, cy - 2, x - 6, cy + 3);
+        if (MD_LISTDEPTH(b) & 1) FrameOval(&r); else PaintOval(&r);
+    } else if (first && k == MD_ORDERED) {
+        long q = li->ps, e;
+        short n = 0, wsum = 0;
+        while (q < li->prefixEnd && (TB_Char(q) == ' ' || TB_Char(q) == '>')) q++;
+        for (e = q; e < li->prefixEnd && TB_Char(e) != ' ' && n < 12; e++)
+            gRun[n++] = TB_Char(e);
+        for (d = 0; d < n; d++)
+            wsum += CW(li->level, 0, (unsigned char)gRun[d]);
+        DrawRun(li->level, 0, x - wsum - 4, base, n);
+    } else if (first && (k == MD_TASK || k == MD_TASKDONE)) {
+        short sz = gAsc[li->level] < 9 ? 9 : gAsc[li->level];
+        if (sz > 13) sz = 13;
+        SetRect(&r, x - sz - 5, base - sz + 1, x - 5, base + 1);
+        FrameRect(&r);
+        if (k == MD_TASKDONE) {          /* a check mark */
+            MoveTo(r.left + 2, r.top + sz / 2);
+            LineTo(r.left + sz / 2 - 1, r.bottom - 3);
+            LineTo(r.right - 3, r.top + 2);
+        }
+    } else if (k == MD_RULE) {
+        MoveTo(kLeft, y + h / 2);
+        LineTo(kLeft + kColumnW - 1, y + h / 2);
+    } else if (k == MD_FENCE && li->ps < li->pe) {
+        long q = li->ps;
+        while (q < li->pe && TB_Char(q) == ' ') q++;
+        if (q < li->pe && TB_Char(q) == '`')   /* a code fence, not an underline */
+            for (x = kLeft + kCodeIndent; x < kLeft + kColumnW; x += 4) {
+                MoveTo(x, y + h / 2);
+                LineTo(x, y + h / 2);
+            }
+    }
+}
+
 static void DrawLine(long line, short y)
 {
     Rect r, dst;
@@ -336,14 +394,17 @@ static void DrawLine(long line, short y)
         n = 0;
     }
 
-    x = runX = kLeft;
+    if (!li.active)
+        DrawBlock(&li, y, h, base);
+
+    x = runX = li.x0;
     for (p = li.s; p < li.e; p++) {
         st = StyleAt(&li, p);
         if (st & MD_HIDDEN)
             continue;
         st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK | MD_STRIKE);
         w = CW(li.level, st, TB_Char(p));
-        if (x + w > kLeft + kColumnW)
+        if (x + w > li.right)
             break;                       /* trailing spaces hang past the edge */
         if (n > 0 && (st != runSt || n == kRunMax)) {
             DrawRun(li.level, runSt, runX, base, n);
@@ -366,7 +427,7 @@ static void DrawLine(long line, short y)
         if (a < b) {
             short x1 = XOf(&li, a);
             short x2 = (b >= next && line + 1 < LY_Count())
-                       ? kLeft + kColumnW                   /* past line end */
+                       ? li.right                           /* past line end */
                        : XOf(&li, b);
             if (x2 > x1) {
                 SetRect(&r, x1, y, x2, y + h);
@@ -503,8 +564,20 @@ static void Rewrap(long pos)
 static void Activate(long oldPos)
 {
     LY_SetCaret(gCaret);
-    if (MD_ParaStart(oldPos) == MD_ParaStart(gCaret))
+    if (MD_ParaStart(oldPos) == MD_ParaStart(gCaret)) {
+        /* same paragraph: an unclosed marker the cursor crossed starts or
+           stops styling what follows it */
+        long a = oldPos < gCaret ? oldPos : gCaret, b = oldPos ^ gCaret ^ a, q;
+        char c;
+        for (q = a; q < b && q < TB_Len(); q++) {
+            c = TB_Char(q);
+            if (c == '*' || c == '_' || c == '`' || c == '~') {
+                Rewrap(gCaret);
+                break;
+            }
+        }
         return;
+    }
     Rewrap(oldPos);                      /* an unclosed marker there ends */
     Rewrap(gCaret);
 }
@@ -874,6 +947,357 @@ void Ed_SelectAll(void)
     SetSel(0, TB_Len());
 }
 
+/* ---- block prefixes: quotes, lists, headings --------------------------- */
+
+typedef struct {
+    long ps, pe;
+    long quoteEnd;       /* after the "> > " part */
+    long markStart;      /* the list marker, after its indent */
+    long listEnd;        /* after the marker (and a task box) */
+    long headEnd;        /* after a heading's "## " (== the text start) */
+    short kind, quote, level;
+    long number;         /* an ordered item's number */
+    char bullet, delim;  /* the marker character: - * + or . ) */
+} Parts;
+
+static void GetParts(long ps, Parts *pt)
+{
+    long q, i;
+    short lvl;
+    const unsigned char *sty;
+    pt->ps = ps;
+    pt->pe = MD_ParaEnd(ps);
+    sty = MD_Parse(ps, pt->pe, gShowMarks, &lvl);
+    pt->kind = MD_KIND(MD_Block());
+    pt->quote = MD_QUOTE(MD_Block());
+    pt->level = lvl;
+    pt->headEnd = ps;
+    if (sty)
+        while (pt->headEnd < pt->pe && (sty[pt->headEnd - ps] & MD_PREFIX))
+            pt->headEnd++;
+    q = ps;                              /* the parser's quote rule */
+    for (i = 0; i < pt->quote; i++) {
+        while (TB_Char(q) == ' ') q++;
+        q++;                             /* the '>' */
+        if (q < pt->pe && TB_Char(q) == ' ') q++;
+    }
+    pt->quoteEnd = q;
+    pt->markStart = pt->listEnd = q;
+    pt->number = 0;
+    pt->bullet = '-';
+    pt->delim = '.';
+    if (pt->kind >= MD_BULLET && pt->kind <= MD_TASKDONE) {
+        while (TB_Char(q) == ' ') q++;
+        pt->markStart = q;
+        if (pt->kind == MD_ORDERED) {
+            while (TB_Char(q) >= '0' && TB_Char(q) <= '9')
+                pt->number = pt->number * 10 + (TB_Char(q++) - '0');
+            pt->delim = TB_Char(q);
+        } else
+            pt->bullet = TB_Char(q);
+        q += 2;                          /* marker and its space */
+        if (pt->kind == MD_TASK || pt->kind == MD_TASKDONE)
+            q += (q + 3 < pt->pe) ? 4 : 3;
+        if (q > pt->pe) q = pt->pe;
+        pt->listEnd = q;
+    }
+    if (pt->kind == MD_CODELINE || pt->kind == MD_FENCE || pt->kind == MD_RULE)
+        pt->headEnd = pt->listEnd = pt->markStart = pt->quoteEnd = ps;
+}
+
+static Boolean IsItem(short kind) { return kind >= MD_BULLET && kind <= MD_TASKDONE; }
+
+/* Make an item's marker: "- ", "- [ ] ", "3. " */
+static short MakeMarker(short kind, char bullet, long number, char delim, char *out)
+{
+    short n = 0;
+    if (kind == MD_ORDERED) {
+        char d[10];
+        short k = 0;
+        if (number < 1) number = 1;
+        while (number > 0 && k < 9) { d[k++] = (char)('0' + number % 10); number /= 10; }
+        while (k > 0) out[n++] = d[--k];
+        out[n++] = delim;
+        out[n++] = ' ';
+    } else {
+        out[n++] = bullet;
+        out[n++] = ' ';
+        if (kind == MD_TASK) { out[n++] = '['; out[n++] = ' '; out[n++] = ']'; out[n++] = ' '; }
+    }
+    return n;
+}
+
+/* Per-paragraph prefix change: replace [*from, *to) with out[0..n). */
+typedef short (*PrefixFn)(Parts *pt, short index, long *from, long *to, char *out);
+
+/* Apply fn to every paragraph touched by the selection, as one edit (one
+   undo step). The selection keeps its place in the text. */
+static void EditPrefixes(PrefixFn fn)
+{
+    long a = SelStart(), b = SelEnd(), first = MD_ParaStart(a), last, ps, total, n = 0;
+    long newA = a, newB = b, shift = 0, paras = 1, q;
+    short idx = 0, k;
+    char pre[64], *buf;
+    Parts pt;
+    last = MD_ParaEnd(b > a && b > first && TB_Char(b - 1) == '\r' ? b - 1 : b);
+    total = last - first;
+    for (q = first; q < last; q++)
+        if (TB_Char(q) == '\r') paras++;
+    buf = NewPtr(total + paras * 64);
+    if (!buf) { SysBeep(1); return; }
+    for (ps = first; ps <= last; idx++) {
+        long from = ps, to = ps;
+        GetParts(ps, &pt);
+        k = fn(&pt, idx, &from, &to, pre);
+        for (q = ps; q < from; q++) buf[n++] = TB_Char(q);
+        BlockMove(pre, buf + n, k);
+        n += k;
+        for (q = to; q < pt.pe; q++) buf[n++] = TB_Char(q);
+        /* where the selection ends land */
+        if (a >= ps && a <= pt.pe)
+            newA = a < from ? a + shift : (a < to ? from + shift + k : a + shift + k - (to - from));
+        if (b >= ps && b <= pt.pe)
+            newB = b < from ? b + shift : (b < to ? from + shift + k : b + shift + k - (to - from));
+        shift += k - (to - from);
+        if (pt.pe >= last) break;
+        buf[n++] = '\r';
+        ps = pt.pe + 1;
+    }
+    if (shift != 0 || n != total) {
+        Edit(first, total, buf, n, false);
+        SetSel(newA, newB);
+    }
+    DisposePtr(buf);
+}
+
+static short gWant;                      /* the format being applied */
+static Boolean gAllHave;                 /* every paragraph has it already */
+
+/* Width of an item's marker and its space: 2 for "- ", 3 for "1. " */
+static long MarkerW(Parts *pt)
+{
+    long q = pt->markStart;
+    if (pt->kind != MD_ORDERED) return 2;
+    while (TB_Char(q) >= '0' && TB_Char(q) <= '9') q++;
+    return q + 2 - pt->markStart;
+}
+
+/* Nesting follows standard Markdown: a nested item starts where its
+   parent's text starts (2 spaces under "- ", 3 under "1. "). */
+static short FnIndent(Parts *pt, short idx, long *from, long *to, char *out)
+{
+    long sp = pt->markStart - pt->quoteEnd, n = sp, ps;
+    short i;
+    Parts up;
+    if (!IsItem(pt->kind)) return 0;
+    for (ps = pt->ps; ps > 0; ) {        /* items above, nearest first */
+        ps = MD_ParaStart(ps - 1);
+        GetParts(ps, &up);
+        if (!IsItem(up.kind) || up.quote != pt->quote) break;
+        {
+            long usp = up.markStart - up.quoteEnd;
+            if (gWant > 0 && usp <= sp) {        /* become its child */
+                if (usp + MarkerW(&up) > sp) n = usp + MarkerW(&up);
+                break;
+            }
+            if (gWant < 0 && usp < sp) {         /* line up with it */
+                n = usp;
+                break;
+            }
+        }
+    }
+    if (gWant < 0 && n == sp) n = 0;
+    if (gWant > 0 && sp / 2 >= 3) n = sp;        /* three levels deep at most */
+    *from = pt->quoteEnd;
+    *to = pt->markStart;
+    for (i = 0; i < n && i < 60; i++) out[i] = ' ';
+    return i;
+}
+
+static short gCount;                     /* items numbered so far */
+
+static short FnList(Parts *pt, short idx, long *from, long *to, char *out)
+{
+    if (pt->pe == pt->ps || pt->kind == MD_CODELINE || pt->kind == MD_FENCE) return 0;
+    *from = pt->markStart;
+    *to = pt->listEnd;
+    if (gAllHave) {                      /* toggle off, indent and all */
+        *from = pt->quoteEnd;
+        return 0;
+    }
+    return MakeMarker(gWant, IsItem(pt->kind) && pt->kind != MD_ORDERED ? pt->bullet : '-',
+                      ++gCount, '.', out);
+}
+
+static short FnQuote(Parts *pt, short idx, long *from, long *to, char *out)
+{
+    if (pt->kind == MD_CODELINE || pt->kind == MD_FENCE) return 0;
+    *from = *to = pt->ps;
+    if (gAllHave && pt->quote > 0) {     /* take one level off */
+        long q = pt->ps;
+        while (TB_Char(q) == ' ') q++;
+        q++;
+        if (q < pt->pe && TB_Char(q) == ' ') q++;
+        *to = q;
+        return 0;
+    }
+    if (gAllHave || pt->pe == pt->ps || pt->quote > 0) return 0;
+    out[0] = '>';
+    out[1] = ' ';
+    return 2;
+}
+
+static short FnHeading(Parts *pt, short idx, long *from, long *to, char *out)
+{
+    short i, n = gAllHave ? 0 : gWant;
+    if (pt->pe == pt->ps || pt->kind == MD_CODELINE || pt->kind == MD_FENCE || pt->kind == MD_RULE)
+        return 0;
+    *from = pt->listEnd;
+    *to = pt->headEnd;
+    for (i = 0; i < n; i++) out[i] = '#';
+    if (n > 0) out[i++] = ' ';
+    return i;
+}
+
+/* Does every non-empty paragraph in the selection already have it? */
+static Boolean AllHave(short what)
+{
+    long a = SelStart(), b = SelEnd(), ps = MD_ParaStart(a);
+    Parts pt;
+    Boolean any = false;
+    for (;;) {
+        GetParts(ps, &pt);
+        if (pt.pe > pt.ps) {
+            Boolean has = what == 'q' ? pt.quote > 0
+                        : what >= 1 && what <= 6 ? pt.level == what && pt.headEnd > pt.listEnd
+                        : what == 0 ? true
+                        : what == 'b' ? pt.kind == MD_BULLET
+                        : what == 'n' ? pt.kind == MD_ORDERED
+                        : pt.kind == MD_TASK || pt.kind == MD_TASKDONE;
+            if (!has) return false;
+            any = true;
+        }
+        if (pt.pe >= b || pt.pe >= TB_Len()) break;
+        ps = pt.pe + 1;
+    }
+    return any;
+}
+
+/* Paragraph formats (Cmd-Shift-8/7/9/', Cmd-Opt-0-6): on every paragraph
+   the selection touches; applying one that all of them have removes it. */
+void Ed_BlockFormat(short what)
+{
+    gTyping = false;
+    if (what == 'q') {
+        gAllHave = AllHave('q');
+        EditPrefixes(FnQuote);
+    } else if (what >= 0 && what <= 6) {
+        gWant = what;
+        gAllHave = what == 0 || AllHave(what);
+        EditPrefixes(FnHeading);
+    } else if (what == 'b' || what == 'n' || what == 't') {
+        gWant = what == 'b' ? MD_BULLET : what == 'n' ? MD_ORDERED : MD_TASK;
+        gAllHave = AllHave(what);
+        gCount = 0;
+        EditPrefixes(FnList);
+    }
+}
+
+/* Tab / Shift-Tab in a list: nest the item(s) a level deeper or shallower. */
+static Boolean IndentItems(short dir)
+{
+    Parts pt;
+    GetParts(MD_ParaStart(gCaret), &pt);
+    if (!IsItem(pt.kind)) return false;
+    gWant = dir;
+    gTyping = false;
+    EditPrefixes(FnIndent);
+    return true;
+}
+
+/* Return in a list or quote: the next line continues it. On an empty item
+   it ends the list instead (a nested one moves out a level). */
+static Boolean ContinueBlock(void)
+{
+    Parts pt;
+    char pre[80];
+    short n = 0;
+    long q;
+    if (HasSel()) return false;
+    GetParts(MD_ParaStart(gCaret), &pt);
+    if (!IsItem(pt.kind) && pt.quote == 0) return false;
+    if (gCaret < pt.headEnd) return false;
+    if (pt.headEnd == pt.pe && gCaret == pt.pe) {   /* empty: end it */
+        gTyping = false;
+        if (IsItem(pt.kind) && pt.markStart > pt.quoteEnd) {
+            gWant = -1;
+            EditPrefixes(FnIndent);
+        } else if (IsItem(pt.kind))
+            DeleteRange(pt.quoteEnd, pt.pe);
+        else {                           /* "> > ": drop the last level */
+            q = pt.quoteEnd;
+            while (q > pt.ps && TB_Char(q - 1) == ' ') q--;
+            if (q > pt.ps) q--;
+            DeleteRange(q, pt.pe);
+        }
+        return true;
+    }
+    pre[n++] = '\r';
+    for (q = pt.ps; q < pt.markStart && n < 60; q++)
+        pre[n++] = TB_Char(q);
+    if (IsItem(pt.kind))
+        n += MakeMarker(pt.kind == MD_TASKDONE ? MD_TASK : pt.kind, pt.bullet,
+                        pt.number + 1, pt.delim, pre + n);
+    InsertText(pre, n, false);
+    return true;
+}
+
+/* Backspace at the start of a paragraph's text takes off its innermost
+   format only: a heading's #s, else the list marker, else one quote level. */
+static void DeleteInnerPrefix(long ps)
+{
+    Parts pt;
+    long q;
+    GetParts(ps, &pt);
+    if (pt.headEnd > pt.listEnd)
+        DeleteRange(pt.listEnd, pt.headEnd);
+    else if (pt.listEnd > pt.markStart)
+        DeleteRange(pt.markStart, pt.listEnd);
+    else if (pt.quote > 0) {
+        q = pt.quoteEnd;
+        while (q > pt.ps && TB_Char(q - 1) == ' ') q--;
+        if (q > pt.ps) q--;
+        DeleteRange(q, pt.quoteEnd);
+    } else
+        DeleteRange(ps, PrefixEnd(ps));
+}
+
+/* A click on a task's box ticks or unticks it. */
+static Boolean ClickTaskBox(long line, Point pt)
+{
+    LineInfo li;
+    Parts p;
+    long q;
+    char c;
+    if (gShowMarks || line < 0 || line >= LY_Count()) return false;
+    GetLine(line, &li);
+    if (li.s != li.ps || (MD_KIND(li.blk) != MD_TASK && MD_KIND(li.blk) != MD_TASKDONE))
+        return false;
+    if (pt.h < li.x0 - 22 || pt.h >= li.x0 - 2) return false;
+    GetParts(li.ps, &p);
+    for (q = p.markStart; q < p.listEnd && TB_Char(q) != '['; q++)
+        ;
+    if (q + 1 >= p.listEnd) return false;
+    c = TB_Char(q + 1) == ' ' ? 'x' : ' ';
+    {
+        long a = gAnchor, k = gCaret;
+        gTyping = false;
+        Edit(q + 1, 1, &c, 1, false);
+        SetSel(a, k);
+    }
+    return true;
+}
+
 /* ---- movement ---------------------------------------------------------- */
 
 static Boolean IsWord(long pos)
@@ -963,8 +1387,8 @@ void Ed_Key(EventRecord *ev)
         else if (opt) DeleteRange(WordLeft(gCaret), gCaret);
         else if (SkipLeft(gCaret) < gCaret) {
             pos = SkipLeft(gCaret);
-            if (PrefixEnd(pos) > pos)    /* "### " behind: heading -> paragraph */
-                DeleteRange(pos, PrefixEnd(pos));
+            if (PrefixEnd(pos) > pos)    /* "### " / "- " / "> " behind */
+                DeleteInnerPrefix(pos);
             else if (wasBack             /* backspacing along: reopen the style */
                      || (gTyping && gUndoN > 0 && gUndo[gUndoN - 1].kind == 'i'
                       && gUndo[gUndoN - 1].pos <= pos
@@ -1008,11 +1432,16 @@ void Ed_Key(EventRecord *ev)
         CollapseEmptyPair();
         return;
     case 0x0D: case 0x03:                                /* return, enter */
+        if (ContinueBlock())
+            return;
         ch = '\r';
         InsertText(&ch, 1, true);
         return;
     case 0x09:                                           /* tab: 4 spaces */
-        InsertText("    ", 4, true);
+        if (IndentItems(shift ? -1 : 1))                 /* in a list: nest */
+            return;
+        if (!shift)
+            InsertText("    ", 4, true);
         return;
     case 0x1B:                                           /* escape */
         return;
@@ -1051,6 +1480,18 @@ void Ed_Key(EventRecord *ev)
 
 /* ---- mouse ------------------------------------------------------------- */
 
+static long LineAt(Point pt)
+{
+    long line = gTop;
+    short y = kTopPad;
+    if (pt.v < kTopPad) return gTop - 1;
+    while (line < LY_Count() - 1 && y + LineH(line) <= pt.v) {
+        y += LineH(line);
+        line++;
+    }
+    return line;
+}
+
 static long HitTest(Point pt)
 {
     LineInfo li;
@@ -1080,6 +1521,10 @@ void Ed_Click(Point pt, EventRecord *ev)
 
     gTyping = false;
     gGoalX = -1;
+    if (!(ev->modifiers & shiftKey) && ClickTaskBox(LineAt(pt), pt)) {
+        while (StillDown()) ;
+        return;
+    }
     if (ev->when - gLastClick < kDoubleTicks && pos == gLastClickPos) {
         word = true;                     /* double-click: select the word */
         wordA = (pos > 0 && IsWord(pos - 1)) ? WordLeft(pos) : pos;

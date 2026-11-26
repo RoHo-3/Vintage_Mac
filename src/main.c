@@ -246,6 +246,22 @@ static void DoCommandKey(EventRecord *ev)
         App_CycleFont();                     /* Cmd-Option-F (temporary) */
         return;
     }
+    {   /* paragraph formats by key position (Shift and Option change the
+           character): Cmd-Opt-0..6 normal/headings, Cmd-Shift-8 bullets,
+           -7 numbers, -9 tasks, -' quote */
+        short code = (short)((ev->message & keyCodeMask) >> 8);
+        static const unsigned char kDigit[7] = { 0x1D, 0x12, 0x13, 0x14, 0x15, 0x17, 0x16 };
+        short i;
+        if (ev->modifiers & optionKey)
+            for (i = 0; i < 7; i++)
+                if (code == kDigit[i]) { Ed_BlockFormat(i); return; }
+        if (shift) {
+            if (code == 0x1C) { Ed_BlockFormat('b'); return; }
+            if (code == 0x1A) { Ed_BlockFormat('n'); return; }
+            if (code == 0x19) { Ed_BlockFormat('t'); return; }
+            if (code == 0x27) { Ed_BlockFormat('q'); return; }
+        }
+    }
     switch (c) {
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
     case 'n': Lib_OpenNew(); break;      /* pick Blank or a template */

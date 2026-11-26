@@ -40,6 +40,10 @@ Boolean Ed_SetText(const char *text, long len);
 void    Ed_SetShowMarks(Boolean on);
 Boolean Ed_ShowMarks(void);
 void    Ed_Hold(Boolean hold);
+/* Paragraph formats for the paragraphs the selection touches: 0 normal,
+   1-6 heading, 'b' bulleted / 'n' numbered / 't' task list, 'q' quote.
+   One that all of them already have is taken off. */
+void    Ed_BlockFormat(short what);
 void    Ed_Format(char marker, short count);   /* Cmd-B ('*',2), Cmd-I ('*',1), Cmd-E ('`',1) */
 
 /* Fonts: 0 = MDW Mono, else a system font ID (Monaco 4, Courier 22, New

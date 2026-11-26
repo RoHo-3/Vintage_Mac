@@ -21,6 +21,36 @@
 #define MD_MARK    0x20     /* a syntax marker (shown only when active) */
 #define MD_STRIKE  0x40     /* ~~strikethrough~~ (GitHub Markdown) */
 
+/* Block info for the paragraph last parsed (MD_Block):
+   bits 0-2 kind, 3-4 quote depth (0-3), 5-6 list depth (0-3),
+   bit 7 set when a ``` code block is still open after this line. */
+#define MD_PLAIN     0
+#define MD_BULLET    1      /* - * + */
+#define MD_ORDERED   2      /* 1. 2) */
+#define MD_TASK      3      /* - [ ] */
+#define MD_TASKDONE  4      /* - [x] */
+#define MD_RULE      5      /* --- *** ___ */
+#define MD_FENCE     6      /* a syntax-only line: ``` fence, setext underline */
+#define MD_CODELINE  7      /* inside a ``` block */
+#define MD_KIND(b)       ((b) & 7)
+#define MD_QUOTE(b)      (((b) >> 3) & 3)
+#define MD_LISTDEPTH(b)  (((b) >> 5) & 3)
+#define MD_FENCEOPEN(b)  (((b) & 0x80) != 0)
+
+#define kQuoteStep   12     /* indent per quote level, pixels */
+#define kListStep    18     /* indent per list level */
+#define kCodeIndent  12     /* code block indent */
+
+unsigned char MD_Block(void);
+short MD_Indent(unsigned char blk);      /* text indent for a block, pixels */
+
+/* Whether a ``` block is open before position start (a paragraph start).
+   Layout answers this; while it re-wraps it forces the answer instead
+   (MD_ForceFence(0/1), MD_ForceFence(-1) to stop). */
+typedef Boolean (*MD_FenceQuery)(long start);
+void MD_SetFenceQuery(MD_FenceQuery q);
+void MD_ForceFence(short inFence);
+
 /* Styles for the paragraph [start, end) (end = its '\r' or text end).
    *level is 0 for body text, 1-6 for headings. The returned array is
    valid until the next call. Returns NULL if out of memory. */
