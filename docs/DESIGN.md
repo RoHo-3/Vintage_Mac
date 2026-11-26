@@ -113,7 +113,11 @@ interface is visually distinct from the prose.
   can't rotate text). Max stack: drawer → Project → one folder, matching the
   three-level project rule. The drawer reopens to the project/folder blade
   last used, so switching files stays one click (other blades reopen at the
-  main panel). Panels underneath show as a clean white strip with their edge. Keys: ↑↓ move, → opens, ← / Esc back.
+  main panel). A blade floats: an inset card (6 px from top and bottom), 1 px
+  frame, classic 1 px drop shadow right and bottom; the panel underneath is
+  dimmed away entirely (no strip, no lines), so the blade is the only thing
+  open. Back is a plain « (no box), as in the Library; the drawer's own
+  hamburger stays a plain hamburger. (Settled in builds 70-75.) Keys: ↑↓ move, → opens, ← / Esc back.
   The project row is hidden for standalone documents. Blade slide is a few frames
   on an SE/30, instant on a Plus. 50%
   dither over the canvas behind it.
