@@ -16,6 +16,7 @@ set(SOURCES
     src/journal.c
     src/files.c
     src/library.c
+    src/drawer.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r

@@ -20,9 +20,8 @@ static WindowPtr gWin;
 static Boolean   gShown;                 /* footer */
 static Boolean   gStripShown;            /* top strip */
 static Boolean   gHold;
-static Str63     gFontLabel;             /* the pill: "Monaco" */
-static short     gFontSize;
-static Rect      gPillFont, gPillSize;                  /* the Library is up: draw nothing */
+static Boolean   gShowWords = true, gShowClock = true;   /* Settings */
+                  /* the Library is up: draw nothing */
 static unsigned long gStripUntil;       /* shown briefly (a document opened): hide then */
 static Point     gLastMouse;
 static unsigned long gClockStart, gLastKey;   /* gClockStart 0: not started */
@@ -123,42 +122,21 @@ static void DrawStrip(void)
     w = StringWidth(gTitle);
     MoveTo((gWin->portRect.right - w) / 2, 14);
     DrawString(gTitle);
-    if (gFontLabel[0]) {                 /* font & size pill, right side */
-        unsigned char num[8];
-        short wf, ws, x;
-        NumToString(gFontSize, num);
-        UIFont(3, 9, 0);                 /* Geneva 9 */
-        wf = StringWidth(gFontLabel);
-        ws = StringWidth(num);
-        x = gWin->portRect.right - 10 - (wf + ws + 20);
-        SetRect(&r, x, 3, x + wf + ws + 20, kStripH - 4);
-        FrameRoundRect(&r, 12, 12);
-        SetRect(&gPillFont, r.left, r.top, r.left + wf + 10, r.bottom);
-        SetRect(&gPillSize, gPillFont.right, r.top, r.right, r.bottom);
-        MoveTo(gPillFont.right, r.top + 2);          /* divider */
-        LineTo(gPillFont.right, r.bottom - 3);
-        MoveTo(r.left + 6, 13);
-        DrawString(gFontLabel);
-        MoveTo(gPillSize.left + 5, 13);
-        DrawString(num);
-    }
 }
 
-void Chrome_SetFontLabel(const unsigned char *name, short size)
+const unsigned char *Chrome_Title(void) { return gTitle; }
+
+void Chrome_SetStatusParts(Boolean words, Boolean clock)
 {
-    short i;
-    for (i = 0; i <= name[0] && i < 63; i++) gFontLabel[i] = name[i];
-    gFontSize = size;
-    if (gStripShown && !gHold) { SetPort(gWin); DrawStrip(); }
+    gShowWords = words;
+    gShowClock = clock;
+    if (gShown && !gHold) { SetPort(gWin); DrawStatus(); }
 }
 
-/* A click in the shown strip: 1 = font name, 2 = size, 0 = elsewhere. */
-short Chrome_StripClick(Point pt)
+/* A click in the shown strip: true if on the hamburger (opens the drawer). */
+Boolean Chrome_HamburgerClick(Point pt)
 {
-    if (!gStripShown || gHold || pt.v >= kStripH) return 0;
-    if (PtInRect(pt, &gPillFont)) return 1;
-    if (PtInRect(pt, &gPillSize)) return 2;
-    return 0;
+    return gStripShown && !gHold && pt.v < kStripH && pt.h < 26;
 }
 
 static void DrawDot(void)
@@ -187,17 +165,22 @@ static void DrawStatus(void)
     if (gWords < 0)
         gWords = CountWords();
     s[0] = 0;
-    AppendNum(s, gWords, true);
-    AppendStr(s, gWords == 1 ? " word / " : " words / ");
-    if (secs >= 3600) {
-        AppendNum(s, secs / 3600, false);
-        AppendStr(s, ":");
-        if ((secs / 60) % 60 < 10) AppendStr(s, "0");
+    if (gShowWords) {
+        AppendNum(s, gWords, true);
+        AppendStr(s, gWords == 1 ? " word" : " words");
+        if (gShowClock) AppendStr(s, " / ");
     }
-    AppendNum(s, (secs / 60) % 60, false);
-    AppendStr(s, ":");
-    if (secs % 60 < 10) AppendStr(s, "0");
-    AppendNum(s, secs % 60, false);
+    if (gShowClock) {
+        if (secs >= 3600) {
+            AppendNum(s, secs / 3600, false);
+            AppendStr(s, ":");
+            if ((secs / 60) % 60 < 10) AppendStr(s, "0");
+        }
+        AppendNum(s, (secs / 60) % 60, false);
+        AppendStr(s, ":");
+        if (secs % 60 < 10) AppendStr(s, "0");
+        AppendNum(s, secs % 60, false);
+    }
 
     SetRect(&r, 0, top, kColumnRight - 10, gWin->portRect.bottom);
     EraseRect(&r);

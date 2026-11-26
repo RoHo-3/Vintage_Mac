@@ -24,6 +24,7 @@ Boolean Doc_Reopen(void);       /* launch: reopen it; false = none */
 
 /* For the Library. wd: a working directory (files.h). */
 Boolean Doc_HasFile(void);
+const unsigned char *Doc_Name(void);   /* the file's name (if it has one) */
 Boolean Doc_Location(short *vol, long *dirID);
 Boolean Doc_IsOpen(short wd, const unsigned char *name);
 Boolean Doc_OpenAt(const unsigned char *name, short wd);

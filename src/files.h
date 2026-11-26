@@ -36,6 +36,8 @@ void    Files_ProjectsDir(short *vol, long *dirID);   /* My Projects */
 Boolean Files_WDFor(short vol, long dirID, short *wdRef);
 Boolean Files_DirOfWD(short wdRef, short *vol, long *dirID);
 Boolean Files_IsInside(short vol, long dir, long ancestor);
+Boolean Files_FolderName(short vol, long dir, unsigned char *name);
+Boolean Files_ProjectOf(short vol, long dir, long *project);   /* in My Projects */
 void    Files_SetDialogFolder(short wdRef);
 void    Files_TidyJournals(void);  /* launch: orphaned .history files to the Trash */   /* next SFGetFile/SFPutFile */
 
@@ -71,6 +73,7 @@ typedef struct {
     RecentItem recent[kMaxRecent];   /* newest first; includes the last doc */
     short      fontID;               /* 0 = MDW Mono, else a system font ID */
     short      bodySize;             /* 0 = default */
+    short      hide;                 /* Settings: 1 = no word count, 2 = no clock */
 } Prefs;
 
 Boolean Prefs_Exist(void);           /* false on the very first launch */

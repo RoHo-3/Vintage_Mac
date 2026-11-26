@@ -273,6 +273,40 @@ void Files_TidyJournals(void)
 
 void Files_ProjectsDir(short *vol, long *dirID) { *vol = gProjVol; *dirID = gProjDir; }
 
+/* A folder's name. */
+Boolean Files_FolderName(short vol, long dir, unsigned char *name)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = name;
+    ci.dirInfo.ioVRefNum = vol;
+    ci.dirInfo.ioFDirIndex = -1;         /* the folder itself */
+    ci.dirInfo.ioDrDirID = dir;
+    return PBGetCatInfoSync(&ci) == noErr;
+}
+
+/* The project (top folder in My Projects) that holds dir, if any. */
+Boolean Files_ProjectOf(short vol, long dir, long *project)
+{
+    CInfoPBRec ci;
+    short n;
+    if (vol != gProjVol) return false;
+    for (n = 0; n < 16 && dir > 1; n++) {
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = NULL;
+        ci.dirInfo.ioVRefNum = vol;
+        ci.dirInfo.ioFDirIndex = -1;
+        ci.dirInfo.ioDrDirID = dir;
+        if (PBGetCatInfoSync(&ci) != noErr) return false;
+        if (ci.dirInfo.ioDrParID == gProjDir) {
+            *project = dir;
+            return true;
+        }
+        dir = ci.dirInfo.ioDrParID;
+    }
+    return false;
+}
+
 /* Is dir the folder anc, or inside it? (walks up the parents) */
 Boolean Files_IsInside(short vol, long dir, long anc)
 {
@@ -601,6 +635,7 @@ void Prefs_Load(Prefs *p)
     p->recentCount = 0;
     p->fontID = 0;
     p->bodySize = 0;
+    p->hide = 0;
     if (FSOpen(kPrefsName, gRootWD, &ref) != noErr)
         return;
     FSRead(ref, &n, (Ptr)&tmp);          /* eofErr: an older, shorter file */

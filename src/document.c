@@ -406,6 +406,7 @@ void Doc_ForgetRecent(short wd, const unsigned char *name, const unsigned char *
 }
 
 Boolean Doc_HasFile(void) { return gHasFile; }
+const unsigned char *Doc_Name(void) { return gName; }
 
 Boolean Doc_IsOpen(short wd, const unsigned char *name)
 {
