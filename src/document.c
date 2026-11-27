@@ -307,7 +307,21 @@ static Boolean WriteFile(void)
     n = Enc_Encode(buf, max, &gFmt);
     err = (n < 0) ? -1 : FSOpen(gName, gVRef, &ref);
     if (err == noErr) {
-        long count = n;
+        long count = n, old = 0;
+        /* Room first: grow the file to its new length before writing a
+           byte, so a full disk fails here with the old text still whole
+           (written in place, a longer version could stop part way). */
+        GetEOF(ref, &old);
+        if (n > old && (err = SetEOF(ref, n)) != noErr) {
+            FSClose(ref);
+            DisposePtr(buf);
+            Chrome_SetSaveState(kSaveUnsaved);
+            if (err == dskFulErr)
+                Chrome_ShowMessage((const unsigned char *)"\pDisk is full: not saved", 4);
+            else
+                SysBeep(1);
+            return false;
+        }
         err = SetFPos(ref, fsFromStart, 0);
         if (err == noErr) err = FSWrite(ref, &count, buf);
         if (err == noErr) err = SetEOF(ref, n);
