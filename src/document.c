@@ -631,12 +631,24 @@ Boolean Doc_Reopen(void)
 Boolean Doc_Open(void)
 {
     SFReply reply;
+    GrafPtr port;
     if (!SaveIfNeeded())
         return false;
+    GetPort(&port);
     SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
+    SetPort(port);                       /* our window, not the dialog's */
     if (!reply.good || !OpenFile(reply.fName, reply.vRefNum))
         return false;
     Doc_Remember();
+    return true;
+}
+
+static Boolean FileSize(const unsigned char *name, short wd, long *size)
+{
+    short ref;
+    if (FSOpen(name, wd, &ref) != noErr) return false;
+    GetEOF(ref, size);
+    FSClose(ref);
     return true;
 }
 
@@ -648,10 +660,13 @@ Boolean Doc_Import(void)
     SFReply reply;
     unsigned char base[40], free[40], md[40];
     short v, wd, i, n;
-    long d, nd;
+    long d, nd, srcSize, dstSize;
+    GrafPtr port;
     if (!SaveIfNeeded())
         return false;
+    GetPort(&port);
     SFGetFile(DialogSpot(), (ConstStringPtr)"\p", NULL, -1, NULL, NULL, &reply);
+    SetPort(port);                       /* our window, not the dialog's */
     if (!reply.good)
         return false;
     for (i = 0; i <= reply.fName[0]; i++) base[i] = reply.fName[i];
@@ -668,8 +683,13 @@ Boolean Doc_Import(void)
     }
     for (i = 0; i <= free[0]; i++) md[i] = free[i];
     md[++md[0]] = '.'; md[++md[0]] = 'm'; md[++md[0]] = 'd';
-    if (!Files_CopyTo(reply.vRefNum, reply.fName, wd, md) || !OpenFile(md, wd)) {
-        Files_Trash(v, d, free);         /* nothing half-made left behind */
+    /* the copy must be whole (same size as the original) before it opens;
+       anything less is refused, nothing half-made left behind */
+    if (!Files_CopyTo(reply.vRefNum, reply.fName, wd, md)
+        || !FileSize(reply.fName, reply.vRefNum, &srcSize)
+        || !FileSize(md, wd, &dstSize) || srcSize != dstSize
+        || !OpenFile(md, wd)) {
+        Files_Trash(v, d, free);
         SysBeep(1);
         return false;
     }
