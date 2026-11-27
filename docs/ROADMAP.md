@@ -135,6 +135,17 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   Research, Meeting Notes, Article, Short Story, Novel Project, Script
   (structures designed together; see to-do list)
 
+## Polish (to decide with real use)
+
+- **Does a name follow the first line?** Today: it follows while the app
+  chose the name (quiet naming, New, templates) and stops once a person
+  names it (Cmd-S dialog, Rename, Duplicate's dialog, Import, the Product
+  Guide). Logical, but the state is invisible and may confuse. Options:
+  (a) always follows, like Apple Notes / Bear (names chosen elsewhere
+  would change too); (b) named once at the first save, like TextEdit /
+  Pages; (c) today's rule, made visible (a mark in the title strip or
+  drawer when the name follows). Decide after writing real pieces with it.
+
 ## Readying for release
 
 - Release disk images: an app disk in Disk Copy 4.2 format (writable to a
