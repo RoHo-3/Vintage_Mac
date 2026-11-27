@@ -202,17 +202,22 @@ Boolean LY_Update(long from, long oldLen, long newLen,
     a = LY_LineOf(from);
     while (a > 0 && !(gPara[a] & kParaBit))
         a--;
-    if (a > 0) {
+    /* the line above matters only around an underline: it may be a setext
+       heading now (level > 0), or the edited line is / was an underline */
+    if (a > 0 && ((gPara[a - 1] & kLevelMask) || MD_KIND(gBlk[a]) == MD_FENCE
+                  || MD_MaybeUnderline(gStart[a]))) {
         a--;
         while (a > 0 && !(gPara[a] & kParaBit))
             a--;
     }
-    /* first untouched paragraph after the edited range (old positions),
-       skipping one more (its underline test looks at the line above) */
+    /* first untouched paragraph after the edited range (old positions) */
     b = a + 1;
     while (b < gN && !((gPara[b] & kParaBit) && gStart[b] > from + oldLen))
         b++;
-    if (b < gN) {
+    /* ... and the one after it, if it is (or could become) an underline,
+       whose meaning depends on the line above */
+    if (b < gN && (MD_KIND(gBlk[b]) == MD_FENCE || MD_KIND(gBlk[b]) == MD_RULE
+                   || MD_MaybeUnderline(gStart[b] + delta))) {
         b++;
         while (b < gN && !(gPara[b] & kParaBit))
             b++;

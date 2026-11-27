@@ -250,6 +250,8 @@ static Boolean StartsUnderline(long a)
     return c == '-' || c == '=';
 }
 
+Boolean MD_MaybeUnderline(long a) { return StartsUnderline(a); }
+
 /* A setext underline of a single - or = ("-", "- "): while the writer is
    on that line it's most likely a list item being started, so it doesn't
    turn the line above into a heading until a second - (or the cursor

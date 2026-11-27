@@ -1694,9 +1694,10 @@ static long FindHeading(long from, short dir)
 
 Boolean Ed_HasHeadings(void)
 {
-    short lvl;
-    MD_Parse(0, MD_ParaEnd(0), gShowMarks, &lvl);
-    return lvl > 0 || FindHeading(0, 1) >= 0;
+    long i, n = LY_Count();
+    for (i = 0; i < n; i++)              /* the layout knows each line's level */
+        if (LY_Level(i) > 0) return true;
+    return false;
 }
 
 void Ed_JumpSection(short dir)

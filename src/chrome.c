@@ -106,6 +106,8 @@ static void UIFont(short font, short size, Style face)
     TextFace(face);
 }
 
+static unsigned char gMessage[100];      /* shown in place of the title */
+
 static void DrawStrip(void)
 {
     Rect r;
@@ -118,6 +120,14 @@ static void DrawStrip(void)
         SetRect(&r, 8, 5 + i * 4, 20, 7 + i * 4);
         PaintRect(&r);
     }
+    if (gMessage[0] && TickCount() < gStripUntil) {   /* a passing note */
+        UIFont(3, 9, 0);                  /* Geneva 9: long lines fit */
+        w = StringWidth(gMessage);
+        MoveTo((gWin->portRect.right - w) / 2, 13);
+        DrawString(gMessage);
+        return;
+    }
+    gMessage[0] = 0;
     UIFont(systemFont, 12, bold);
     w = StringWidth(gTitle);
     MoveTo((gWin->portRect.right - w) / 2, 14);
@@ -260,6 +270,18 @@ void Chrome_ShowSaveDot(void)
 }
 
 /* A document just opened: show its name for a moment (~2 s). */
+/* A note in the title strip for a few seconds (the Option-launch timing). */
+void Chrome_ShowMessage(const unsigned char *msg, short seconds)
+{
+    short i;
+    if (!gWin) return;
+    for (i = 0; i <= msg[0] && i < 99; i++) gMessage[i] = msg[i];
+    gStripShown = false;
+    SetStrip(true);
+    GetMouse(&gLastMouse);
+    gStripUntil = TickCount() + 60L * seconds;
+}
+
 void Chrome_ShowTitleBriefly(void)
 {
     if (!gWin) return;

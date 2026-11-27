@@ -42,6 +42,7 @@
 #define kCodeIndent  12     /* code block indent */
 
 unsigned char MD_Block(void);
+Boolean MD_MaybeUnderline(long pos);     /* line at pos starts with - or = */
 short MD_Indent(unsigned char blk);      /* text indent for a block, pixels */
 
 /* Whether a ``` block is open before position start (a paragraph start).

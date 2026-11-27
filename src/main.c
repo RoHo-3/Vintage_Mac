@@ -47,44 +47,82 @@ static Boolean   gIBeam = false;
 static const char kWelcome[] =
     "# Product Guide\r"
     "\r"
-    "Mac MD Write writes **live Markdown**: headings at their own sizes, "
-    "**bold**, *italic* and `code`. The markers are hidden; Command-M "
-    "shows them for this document (a heading's # signs hang in the left "
-    "margin) and hides them again. The arrow keys and Delete step over "
-    "hidden markers.\r"
+    "Mac MD Write is a quiet Markdown writer for the compact Macs. This "
+    "guide is an ordinary document: edit it, keep it, or move it to the "
+    "Trash.\r"
     "\r"
-    "## Things to try\r"
+    "## This build adds\r"
     "\r"
-    "Start a new line with # and a space to make a heading. Select with the "
-    "mouse or Shift-arrows; double-click selects a word. Command-Z and "
-    "Shift-Command-Z undo and redo. Cut, Copy and Paste use the Mac "
-    "clipboard.\r"
+    "- Every writing is a folder in the Library: the New tile starts one, "
+    "and it can grow into a project with more documents and folders.\r"
+    "- Import copies a Markdown file from anywhere into a writing of its own.\r"
+    "- Settings: Move Library and Back Up Library.\r"
+    "- Hold Option while launching to see how long launch took.\r"
     "\r"
-    "### Heading three\r"
-    "#### Heading four\r"
-    "##### Heading five\r"
-    "###### Heading six\r"
+    "## Writing\r"
+    "\r"
+    "Markdown shows as you type: the markers hide and the text takes its "
+    "style. Command-M shows the markers for this document, and hides them "
+    "again. The arrow keys and Delete step over hidden markers.\r"
+    "\r"
+    "Inline: **bold** (Command-B), *italic* (Command-I), `code` "
+    "(Command-E), ~~struck~~ (Shift-Command-X). A backslash keeps a "
+    "character plain: \\*not italic\\*.\r"
+    "\r"
+    "## Paragraphs\r"
+    "\r"
+    "Start a line with # and a space for a heading; ## to ###### for the "
+    "smaller ones (Option-Command-1 to 6; Option-Command-0 for plain text).\r"
+    "\r"
+    "> A quote starts with > (Shift-Command-').\r"
+    "\r"
+    "- A bullet starts with - (Shift-Command-8)\r"
+    "  - Tab nests it, Shift-Tab brings it back\r"
+    "1. A number starts with 1. (Shift-Command-7)\r"
+    "- [ ] A task starts with - [ ] (Shift-Command-9); click its box\r"
+    "\r"
+    "Return continues a list or quote; Return on an empty item ends it. "
+    "Three dashes on a line make a rule:\r"
+    "\r"
+    "---\r"
+    "\r"
+    "Three backticks on a line start a code block, and three more end it.\r"
+    "\r"
+    "## The pill and Command-K\r"
+    "\r"
+    "Select text with the mouse and a pill appears: Cut, Copy, Paste and "
+    "Format. Press and hold on the page for Paste and Select All. "
+    "Command-K opens the command palette: type a few letters of anything "
+    "the app can do.\r"
+    "\r"
+    "## The drawer\r"
+    "\r"
+    "Command-\\ (or the three bars at the top left) opens the drawer: the "
+    "writing this document is in, its Sections (headings), Settings, the "
+    "Library and Quit.\r"
+    "\r"
+    "## The Library\r"
+    "\r"
+    "Command-O opens the Library: Templates, My Writings and Recent. Click "
+    "a + tile once to make something new; double-click a folder to open "
+    "it, or a document to write in it. Command-N opens the Library with "
+    "New picked: press Return.\r"
+    "\r"
+    "## Saving\r"
+    "\r"
+    "A new page is named when you first pause: the writing and its first "
+    "document take their name from your first line (Command-S names it "
+    "yourself). After that it saves itself whenever you pause, and "
+    "Command-Q saves and quits. Your last document reopens where you left "
+    "off. Files are plain UTF-8 Markdown, so they round-trip with modern "
+    "editors; each keeps an invisible history beside it.\r"
     "\r"
     "## Quiet chrome\r"
     "\r"
-    "The menu bar is gone. Pause or move the mouse and a footer appears: "
-    "word count, session clock, and the save dot (a ring means unsaved, "
-    "dithered means saving, solid means saved). Move the mouse to the top "
-    "edge for the title strip. Type and they vanish.\r"
-    "\r"
-    "## Files\r"
-    "\r"
-    "Command-O opens the Library: templates, My Writings and recent files. "
-    "Every writing is a folder: the New tile (or Command-N, then Return) "
-    "starts one on a blank page. Name it with Command-S, or just write: "
-    "when you pause, the writing and its first document take their name "
-    "from your first line. Double-click a writing to see inside, a "
-    "document to write in it. Import copies a Markdown file from anywhere "
-    "into a writing of its own. Quit and relaunch: your last "
-    "document reopens where you left off. Once a document has a file it saves itself when you pause "
-    "typing, so Command-Q saves and quits. Files stay UTF-8 with their "
-    "original line endings, so they round-trip with modern editors. "
-    "Characters the Mac can't show appear as a box and are kept exactly.\r"
+    "There is no menu bar. Pause or move the mouse and a footer appears: "
+    "word count, session clock and the save dot (a ring is unsaved, "
+    "dithered is saving, solid is saved). The top edge shows the title. "
+    "Type and they vanish.\r"
     "\r"
     "Font: ";
 #define STR2(x) #x
@@ -432,6 +470,10 @@ static void HandleEvent(EventRecord *ev)
                 Palette_Redraw();
             }
             EndUpdate(gWindow);
+            if (gTiming) {               /* Option held at launch */
+                gT[tDraw] = TickCount();
+                ShowTiming();
+            }
         }
         break;
     case activateEvt:
@@ -457,13 +499,64 @@ static void HandleEvent(EventRecord *ev)
     }
 }
 
+/* ---- launch timing: hold Option while launching to see where the time
+   goes (the performance passes measure before they change anything) ---- */
+
+enum { tStart, tToolbox, tEditor, tFiles, tTidy, tInit, tOpen, tDraw, tCount };
+static unsigned long gT[tCount];
+static Boolean gTiming;
+
+static Boolean OptionDown(void)
+{
+    KeyMap k;
+    GetKeys(k);
+    return (((unsigned char *)k)[0x3A >> 3] >> (0x3A & 7)) & 1;   /* Option */
+}
+
+static void AddTenths(unsigned char *s, const char *label, unsigned long ticks)
+{
+    unsigned long t = (ticks * 10 + 30) / 60;      /* tenths of a second */
+    const char *c = label;
+    if (s[0]) { s[++s[0]] = ','; s[++s[0]] = ' '; }
+    while (*c) s[++s[0]] = (unsigned char)*c++;
+    s[++s[0]] = ' ';
+    if (t >= 100) s[++s[0]] = (unsigned char)('0' + t / 100 % 10);
+    s[++s[0]] = (unsigned char)('0' + t / 10 % 10);
+    s[++s[0]] = '.';
+    s[++s[0]] = (unsigned char)('0' + t % 10);
+}
+
+/* After the first full draw: "Launch 4.2: toolbox 0.1, editor 0.3, ..." */
+static void ShowTiming(void)
+{
+    unsigned char m[100];
+    static const char *kLabel[tCount] = { "", "toolbox", "editor", "files", "journals",
+                                          "setup", "open", "draw" };
+    short i;
+    m[0] = 0;
+    AddTenths(m, "Launch", gT[tDraw] - gT[tStart]);
+    m[++m[0]] = ':';
+    {
+        unsigned char rest[100];
+        rest[0] = 0;
+        for (i = 1; i < tCount; i++)
+            AddTenths(rest, kLabel[i], gT[i] - gT[i - 1]);
+        for (i = 1; i <= rest[0] && m[0] < 98; i++) m[++m[0]] = rest[i];
+    }
+    Chrome_ShowMessage(m, 10);
+    gTiming = false;
+}
+
 int main(void)
 {
     EventRecord ev;
     Boolean gotEvent;
 
+    gT[tStart] = TickCount();
     InitMemory();
     InitToolbox();
+    gTiming = OptionDown();
+    gT[tToolbox] = TickCount();
     gHasWNE = HasWaitNextEvent();
     OpenCanvas();
     Chrome_Init(gWindow);
@@ -471,9 +564,12 @@ int main(void)
         SysBeep(1);              /* not enough memory for the text buffer */
         return 1;
     }
+    gT[tEditor] = TickCount();
     Files_Init();                /* Writings beside the app (or where it moved) */
     Files_WrapLoose();           /* every writing is a folder */
+    gT[tFiles] = TickCount();
     Files_TidyJournals();        /* journals whose document left via the Finder */
+    gT[tTidy] = TickCount();
     {
         Prefs p;                 /* the font and size chosen last time */
         Prefs_Load(&p);
@@ -486,6 +582,7 @@ int main(void)
     Drawer_Init(gWindow);
     Pill_Init(gWindow);
     Palette_Init(gWindow);
+    gT[tInit] = TickCount();
     if (Doc_Reopen()) {
         /* back where you left off */
     } else if (Prefs_Exist()) {
@@ -503,6 +600,7 @@ int main(void)
         Ed_SetText(buf, n1 + n2);
         Doc_SaveNewWriting(PSTR("\pProduct Guide.md"));
     }
+    gT[tOpen] = TickCount();
 
     while (!gQuit) {
         if (gHasWNE) {

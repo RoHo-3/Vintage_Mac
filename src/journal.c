@@ -318,18 +318,49 @@ short JR_Recover(void)
     fileHash = JR_Hash();
     TB_Copy(0, fileLen, fileText);
 
-    for (i = 0; i + 7 <= n; i += 5 + len + 2) {
-        len = (long)Get32(buf + i + 1);
-        if (len < 0 || i + 5 + len + 2 > n) break;          /* torn tail */
-        payload = buf + i + 5;
-        if (Sum(payload, len) != (unsigned short)((payload[len] << 8) | payload[len + 1]))
-            break;                                           /* damaged */
-        switch (buf[i]) {
-        case 'S':
-            if (len >= 4 && TB_Replace(0, TB_Len(), (char *)payload + 4, len - 4))
-                replayed = true;
-            break;
-        case 'E':
+    /* Pass 1: walk the records' headers to find the last snapshot; the
+       small records (prefs, renames, checkpoint hashes) are read here, as
+       they matter wherever they are. Pass 2 replays from that snapshot
+       only, so opening a long-lived document doesn't redo its whole past. */
+    {
+        long lastS = -1, end = 0;
+        for (i = 0; i + 7 <= n; i += 5 + len + 2) {
+            len = (long)Get32(buf + i + 1);
+            if (len < 0 || i + 5 + len + 2 > n) break;      /* torn tail */
+            payload = buf + i + 5;
+            if (buf[i] == 'S') { lastS = i; end = i + 5 + len + 2; continue; }
+            if (buf[i] == 'E') { end = i + 5 + len + 2; continue; }
+            if (Sum(payload, len) != (unsigned short)((payload[len] << 8) | payload[len + 1]))
+                break;                                       /* damaged */
+            end = i + 5 + len + 2;
+            switch (buf[i]) {
+            case 'P':
+                if (len >= 1) gPrefs = payload[0];
+                break;
+            case 'F':                    /* renamed by hand */
+                gPrefs &= ~kPrefNameFollows;
+                break;
+            case 'C':
+                if (len >= 12 && nHashes < 64)
+                    hashes[nHashes++] = Get32(payload + 8);
+                else if (len >= 12) {
+                    BlockMove(&hashes[1], &hashes[0], 63 * sizeof(unsigned long));
+                    hashes[63] = Get32(payload + 8);
+                }
+                break;
+            }
+        }
+        for (i = lastS; i >= 0 && i + 7 <= end; i += 5 + len + 2) {
+            len = (long)Get32(buf + i + 1);
+            payload = buf + i + 5;
+            if (buf[i] != 'S' && buf[i] != 'E') continue;
+            if (Sum(payload, len) != (unsigned short)((payload[len] << 8) | payload[len + 1]))
+                break;                                       /* damaged */
+            if (buf[i] == 'S') {
+                if (len >= 4 && TB_Replace(0, TB_Len(), (char *)payload + 4, len - 4))
+                    replayed = true;
+                continue;
+            }
             for (k = 4; replayed && k + 12 <= len; ) {
                 long pos = (long)Get32(payload + k), del = (long)Get32(payload + k + 4);
                 long ins = (long)Get32(payload + k + 8);
@@ -341,23 +372,8 @@ short JR_Recover(void)
                 }
                 k += 12 + ins;
             }
-            break;
-        case 'P':
-            if (len >= 1) gPrefs = payload[0];
-            break;
-        case 'F':                        /* renamed by hand */
-            gPrefs &= ~kPrefNameFollows;
-            break;
-        case 'C':
-            if (len >= 12 && nHashes < 64)
-                hashes[nHashes++] = Get32(payload + 8);
-            else if (len >= 12) {
-                BlockMove(&hashes[1], &hashes[0], 63 * sizeof(unsigned long));
-                hashes[63] = Get32(payload + 8);
-            }
-            break;
+            if (!replayed) break;
         }
-        if (!replayed && buf[i] == 'E') break;
     }
 
     if (replayed && JR_Hash() != fileHash) {
