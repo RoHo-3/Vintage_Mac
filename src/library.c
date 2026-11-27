@@ -968,6 +968,12 @@ void Lib_Close(void)
 
 Boolean Lib_IsOpen(void) { return gOpen; }
 
+/* The drawer's New Folder... asks with the same dialog. */
+Boolean Lib_AskFolderName(unsigned char *name)
+{
+    return AskName(false, name);
+}
+
 /* The library moved: browse from its new top. */
 void Lib_Reset(void)
 {

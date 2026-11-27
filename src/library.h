@@ -24,6 +24,7 @@ void    Lib_OpenNew(void);      /* Cmd-N: New picked; Return (or
 void    Lib_Close(void);         /* back to writing */
 Boolean Lib_IsOpen(void);
 void    Lib_Reset(void);         /* after Move Library */
+Boolean Lib_AskFolderName(unsigned char *name);   /* the New Folder dialog */
 void    Lib_Draw(void);
 void    Lib_Key(EventRecord *ev);
 void    Lib_Click(Point local, EventRecord *ev);

@@ -121,7 +121,12 @@ interface is visually distinct from the prose.
   dimmed away entirely (no strip, no lines), so the blade is the only thing
   open. Back is a plain « (no box), as in the Library; the drawer's own
   hamburger stays a plain hamburger. (Settled in builds 70-75.) Keys: ↑↓ move, → opens, ← / Esc back.
-  The project row is hidden for standalone documents. Blade slide is a few frames
+  The writing row (the folder the open document is in) is hidden for a page
+  not yet saved. Rows that list files carry a small icon at the front, a
+  folder for writings and folders and a page for documents, as in the
+  Finder's list views; `›` at the end means "opens another level". Sections
+  is greyed until the document has a heading. A writing's blade ends with
+  New Document and (one level of folders) New Folder…. Blade slide is a few frames
   on an SE/30, instant on a Plus. 50%
   dither over the canvas behind it.
 - **Command palette (Cmd+K):** ~260×170 centered card, substring filtering,

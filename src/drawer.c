@@ -30,7 +30,7 @@ static short gY;                         /* top of the panel being drawn: 0, or 
 
 enum { kRoot, kProject, kFolder, kSections, kSettings };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
-       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup };
+       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup, aNewFolder };
 
 typedef struct {
     short kind;
@@ -45,6 +45,7 @@ typedef struct {
     short   act;
     long    arg;                         /* folder dirID / text position */
     char    arrow, check, checked, current, indent, sep;
+    char    icon;                        /* 'f' folder, 'd' document, 0 none */
 } Row;
 
 #define kMaxDepth 3                      /* drawer -> project -> one folder */
@@ -106,6 +107,7 @@ static Row *AddRow(const char *text, short act, long arg)
     r->act = act;
     r->arg = arg;
     r->arrow = r->check = r->checked = r->current = r->indent = r->sep = 0;
+    r->icon = 0;
     return r;
 }
 
@@ -133,6 +135,7 @@ static void BuildFolderRows(long dir, Boolean allowFolders)
         if (!r) break;
         CopyP(name, r->text, 31);
         CopyP(items[i].name, r->file, 31);
+        r->icon = items[i].isFolder ? 'f' : 'd';
         if (items[i].isFolder) {
             r->arrow = 1;
             if (!allowFolders) r->act = aNone;       /* three levels at most */
@@ -182,8 +185,10 @@ static void BuildRows(void)
             r = AddRow("", aPush, proj);
             CopyP(name, r->text, 31);
             r->arrow = 1;
+            r->icon = 'f';                   /* the writing this document is in */
         }
-        r = AddRow("Sections", aPush, -kSections); r->arrow = 1;
+        r = AddRow("Sections", Ed_HasHeadings() ? aPush : aNone, -kSections);
+        r->arrow = 1;                        /* greyed until there are headings */
         r = AddRow("Settings", aPush, -kSettings); r->arrow = 1;
         r = AddRow("", aNone, 0); r->sep = 1;
         r = AddRow("Library\311", aLibrary, 0); CStr("Cmd-O", r->value);
@@ -196,6 +201,8 @@ static void BuildRows(void)
         BuildFolderRows(b->dir, b->kind == kProject && gDepth < kMaxDepth);
         r = AddRow("", aNone, 0); if (r) r->sep = 1;
         r = AddRow("New Document", aNewDoc, b->dir);     /* the writing grows */
+        if (b->kind == kProject && gDepth < kMaxDepth)   /* one level of folders */
+            AddRow("New Folder\311", aNewFolder, b->dir);
         break;
     case kSections:
         CStr("Sections", gBladeTitle);
@@ -317,6 +324,19 @@ static void DrawRow(short i, short x, short y, Boolean sel)
         return;
     }
     UIFont(kGeneva, 10, 0);
+    if (r->icon) {                       /* small folder or page, as in the
+                                            Finder's list views */
+        if (r->icon == 'f') {
+            MoveTo(tx, y + 5); LineTo(tx + 3, y + 5); LineTo(tx + 4, y + 4);
+            LineTo(tx + 6, y + 4); LineTo(tx + 7, y + 5); LineTo(tx + 10, y + 5);
+            LineTo(tx + 10, y + 12); LineTo(tx, y + 12); LineTo(tx, y + 5);
+        } else {
+            MoveTo(tx + 1, y + 3); LineTo(tx + 6, y + 3); LineTo(tx + 9, y + 6);
+            LineTo(tx + 9, y + 13); LineTo(tx + 1, y + 13); LineTo(tx + 1, y + 3);
+            MoveTo(tx + 6, y + 3); LineTo(tx + 6, y + 6); LineTo(tx + 9, y + 6);
+        }
+        tx += 15;
+    }
     if (r->check) {
         Rect c;
         SetRect(&c, tx, y + 4, tx + 9, y + 13);
@@ -499,6 +519,17 @@ static void Activate(short i)
         Drawer_Close();
         Doc_SetNewFolder(wd);
         Doc_New();
+        break;
+    }
+    case aNewFolder: {                   /* inside a writing: chapters, say */
+        unsigned char name[40];
+        short vol;
+        long proj, nd;
+        Boolean ok = Lib_AskFolderName(name);
+        Files_ProjectsDir(&vol, &proj);
+        if (ok && !Files_NewFolder(vol, r->arg, name, &nd))
+            SysBeep(1);                  /* the name is taken */
+        Drawer_Draw();                   /* the dialog drew over the drawer */
         break;
     }
     case aMoveLib:
