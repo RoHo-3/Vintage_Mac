@@ -218,10 +218,13 @@ void App_MoveLibrary(void)
     SetPort(gWindow);
     InvalRect(&gWindow->portRect);       /* the dialog drew over the page */
     if (!reply.good) return;
+    SetCursor(*GetCursor(watchCursor));  /* another disk: copying takes a while */
     if (!Files_MoveLibrary(reply.vRefNum, reply.fName)) {
+        InitCursor();
         SysBeep(1);                      /* inside itself, a name taken, disk full */
         return;
     }
+    InitCursor();
     {
         unsigned long clock = Chrome_ClockStart();   /* the session goes on */
         Files_Init();                    /* the library's new home */
@@ -232,6 +235,28 @@ void App_MoveLibrary(void)
         }
         Chrome_SetClockStart(clock);
     }
+}
+
+/* Settings > Back Up Library...: a dated copy of the whole library in a
+   folder you pick, on any disk: a snapshot, and a way back if a disk or
+   the Mac fails. Writing goes on where it was. */
+void App_BackupLibrary(void)
+{
+    SFReply reply;
+    Point where;
+    unsigned char name[40];
+    Boolean ok;
+    if (!Doc_CanQuit()) return;          /* the open document, saved first */
+    Files_BackupName(name);
+    SetPt(&where, 80, 60);
+    SFPutFile(where, PSTR("\pBack up the library into this folder as:"), name, NULL, &reply);
+    SetPort(gWindow);
+    InvalRect(&gWindow->portRect);       /* the dialog drew over the page */
+    if (!reply.good) return;
+    SetCursor(*GetCursor(watchCursor));  /* copying can take a while */
+    ok = Files_BackupLibrary(reply.vRefNum, reply.fName);
+    InitCursor();
+    if (!ok) SysBeep(1);                 /* inside itself, a name taken, disk full */
 }
 
 void App_Quit(void)

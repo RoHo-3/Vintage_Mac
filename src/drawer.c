@@ -30,7 +30,7 @@ static short gY;                         /* top of the panel being drawn: 0, or 
 
 enum { kRoot, kProject, kFolder, kSections, kSettings };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
-       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib };
+       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup };
 
 typedef struct {
     short kind;
@@ -203,16 +203,18 @@ static void BuildRows(void)
         break;
     case kSettings:
         CStr("Settings", gBladeTitle);
+        /* three groups under grey headings: the app, the library, this
+           document (shortcuts at the right, as for Library and Quit) */
+        AddRow("App", aNone, 0);
         r = AddRow("Font", aFont, 0);  App_FontName(r->value);
         r = AddRow("Size", aSize, 0);  NumToString(Ed_BodySize(), r->value);
-        r = AddRow("", aNone, 0); r->sep = 1;
         r = AddRow("Word count", aWords, 0);    r->check = 1; r->checked = gWords;
         r = AddRow("Session clock", aClock, 0); r->check = 1; r->checked = gClock;
         r = AddRow("", aNone, 0); r->sep = 1;
+        AddRow("Library", aNone, 0);
         r = AddRow("Move Library\311", aMoveLib, 0);
         if (!Files_LibraryPlace(r->value)) r->value[0] = 0;   /* the folder it's in */
-        /* per-document settings under their own grey heading; the shortcut
-           at the right, as the drawer shows for Library and Quit */
+        AddRow("Back Up Library\311", aBackup, 0);
         r = AddRow("", aNone, 0); r->sep = 1;
         AddRow("This document", aNone, 0);
         r = AddRow("Show Markdown", aMarks, 0); r->check = 1; r->checked = Ed_ShowMarks();
@@ -503,6 +505,10 @@ static void Activate(short i)
     case aMoveLib:
         Drawer_Close();
         App_MoveLibrary();
+        break;
+    case aBackup:
+        Drawer_Close();
+        App_BackupLibrary();
         break;
     }
 }

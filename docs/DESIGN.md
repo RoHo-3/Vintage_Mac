@@ -467,6 +467,15 @@ original goes to the Trash. Where it went is kept in "Mac MD Write Library"
 in the Preferences folder (System Folder on System 6). Documents, journals,
 templates and prefs always move together.
 
+**Back Up Library…** (Settings) copies, never moves, the whole library into
+a folder you pick on any disk, named by date ("Writings 2026-11-26"): a
+snapshot, and a way back if a disk or the Mac fails. The open document is
+saved first; the library goes on where it is; a failed copy is removed.
+
+**Settings blade** groups, under grey headings: **App** (Font, Size, Word
+count, Session clock), **Library** (Move Library…, Back Up Library…),
+**This document** (Show Markdown, Cmd-M).
+
 **Export** on a project writes one combined `.md` (documents in project
 order) — the way to assemble a manuscript. A destructive Merge command is
 deliberately on hold; combining is covered by this export.

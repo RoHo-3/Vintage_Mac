@@ -103,6 +103,9 @@
 - Library polish (done locally): lighter + and up symbols, one click on
   + and up tiles, "New" instead of "New Writing", one 23-character name
   limit cut at whole words (Rename stops there too).
+- Settings blade in three groups (App, Library, This document); **Back Up
+  Library…** copies the whole library, dated, to any folder or disk (done
+  locally). Later, perhaps: a "Use a Backup…" to switch to one.
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
 

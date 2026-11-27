@@ -1021,3 +1021,44 @@ Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *d
     *dir = ci.dirInfo.ioDrDirID;
     return true;
 }
+
+/* Settings > Back Up Library...: the whole library (documents, journals,
+   templates, prefs) copied, never moved, into (destWD) as name, on any disk.
+   The library goes on where it is; a failed copy is removed again. */
+Boolean Files_BackupLibrary(short destWD, ConstStr255Param name)
+{
+    short dvol;
+    long ddir, nd;
+    if (!WDInfo(destWD, &dvol, &ddir)) return false;
+    if (dvol == gRootVol && Files_IsInside(dvol, ddir, gRootDir)) return false;   /* into itself */
+    if (Files_Exists(dvol, ddir, name)) return false;
+    gMapN = 0;
+    if (!CopyTree(gRootVol, gRootDir, dvol, ddir, name, &nd, 0)) {
+        Files_Trash(dvol, ddir, name);   /* half a backup is no backup */
+        return false;
+    }
+    return true;
+}
+
+/* "Writings 2026-11-26": a backup's default name. */
+void Files_BackupName(unsigned char *name)
+{
+    DateTimeRec d;
+    unsigned long secs;
+    short n = 0;
+    const char *w = "Writings ";
+    GetDateTime(&secs);
+    SecondsToDate(secs, &d);
+    while (*w) name[++n] = (unsigned char)*w++;
+    name[++n] = (unsigned char)('0' + d.year / 1000);
+    name[++n] = (unsigned char)('0' + d.year / 100 % 10);
+    name[++n] = (unsigned char)('0' + d.year / 10 % 10);
+    name[++n] = (unsigned char)('0' + d.year % 10);
+    name[++n] = '-';
+    name[++n] = (unsigned char)('0' + d.month / 10);
+    name[++n] = (unsigned char)('0' + d.month % 10);
+    name[++n] = '-';
+    name[++n] = (unsigned char)('0' + d.day / 10);
+    name[++n] = (unsigned char)('0' + d.day % 10);
+    name[0] = (unsigned char)n;
+}

@@ -10,5 +10,6 @@ void App_StepSize(short dir);             /* body size up (1) / down (-1) */
 void App_SetStatusParts(Boolean words, Boolean clock);   /* Settings, saved */
 void App_Quit(void);
 void App_MoveLibrary(void);               /* Settings: Move Library... */
+void App_BackupLibrary(void);             /* Settings: Back Up Library... */
 
 #endif

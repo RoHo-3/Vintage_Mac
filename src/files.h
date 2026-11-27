@@ -71,6 +71,8 @@ void    Files_WrapLoose(void);       /* launch: loose documents get a folder eac
    Files_Init afterwards. */
 Boolean Files_MoveLibrary(short destWD, ConstStr255Param name);
 Boolean Files_LibraryPlace(unsigned char *name);   /* the folder it's in */
+Boolean Files_BackupLibrary(short destWD, ConstStr255Param name);   /* a copy */
+void    Files_BackupName(unsigned char *name);         /* "Writings 2026-11-26" */
 Boolean Files_LibraryName(unsigned char *name);
 Boolean Files_LibraryParentWD(short *wd);
 
