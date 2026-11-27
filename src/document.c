@@ -885,3 +885,65 @@ void Doc_ToggleMarks(void)
     if (gHasFile && Ed_ChangeWeight() == 0)
         JR_Checkpoint(Ed_Caret(), NULL); /* nothing else pending: write it now */
 }
+
+/* ---- history ------------------------------------------------------------- */
+
+/* "Nov 27 16.24": a version's time, short enough for a file name (a colon
+   is the HFS path separator). */
+void Doc_VersionStamp(unsigned long secs, unsigned char *out)
+{
+    static const char kMon[] = "JanFebMarAprMayJunJulAugSepOctNovDec";
+    DateTimeRec d;
+    short n = out[0], m;
+    SecondsToDate(secs, &d);
+    m = (d.month >= 1 && d.month <= 12) ? d.month - 1 : 0;
+    out[++n] = (unsigned char)kMon[m * 3];
+    out[++n] = (unsigned char)kMon[m * 3 + 1];
+    out[++n] = (unsigned char)kMon[m * 3 + 2];
+    out[++n] = ' ';
+    if (d.day >= 10) out[++n] = (unsigned char)('0' + d.day / 10);
+    out[++n] = (unsigned char)('0' + d.day % 10);
+    out[++n] = ' ';
+    if (d.hour >= 10) out[++n] = (unsigned char)('0' + d.hour / 10);
+    out[++n] = (unsigned char)('0' + d.hour % 10);
+    out[++n] = '.';
+    out[++n] = (unsigned char)('0' + d.minute / 10);
+    out[++n] = (unsigned char)('0' + d.minute % 10);
+    out[0] = (unsigned char)n;
+}
+
+/* History: a past version of this document becomes a new document beside
+   it, "Name (Nov 27 16.24)", and opens. The current document is never
+   changed, so nothing is lost; the writer reads, copies from it or
+   deletes it. */
+Boolean Doc_OpenVersion(Ptr text, long len, unsigned long secs)
+{
+    unsigned char base[40], name[40], free[40];
+    short wd = gVRef, vol, i;
+    long dir;
+    if (!gHasFile || !SaveIfNeeded() || !Files_DirOfWD(wd, &vol, &dir))
+        return false;
+    BaseOf(gName, base);
+    name[0] = 0;
+    name[++name[0]] = ' ';
+    name[++name[0]] = '(';
+    Doc_VersionStamp(secs, name);
+    name[++name[0]] = ')';
+    Files_FitNameTo(base, kNameMax - name[0]);
+    for (i = 1; i <= name[0]; i++) base[++base[0]] = name[i];
+    if (!Files_FreeName(vol, dir, base, free)) return false;
+    free[++free[0]] = '.'; free[++free[0]] = 'm'; free[++free[0]] = 'd';
+    gHasFile = false;
+    JR_Detach();
+    Doc_Init();
+    Ed_SetShowMarks(false);
+    if (!Ed_SetText(text, len)) return false;
+    Chrome_TextChanged();
+    Chrome_ResetClock();
+    if (!BecomeFile(free, wd, false) || !Doc_Save())
+        return false;
+    JR_Checkpoint(Ed_Caret(), "Restored from history");
+    Doc_Remember();
+    Chrome_ShowTitleBriefly();
+    return true;
+}

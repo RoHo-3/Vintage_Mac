@@ -400,3 +400,140 @@ short JR_Recover(void)
     DisposePtr(fileText);
     return result;
 }
+
+/* ---- history (the drawer's History blade) -------------------------------- */
+
+/* Read the whole journal into a new block (NULL: none, or too big). */
+static unsigned char *ReadAll(long *n)
+{
+    short ref;
+    long size;
+    unsigned char *buf;
+    *n = 0;
+    if (!gAttached || FSOpen(gName, gVRef, &ref) != noErr) return NULL;
+    GetEOF(ref, &size);
+    if (size < 13 || size > kMaxJournal) { FSClose(ref); return NULL; }
+    buf = (unsigned char *)NewPtr(size);
+    if (buf) {
+        *n = size;
+        FSRead(ref, n, buf);
+    }
+    FSClose(ref);
+    return buf;
+}
+
+static Boolean RecordOK(const unsigned char *buf, long i, long n, long *len)
+{
+    const unsigned char *payload = buf + i + 5;
+    if (i + 7 > n) return false;
+    *len = (long)Get32(buf + i + 1);
+    if (*len < 0 || i + 5 + *len + 2 > n) return false;      /* torn tail */
+    return Sum(payload, *len) == (unsigned short)((payload[*len] << 8) | payload[*len + 1]);
+}
+
+/* The versions worth showing, oldest first: every named checkpoint, the
+   last one before a pause of ten minutes or more (the end of a sitting),
+   and the newest. At most max, the newest kept. */
+short JR_Versions(JRVersion *out, short max)
+{
+    long n, i, len;
+    unsigned char *buf = ReadAll(&n);
+    short count = 0, k;
+    JRVersion pend;
+    Boolean have = false;
+    if (!buf) return 0;
+    for (i = 0; RecordOK(buf, i, n, &len); i += 5 + len + 2) {
+        const unsigned char *p = buf + i + 5;
+        if (buf[i] != 'C' || len < 17) continue;
+        if (have && (pend.label[0] > 0 || Get32(p) >= pend.time + 600)) {
+            if (count == max) {          /* full: drop the oldest */
+                for (k = 1; k < max; k++) out[k - 1] = out[k];
+                count--;
+            }
+            out[count++] = pend;
+        }
+        pend.time = Get32(p);
+        pend.length = (long)Get32(p + 4);
+        pend.end = i + 5 + len + 2;
+        k = p[16];
+        if (k > 31 || 17 + k > len) k = 0;
+        pend.label[0] = (unsigned char)k;
+        BlockMove(p + 17, pend.label + 1, k);
+        have = true;
+    }
+    if (have && max > 0) {               /* the newest always shows */
+        if (count == max) {
+            for (k = 1; k < max; k++) out[k - 1] = out[k];
+            count--;
+        }
+        out[count++] = pend;
+    }
+    DisposePtr((Ptr)buf);
+    return count;
+}
+
+/* A flat text being rebuilt, grown as it needs. */
+static Boolean Apply(Ptr *t, long *len, long *cap, long pos, long del,
+                     const unsigned char *ins, long nIns)
+{
+    long need = *len - del + nIns;
+    if (pos < 0 || del < 0 || nIns < 0 || pos + del > *len) return false;
+    if (need > *cap) {
+        long c = need + need / 4 + 1024;
+        Ptr p = NewPtr(c);
+        if (!p) return false;
+        BlockMove(*t, p, *len);
+        DisposePtr(*t);
+        *t = p;
+        *cap = c;
+    }
+    BlockMove(*t + pos + del, *t + pos + nIns, *len - pos - del);
+    if (nIns) BlockMove(ins, *t + pos, nIns);
+    *len = need;
+    return true;
+}
+
+/* The document's text as it stood at a version (its end, from
+   JR_Versions): the last snapshot before it, then the edits up to it.
+   A new block in *text (the caller disposes it); false if it can't be
+   rebuilt (damaged, or not enough memory). */
+Boolean JR_BuildVersion(long end, Ptr *text, long *textLen)
+{
+    long n, i, len, lastS = -1, k, cap = 0, tlen = 0;
+    unsigned char *buf = ReadAll(&n);
+    Ptr t = NULL;
+    Boolean ok = true;
+    *text = NULL;
+    *textLen = 0;
+    if (!buf) return false;
+    if (end > n) end = n;
+    for (i = 0; i < end && RecordOK(buf, i, n, &len); i += 5 + len + 2)
+        if (buf[i] == 'S') lastS = i;
+    if (lastS < 0) { DisposePtr((Ptr)buf); return false; }
+    for (i = lastS; ok && i < end && RecordOK(buf, i, n, &len); i += 5 + len + 2) {
+        const unsigned char *p = buf + i + 5;
+        if (buf[i] == 'S' && len >= 4) {
+            if (t) DisposePtr(t);
+            cap = len - 4 + 1024;
+            t = NewPtr(cap);
+            if (!t) { ok = false; break; }
+            BlockMove(p + 4, t, len - 4);
+            tlen = len - 4;
+        } else if (buf[i] == 'E' && t) {
+            for (k = 4; k + 12 <= len; ) {
+                long pos = (long)Get32(p + k), del = (long)Get32(p + k + 4);
+                long ins = (long)Get32(p + k + 8);
+                if (k + 12 + ins > len || !Apply(&t, &tlen, &cap, pos, del, p + k + 12, ins)) {
+                    ok = false;
+                    break;
+                }
+                k += 12 + ins;
+            }
+        }
+    }
+    DisposePtr((Ptr)buf);
+    if (!ok || !t) { if (t) DisposePtr(t); return false; }
+    *text = t;
+    *textLen = tlen;
+    return true;
+}

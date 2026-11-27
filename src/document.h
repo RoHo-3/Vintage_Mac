@@ -37,4 +37,9 @@ Boolean Doc_RenameFile(short wd, const unsigned char *from, const unsigned char 
 void    Doc_FileTrashed(short wd, const unsigned char *name);
 void    Doc_ForgetRecent(short wd, const unsigned char *name, const unsigned char *newName);  /* Markdown markers shown/hidden */
 
+/* History: open a past version (text in the app's form) as a new
+   document beside this one, named with its time. */
+Boolean Doc_OpenVersion(Ptr text, long len, unsigned long secs);
+void    Doc_VersionStamp(unsigned long secs, unsigned char *out);   /* appends "Nov 27 16.24" */
+
 #endif

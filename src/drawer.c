@@ -1,4 +1,5 @@
 #include "drawer.h"
+#include "journal.h"
 #include "editor.h"
 #include "chrome.h"
 #include "document.h"
@@ -28,9 +29,10 @@
 static short gY;                         /* top of the panel being drawn: 0, or kInset */
 #define PanelBottom() (gWin->portRect.bottom - gY)
 
-enum { kRoot, kProject, kFolder, kSections, kSettings };
+enum { kRoot, kProject, kFolder, kSections, kSettings, kHistory };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
-       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup, aNewFolder };
+       aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup, aNewFolder,
+       aVersion };
 
 typedef struct {
     short kind;
@@ -170,6 +172,29 @@ static void BuildSections(void)
     if (gRowN == 0) AddRow("No headings yet", aNone, 0);
 }
 
+/* History: this document's past versions, newest first (one per sitting,
+   and every named moment). Picking one opens it as a new document beside
+   this one; this one is never changed. */
+#define kMaxVersions 60
+static JRVersion gVers[kMaxVersions];
+
+static void BuildHistory(void)
+{
+    short n = JR_Versions(gVers, kMaxVersions), i, k;
+    Row *r;
+    if (n == 0) { AddRow("No history yet", aNone, 0); return; }
+    AddRow("Opens a copy beside this one", aNone, 0);
+    for (i = n - 1; i >= 0; i--) {
+        r = AddRow("", aVersion, i);
+        if (!r) break;
+        Doc_VersionStamp(gVers[i].time, r->text);
+        for (k = 1; k <= r->text[0]; k++)
+            if (r->text[k] == '.') r->text[k] = ':';   /* "Nov 27 16:24" */
+        if (i == n - 1) CStr("Latest", r->value);
+        else CopyP(gVers[i].label, r->value, 31);
+    }
+}
+
 static void BuildRows(void)
 {
     Blade *b = &gStack[gDepth - 1];
@@ -189,6 +214,8 @@ static void BuildRows(void)
         }
         r = AddRow("Sections", Ed_HasHeadings() ? aPush : aNone, -kSections);
         r->arrow = 1;                        /* greyed until there are headings */
+        r = AddRow("History", Doc_HasFile() ? aPush : aNone, -kHistory);
+        r->arrow = 1;                        /* greyed until it has a file */
         r = AddRow("Settings", aPush, -kSettings); r->arrow = 1;
         r = AddRow("", aNone, 0); r->sep = 1;
         r = AddRow("Library\311", aLibrary, 0); CStr("Cmd-O", r->value);
@@ -207,6 +234,10 @@ static void BuildRows(void)
     case kSections:
         CStr("Sections", gBladeTitle);
         BuildSections();
+        break;
+    case kHistory:
+        CStr("History", gBladeTitle);
+        BuildHistory();
         break;
     case kSettings:
         CStr("Settings", gBladeTitle);
@@ -233,6 +264,8 @@ static void BuildRows(void)
     while (b->sel < gRowN - 1 && (gRows[b->sel].sep || gRows[b->sel].act == aNone)
            && gRows[b->sel].text[0] == 0)
         b->sel++;
+    if (b->kind == kHistory && b->sel == 0 && gRowN > 1)
+        b->sel = 1;                      /* past the note: the latest version */
     if (b->kind == kProject || b->kind == kFolder) {   /* start on the open doc */
         short i;
         for (i = 0; i < gRowN; i++)
@@ -468,6 +501,10 @@ static void Activate(short i)
     case aPush:
         if (r->arg == -kSections) Push(kSections, 0);
         else if (r->arg == -kSettings) Push(kSettings, 0);
+        else if (r->arg == -kHistory) {
+            Doc_Suspend();               /* what's on the page is the latest */
+            Push(kHistory, 0);
+        }
         else Push(gDepth == 1 ? kProject : kFolder, r->arg);
         break;
     case aOpenDoc: {
@@ -535,6 +572,16 @@ static void Activate(short i)
         Drawer_Draw();                   /* the dialog drew over the drawer */
         break;
     }
+    case aVersion: {
+        Ptr t;
+        long len;
+        JRVersion v = gVers[r->arg];
+        if (!JR_BuildVersion(v.end, &t, &len)) { SysBeep(1); break; }
+        Drawer_Close();
+        if (!Doc_OpenVersion(t, len, v.time)) SysBeep(1);
+        DisposePtr(t);
+        break;
+    }
     case aMoveLib:
         Drawer_Close();
         App_MoveLibrary();
@@ -587,7 +634,12 @@ void Drawer_OpenBlade(char which)
     if (gOpen) Drawer_Close();
     gDepth = 1;
     Drawer_Open();
-    Push(which == 's' ? kSections : kSettings, 0);
+    if (which == 'h') {
+        if (!Doc_HasFile()) { SysBeep(1); return; }
+        Doc_Suspend();
+        Push(kHistory, 0);
+    } else
+        Push(which == 's' ? kSections : kSettings, 0);
 }
 
 void Drawer_Close(void)

@@ -52,4 +52,14 @@ unsigned char JR_Prefs(void);
 
 unsigned long JR_Hash(void);     /* hash of the whole text buffer */
 
+/* History: past versions (drawer > History). end is where the version's
+   checkpoint record ends in the journal; length is its text length. */
+typedef struct {
+    unsigned long time;               /* seconds since 1904 */
+    long          length, end;
+    unsigned char label[32];          /* "Imported", or empty */
+} JRVersion;
+short   JR_Versions(JRVersion *out, short max);     /* oldest first */
+Boolean JR_BuildVersion(long end, Ptr *text, long *textLen);
+
 #endif

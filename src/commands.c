@@ -11,6 +11,7 @@
 /* Search words are what a writer might type instead of the name:
    "cancel", "turn off", a plain-language word for a Markdown term. */
 static const Command kCommands[] = {
+    { cHistory,     "Navigate", "History\311",          "versions past earlier undo restore recover backup old revert", "" },
     { cLibrary,     "Navigate", "Library\311",          "open files browse documents projects folder find file", "Cmd-O" },
     { cNextTK,      "Navigate", "Next TK",              "placeholder to come todo fill in later find mark xxx", "" },
     { cSections,    "Navigate", "Go to Section\311",    "headings outline jump contents toc chapter",  "" },
@@ -87,6 +88,8 @@ Boolean Cmd_Available(short id)
         return Ed_HasHeadings();
     case cFocusClear:
         return Chrome_GoalKind() != 0;
+    case cHistory:
+        return Doc_HasFile();
     }
     return true;
 }
@@ -196,6 +199,7 @@ void Cmd_Run(short id)
     case cNextSection: Ed_JumpSection(1); break;
     case cPrevSection: Ed_JumpSection(-1); break;
     case cSections:    Drawer_OpenBlade('s'); break;
+    case cHistory:     Drawer_OpenBlade('h'); break;
     case cLibrary:     Lib_Open(); break;
     case cNew:         Lib_OpenNew(); break;
     case cSave:        Doc_SaveCommand(); break;

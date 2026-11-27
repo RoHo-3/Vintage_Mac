@@ -189,7 +189,7 @@ static void Celebrate(void)
 {
     unsigned char msg[48];
     Rect r;
-    unsigned long until;
+    long until;
     msg[0] = 0;
     AppendStr(msg, "Goal reached: ");
     AppendNum(msg, gGoalTarget, true);
