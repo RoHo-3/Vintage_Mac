@@ -157,8 +157,8 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   The word count already exists, so the word goal is little extra work;
   it moves people toward finishing a piece. To settle: what the
   celebration looks like while staying quiet (a strip message and a
-  brief footer flash, no sound by default), and whether a goal counts
-  words added this session or the document's total.
+  brief footer flash, no sound by default). Decided: a word goal counts
+  words added in this session, not the document's total.
 - **History: see and recover past versions (needed before v1).** Every
   document already keeps a journal (`.hist`: snapshots, edits and
   checkpoints), but since 0.04 nothing shows it. Add a History blade (and
