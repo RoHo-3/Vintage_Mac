@@ -96,6 +96,24 @@
   templates move together (same disk: one move; another disk: copied, then
   the original to the Trash).
 
+## Performance passes (scheduled after 0.04 feedback)
+
+Launch got slower around builds 81-90. Before changing anything, measure:
+
+1. **Measure.** A timing build that records ticks for each launch phase
+   (Files_Init, wrapping loose documents, tidying journals, prefs, reopening
+   the last document and its journal, first layout, first draw) and shows
+   them, so we fix what's actually slow on a 68000.
+2. **Parse and layout.** The 0.03 block rules look at neighbouring lines;
+   the cheap tests now run first (done). Next: cache each line's block
+   info instead of re-deriving it, and re-wrap only the lines an edit can
+   change (today: one paragraph either side, always).
+3. **File system at launch.** Fewer catalog calls: list My Writings once
+   and share it between wrapping loose documents, tidying journals and the
+   Library; skip the journal sweep when nothing changed since last quit.
+4. **Drawing.** Measure the first full draw; avoid parsing a paragraph
+   twice for layout and then for drawing.
+
 ## Later alphas
 
 - Drawer blades: Links, Find, Focus Timer, History, Export

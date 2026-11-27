@@ -407,24 +407,27 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    "Writings" folder (next to the app, unless moved: Settings › Move
    Library…) holds two peers, `My Writings` and `Templates`, plus the
    invisible prefs; the shelf is read with HFS catalog calls
-   (`PBGetCatInfo`). The first tile is **New Writing**, a dotted page with a
-   + in the middle: a blank page opens at once, and nothing exists on disk
+   (`PBGetCatInfo`). The first tile is **New Writing**, a folder with a +
+   in it: a blank page opens at once, and nothing exists on disk
    until it is named. Its first save (Cmd-S, whose dialog suggests a free
    name; or the quiet first-line naming on a pause) makes the folder and
    its first document, one name for both; while the writing is app-named,
    the folder follows the first line with its document. Inside a writing
-   the row label is a breadcrumb (`MY WRITINGS › THE KEEPER'S LOG`) with an
-   up tile. A template on the Templates shelf opens the same way (a new
-   writing at the top, a new document inside a writing). Cmd-N opens the
-   Library with New Writing picked (Return starts it). A loose document
-   found in My Writings at launch (dropped in from the Finder) is wrapped
-   in a folder of its own name, its journal moving with it.
+   the row label is a breadcrumb (`MY WRITINGS › THE KEEPER'S LOG`); the
+   shelf starts with an up tile, then **New Document** (a page with a +)
+   and, one level down only, **New Folder** (a folder with a +). One level
+   of folders inside a writing, as planned. A template on the Templates
+   shelf opens the same way (a new writing at the top, a new document
+   inside a writing). Cmd-N opens the Library with New Writing picked
+   (Return starts it). A loose document found in My Writings at launch
+   (dropped in from the Finder) is wrapped in a folder of its own name, its
+   journal moving with it.
 3. **Recent** — recently opened files.
 
 **Action bar.** Double-click (or Return) opens: a folder opens in the
-Library, a document opens for writing. The bar holds only what acts on a
-pick — Duplicate · Rename · Move to Trash, greyed when they don't fit —
-and, inside a writing, New Document · New Folder. Apart at the right, the
+Library, a document opens for writing; a + tile makes its new thing. The
+bar holds only what acts on a pick — Duplicate · Rename · Move to Trash,
+greyed when they don't fit. Apart at the right, the
 **Import…** pill copies (never moves) a Markdown file from anywhere into a
 new writing of its own name, starts its history and opens it. Renaming a
 folder renames only the folder; renaming a document renames it and its
@@ -438,8 +441,10 @@ history.
 | Writing | Documents and folders |
 | Folder inside a writing | Documents only |
 
-- `New Folder` is offered only inside a writing; the drawer's writing blade
-  ends with `New Document`.
+- The `New Folder` tile appears only inside a writing (one level); the
+  drawer's writing blade ends with `New Document`.
+- Renaming in place: the field grows to fit the name (over its
+  neighbours, as in the Finder) and scrolls if the name is wider still.
 - A document named "Outline" is pinned first in its writing.
 - Deeper folders created in the Finder are still shown (files never seem to
   vanish), but the app never creates them. This is a documented power-user

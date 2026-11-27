@@ -45,9 +45,9 @@ static Boolean   gHasWNE = false;
 static Boolean   gIBeam = false;
 
 static const char kWelcome[] =
-    "# Mac MD Write 0.01 alpha\r"
+    "# Product Guide\r"
     "\r"
-    "This build adds **live Markdown**: headings at their own sizes, "
+    "Mac MD Write writes **live Markdown**: headings at their own sizes, "
     "**bold**, *italic* and `code`. The markers are hidden; Command-M "
     "shows them for this document (a heading's # signs hang in the left "
     "margin) and hides them again. The arrow keys and Delete step over "

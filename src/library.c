@@ -114,22 +114,30 @@ static short RowCount(short row)
     return gPrefs.recentCount;
 }
 
-static Boolean IsUp(short row, short idx)
+/* The tiles that lead the My Writings shelf, before its files:
+   at the top          New Writing (a folder with a +)
+   inside a writing    up, New Document (a page with a +), New Folder
+   one level deeper    up, New Document  (folders go one level deep) */
+enum { kSpNone, kSpUp, kSpNewWriting, kSpNewDoc, kSpNewFolder };
+static short gSpecialKind[4];
+static short gSpecialN;
+
+static short SpecialKind(short row, short idx)
 {
-    return row == kRowFiles && gDepth > 0 && idx == 0;
+    return (row == kRowFiles && idx >= 0 && idx < gSpecialN) ? gSpecialKind[idx] : kSpNone;
 }
 
-/* The first tile of My Writings: a + that starts a new writing. */
+static Boolean IsUp(short row, short idx) { return SpecialKind(row, idx) == kSpUp; }
+
+/* A + tile: New Writing, New Document or New Folder. */
 static Boolean IsNewTile(short row, short idx)
 {
-    return row == kRowFiles && gDepth == 0 && idx == 0;
+    short k = SpecialKind(row, idx);
+    return k == kSpNewWriting || k == kSpNewDoc || k == kSpNewFolder;
 }
 
-/* Not a file or folder: the up tile or the New Writing tile. */
-static Boolean IsSpecial(short row, short idx)
-{
-    return IsUp(row, idx) || IsNewTile(row, idx);
-}
+/* Not a file or folder: the up tile or a + tile. */
+static Boolean IsSpecial(short row, short idx) { return SpecialKind(row, idx) != kSpNone; }
 
 
 /* The folder being browsed (My Writings at the top). */
@@ -150,6 +158,7 @@ static short ItemWD(short idx) { return WDOfDir(gFiles[idx].parent); }
 
 static void LoadFiles(void);
 static void EndRename(Boolean commit);
+static void DoNew(Boolean project);
 
 /* The picked file or folder, on My Writings or Recent, with its folder. */
 typedef struct {
@@ -194,24 +203,30 @@ static void Reload(void)
     if (gSelRow >= 0 && gSelIdx < 0) gSelRow = -1;
 }
 
+static void AddSpecial(short kind, const unsigned char *name, long dirID)
+{
+    short n = gSpecialN;
+    CopyP(name, gFiles[n].name);
+    gFiles[n].isFolder = kind == kSpUp;
+    gFiles[n].dirID = dirID;
+    gFiles[n].parent = 0;
+    gSpecialKind[n] = kind;
+    gSpecialN++;
+}
+
 static void LoadFiles(void)
 {
-    short n = 0;
-    if (gDepth > 0) {                    /* the up tile */
-        CopyP(gDirName[gDepth - 1], gFiles[0].name);
-        gFiles[0].isFolder = true;
-        gFiles[0].dirID = gDir[gDepth - 1];
-        gFiles[0].parent = 0;
-        n = 1;
-    }
-    if (gDepth == 0) {                   /* the New Writing tile leads */
-        CopyP((const unsigned char *)"\pNew Writing", gFiles[0].name);
-        gFiles[0].isFolder = false;
-        gFiles[0].dirID = 0;
-        gFiles[0].parent = 0;
-        n = 1;
-    }
-    gFilesN = n + Files_List(gVol, gDir[gDepth], gFiles + n, kMaxItems - n);
+    gSpecialN = 0;
+    if (gDepth > 0)                      /* the up tile */
+        AddSpecial(kSpUp, gDirName[gDepth - 1], gDir[gDepth - 1]);
+    if (gDepth == 0)
+        AddSpecial(kSpNewWriting, (const unsigned char *)"\pNew Writing", 0);
+    else
+        AddSpecial(kSpNewDoc, (const unsigned char *)"\pNew Document", 0);
+    if (gDepth == 1)                     /* one level of folders inside */
+        AddSpecial(kSpNewFolder, (const unsigned char *)"\pNew Folder", 0);
+    gFilesN = gSpecialN + Files_List(gVol, gDir[gDepth], gFiles + gSpecialN,
+                                     kMaxItems - gSpecialN);
 }
 
 static void LoadAll(void)
@@ -260,20 +275,15 @@ static void SelectFileNamed(const unsigned char *name)
 static short gActSplit;                  /* index of the first file action */
 static Boolean gActOn[kActCount];        /* by slot: enabled now */
 
-/* At the top, My Writings starts new writings from its + tile, so the bar
-   holds only what acts on a pick. Inside a writing it can grow: New
-   Document, and New Folder one level down (chapters, say). Opening is a
-   double-click (or Return); Import... sits apart at the right. */
+/* New things come from the shelf's + tiles, so the bar holds only what
+   acts on a pick. Opening is a double-click (or Return); Import... sits
+   apart at the right. */
 static void BuildActions(void)
 {
     Boolean file = gSelRow == kRowFiles || gSelRow == kRowRecent;
     Boolean special = IsSpecial(gSelRow, gSelIdx);
     gActN = 0;
-    if (gDepth > 0) {
-        gActOn[gActN] = true;        gActs[gActN++] = kActNewDoc;
-        gActOn[gActN] = gDepth == 1; gActs[gActN++] = kActNewFolder;   /* 3 levels at most */
-    }
-    gActSplit = gActN;
+    gActSplit = 0;                       /* new things come from the + tiles */
     gActOn[gActN] = file && !special;       gActs[gActN++] = kActDuplicate;
     gActOn[gActN] = file && !special;       gActs[gActN++] = kActRename;
     gActOn[gActN] = file && !special;       gActs[gActN++] = kActTrash;
@@ -335,16 +345,32 @@ static void IconFolder(short x, short y, Boolean up)
     }
 }
 
-/* New Writing: a dotted page with a + in the middle. */
-static void IconNew(short x, short y)
+/* A + in a tile icon's middle, cleared around so it reads on any icon. */
+static void PlusAt(short cx, short cy)
 {
     Rect r;
-    PenPat(&qd.gray);
-    MoveTo(x + 4, y + 2);  LineTo(x + 27, y + 2); LineTo(x + 27, y + 29);
-    LineTo(x + 4, y + 29); LineTo(x + 4, y + 2);
-    PenNormal();
-    SetRect(&r, x + 14, y + 8, x + 17, y + 24); PaintRect(&r);
-    SetRect(&r, x + 8, y + 14, x + 23, y + 17); PaintRect(&r);
+    SetRect(&r, cx - 7, cy - 2, cx + 8, cy + 3);  EraseRect(&r);
+    SetRect(&r, cx - 2, cy - 7, cx + 3, cy + 8);  EraseRect(&r);
+    SetRect(&r, cx - 6, cy - 1, cx + 7, cy + 2);  PaintRect(&r);
+    SetRect(&r, cx - 1, cy - 6, cx + 2, cy + 7);  PaintRect(&r);
+}
+
+/* The + tiles: a folder (New Writing, New Folder) or a page (New
+   Document) with a + in it. */
+static void IconNew(short kind, short x, short y)
+{
+    if (kind == kSpNewDoc) {
+        IconDoc(x, y, false);
+        {   /* no text lines under the + */
+            Rect r;
+            SetRect(&r, x + 8, y + 10, x + 25, y + 27);
+            EraseRect(&r);
+        }
+        PlusAt(x + 16, y + 18);
+    } else {
+        IconFolder(x, y, false);
+        PlusAt(x + 16, y + 20);
+    }
 }
 
 static void TileName(short row, short idx, unsigned char *out)
@@ -354,18 +380,36 @@ static void TileName(short row, short idx, unsigned char *out)
     else ShownName(gPrefs.recent[idx].name, out);
 }
 
+/* The rename field: as wide as the name needs (centered on its tile, kept
+   on the screen, over its neighbours as in the Finder); a name wider than
+   the screen scrolls to keep the insertion point in view. */
 static void DrawEditField(short x, short top)
 {
-    Rect r;
+    Rect r, clip;
+    RgnHandle old = NewRgn();
     unsigned char s[40];
-    short w, tx;
-    SetRect(&r, x - 1, top + kLabelBase - 10, x + kTileW + 1, top + kLabelBase + 3);
-    EraseRect(&r);
-    FrameRect(&r);
+    short w, fw, left, tx, cx, maxW = gWin->portRect.right - 8;
     CopyP(gEdit, s);
     w = StringWidth(s);
-    tx = x + (kTileW - w) / 2;
-    if (tx < x + 2) tx = x + 2;
+    fw = w + 8;
+    if (fw < kTileW + 2) fw = kTileW + 2;
+    if (fw > maxW) fw = maxW;
+    left = x + kTileW / 2 - fw / 2;
+    if (left < 4) left = 4;
+    if (left + fw > gWin->portRect.right - 4) left = gWin->portRect.right - 4 - fw;
+    SetRect(&r, left, top + kLabelBase - 10, left + fw, top + kLabelBase + 3);
+    EraseRect(&r);
+    FrameRect(&r);
+    tx = left + (fw - w) / 2;
+    cx = TextWidth((Ptr)s, 1, gEditCaret);
+    if (w > fw - 8) {                    /* too long: scroll to the caret */
+        tx = left + 4;
+        if (cx > fw - 10) tx -= cx - (fw - 10);
+    }
+    GetClip(old);
+    clip = r;
+    InsetRect(&clip, 1, 1);
+    ClipRect(&clip);
     MoveTo(tx, top + kLabelBase);
     DrawString(s);
     if (gEditAll && s[0] > 0) {
@@ -373,10 +417,11 @@ static void DrawEditField(short x, short top)
         SetRect(&sel, tx - 1, top + kLabelBase - 9, tx + w + 1, top + kLabelBase + 2);
         InvertRect(&sel);
     } else if (gCaretOn) {
-        short cx = tx + TextWidth((Ptr)s, 1, gEditCaret);
-        MoveTo(cx, top + kLabelBase - 9);
-        LineTo(cx, top + kLabelBase + 1);
+        MoveTo(tx + cx, top + kLabelBase - 9);
+        LineTo(tx + cx, top + kLabelBase + 1);
     }
+    SetClip(old);
+    DisposeRgn(old);
 }
 
 static void DrawTile(short row, short idx, short x, short top)
@@ -389,16 +434,14 @@ static void DrawTile(short row, short idx, short x, short top)
     if (row == kRowTpl)
         IconDoc(x + 16, top + kIconTop, true);
     else if (IsNewTile(row, idx))
-        IconNew(x + 16, top + kIconTop);
+        IconNew(SpecialKind(row, idx), x + 16, top + kIconTop);
     else if (row == kRowFiles && gFiles[idx].isFolder)
         IconFolder(x + 16, top + kIconTop, IsUp(row, idx));
     else
         IconDoc(x + 16, top + kIconTop, false);
 
-    if (gRenaming && row == gSelRow && idx == gSelIdx) {
-        DrawEditField(x, top);
-        return;
-    }
+    if (gRenaming && row == gSelRow && idx == gSelIdx)
+        return;                          /* DrawRow draws the field over all */
     TileName(row, idx, name);
     Fit(name, kTileW - 4);
     w = StringWidth(name);
@@ -441,6 +484,9 @@ static void DrawRow(short row)
     }
     for (i = gFirst[row]; i < n && i < gFirst[row] + kVisible; i++)
         DrawTile(row, i, kLeft + (i - gFirst[row]) * kTileStep, top);
+    if (gRenaming && row == gSelRow && gSelIdx >= gFirst[row]
+        && gSelIdx < gFirst[row] + kVisible)
+        DrawEditField(kLeft + (gSelIdx - gFirst[row]) * kTileStep, top);
     /* the picked tile shows its whole name, as in the Finder, over its
        neighbours' labels if it must */
     if (row == gSelRow && !gRenaming && gSelIdx >= gFirst[row]
@@ -615,7 +661,9 @@ static void DoOpen(void)
         else
             SysBeep(1);
     } else if (gSelRow == kRowFiles) {
-        if (IsNewTile(gSelRow, gSelIdx))
+        if (SpecialKind(gSelRow, gSelIdx) == kSpNewFolder)
+            DoNew(false);                /* asks the folder's name */
+        else if (IsNewTile(gSelRow, gSelIdx))
             DoNewDocument();
         else if (gFiles[gSelIdx].isFolder)
             Navigate(gSelIdx);

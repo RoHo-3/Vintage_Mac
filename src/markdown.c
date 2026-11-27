@@ -239,6 +239,17 @@ static short Underline(long a, long b)
     return m == '=' ? 1 : 2;
 }
 
+/* Could the line at a be an underline: its first non-space is - or =? */
+static Boolean StartsUnderline(long a)
+{
+    long i = a, len = TB_Len();
+    char c;
+    while (i < len && i - a < 3 && TB_Char(i) == ' ') i++;
+    if (i >= len) return false;
+    c = TB_Char(i);
+    return c == '-' || c == '=';
+}
+
 /* A setext underline of a single - or = ("-", "- "): while the writer is
    on that line it's most likely a list item being started, so it doesn't
    turn the line above into a heading until a second - (or the cursor
@@ -355,11 +366,9 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         fenceOut = true;
         goto finish;
     }
-    if (quote == 0 && start > 0) {       /* setext underline under text */
-        long ps = MD_ParaStart(start - 1);
-        short u = Underline(start, end);
+    if (quote == 0 && start > 0 && Underline(start, end)) {   /* under text? */
         Boolean pending = cpos >= 0 && LoneUnderline(start, end);   /* "- " being typed */
-        if (u && !pending && IsParaText(ps, start - 1, false)) {
+        if (!pending && IsParaText(MD_ParaStart(start - 1), start - 1, false)) {
             Mark(0, len, mark);
             kind = MD_FENCE;             /* a syntax-only line: nothing drawn */
             goto finish;
@@ -416,7 +425,8 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
         p = q;
 
     /* setext heading: plain text with === or --- on the next line */
-    if (*level == 0 && kind == 0 && quote == 0 && end < TB_Len()) {
+    if (*level == 0 && kind == 0 && quote == 0 && end < TB_Len()
+        && StartsUnderline(end + 1)) {   /* cheap test before scanning the line */
         long ne = MD_ParaEnd(end + 1);
         short u = Underline(end + 1, ne);
         Boolean pending = gCaretAbs >= end + 1 && gCaretAbs <= ne && LoneUnderline(end + 1, ne);
