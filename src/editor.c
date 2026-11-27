@@ -474,9 +474,22 @@ void Ed_DrawAll(void)
     gCaretOn = false;
     if (gHold) return;
     SetPort(gWin);
-    SetRect(&r, 0, kStripH, gWin->portRect.right, gWin->portRect.bottom - kFooterH);
-    EraseRect(&r);                       /* the text area; chrome draws itself */
-    DrawLines(gTop, kToEnd);
+    if (!gOffOK) {                       /* no offscreen strip: blank, then draw */
+        SetRect(&r, 0, kStripH, gWin->portRect.right, gWin->portRect.bottom - kFooterH);
+        EraseRect(&r);
+    } else {
+        /* each line replaces itself in one CopyBits, full width but the last
+           2 pixels: erase only what no line covers, so the page never goes
+           blank first (opening and closing the drawer, the Library) */
+        SetRect(&r, 0, kStripH, gWin->portRect.right, LineTop(gTop));
+        EraseRect(&r);
+        SetRect(&r, gWin->portRect.right - 2, kStripH, gWin->portRect.right,
+                gWin->portRect.bottom - kFooterH);
+        EraseRect(&r);
+        SetRect(&r, 0, Bottom(), gWin->portRect.right, gWin->portRect.bottom - kFooterH);
+        EraseRect(&r);
+    }
+    DrawLines(gTop, kToEnd);             /* (clears below the last line too) */
     ShowCaret();
 }
 
@@ -522,6 +535,8 @@ static void HideCaret(void)
     if (gCaretOn)
         ToggleCaret();
 }
+
+void Ed_HideCaret(void) { HideCaret(); }
 
 static void ShowCaret(void)
 {

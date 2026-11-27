@@ -384,15 +384,20 @@ static void DimPage(void)
     PenNormal();
 }
 
-void Drawer_Draw(void)
+/* The drawer over the page. repaint: draw the page first (an update);
+   opening from the writing view, the page is already there, so the dither
+   goes straight over it, with no blank-and-redraw flash. */
+static void DrawOver(Boolean repaint)
 {
     short i;
     if (!gOpen) return;
     SetPort(gWin);
-    Ed_Hold(false);                      /* the page under the dither */
-    Chrome_Hold(false);
-    Ed_DrawAll();
-    Chrome_Draw();
+    if (repaint) {
+        Ed_Hold(false);                  /* the page under the dither */
+        Chrome_Hold(false);
+        Ed_DrawAll();
+        Chrome_Draw();
+    }
     Ed_Hold(true);
     Chrome_Hold(true);
     DimPage();
@@ -401,6 +406,8 @@ void Drawer_Draw(void)
     BuildRows();
     DrawTop();
 }
+
+void Drawer_Draw(void) { DrawOver(true); }
 
 /* ---- navigation ---------------------------------------------------------- */
 
@@ -528,7 +535,8 @@ void Drawer_Open(void)
         gClock = !(p.hide & 2);
     }
     gOpen = true;
-    Drawer_Draw();
+    Ed_HideCaret();                      /* no cursor left under the dither */
+    DrawOver(false);
 }
 
 /* Straight to a blade: 's' Sections, 't' Settings (the palette). */
@@ -547,8 +555,16 @@ void Drawer_Close(void)
     Ed_Hold(false);
     Chrome_Hold(false);
     SetPort(gWin);
-    EraseRect(&gWin->portRect);
-    InvalRect(&gWin->portRect);          /* the writing view redraws once */
+    {   /* the strip and footer bands: hidden chrome doesn't clear itself */
+        Rect r = gWin->portRect;
+        r.bottom = kStripH;
+        EraseRect(&r);
+        r = gWin->portRect;
+        r.top = r.bottom - kFooterH;
+        EraseRect(&r);
+    }
+    Ed_DrawAll();                        /* lines replace the dither in place */
+    Chrome_Draw();
 }
 
 Boolean Drawer_IsOpen(void) { return gOpen; }
