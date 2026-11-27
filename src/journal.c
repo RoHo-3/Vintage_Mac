@@ -240,10 +240,10 @@ Boolean JR_Checkpoint(long caret, const char *label)
     if (label) while (label[labelLen] && labelLen < 63) labelLen++;
     snapshot = gNeedSnapshot || gSinceSnapshot >= kSnapshotEvery;
 
-    size = 16 + (snapshot ? 7 + 4 + TB_Len() : 7 + 4 + gOpsLen) + 7 + 17 + labelLen + 8;
-    buf = (unsigned char *)NewPtr(size);
-    if (!buf) return false;
-
+    /* Open the journal first: a new (or empty) one must start with a
+       snapshot, and the buffer has to be sized for that. (Sizing it for an
+       edit and then writing a whole snapshot into it overran the block: the
+       "out of memory" bomb on Import, whose history always starts new.) */
     err = FSOpen(gName, gVRef, &ref);
     if (err == fnfErr) {                  /* first checkpoint: new journal */
         Create(gName, gVRef, kCreator, kJournalType);
@@ -251,12 +251,16 @@ Boolean JR_Checkpoint(long caret, const char *label)
         err = FSOpen(gName, gVRef, &ref);
         snapshot = true;
     }
-    if (err != noErr) { DisposePtr((Ptr)buf); return false; }
+    if (err != noErr) return false;
     GetEOF(ref, &count);
+    if (count == 0) snapshot = true;
+
+    size = 16 + (snapshot ? 7 + 4 + TB_Len() : 7 + 4 + gOpsLen) + 7 + 17 + labelLen + 8;
+    buf = (unsigned char *)NewPtr(size);
+    if (!buf) { FSClose(ref); return false; }
     if (count == 0) {
         unsigned char h[6] = { 'M', 'D', 'W', 'J', 0, kVersion };
         Record(buf, &n, 'H', h, 6, 0, 0, false);
-        snapshot = true;
     }
 
     Put32(head, Now());
