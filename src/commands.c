@@ -6,6 +6,7 @@
 #include "files.h"
 #include "app.h"
 #include "chrome.h"
+#include <Dialogs.h>
 
 /* Search words are what a writer might type instead of the name:
    "cancel", "turn off", a plain-language word for a Markdown term. */
@@ -47,6 +48,9 @@ static const Command kCommands[] = {
     { cClock,       "View",     "Show Session Clock",   "timer time elapsed hide turn off",            "" },
     { cDrawer,      "View",     "Drawer",               "menu sidebar hamburger panel",                "Cmd-\\" },
     { cSettings,    "View",     "Settings\311",         "preferences options prefs font size",         "" },
+    { cFocusMinutes,"View",     "Focus for Minutes\311", "timer goal pomodoro session time write sprint", "" },
+    { cFocusWords,  "View",     "Focus for Words\311",   "goal target count write sprint new words",    "" },
+    { cFocusClear,  "View",     "Clear Focus Goal",     "stop cancel timer goal turn off",             "" },
     { cTiming,      "App",      "Launch Timing",        "speed performance startup slow time how long", "" },
     { cQuit,        "App",      "Quit",                 "exit close leave stop",                       "Cmd-Q" },
 };
@@ -81,6 +85,8 @@ Boolean Cmd_Available(short id)
         return Ed_HasSelection();
     case cNextSection: case cPrevSection:
         return Ed_HasHeadings();
+    case cFocusClear:
+        return Chrome_GoalKind() != 0;
     }
     return true;
 }
@@ -91,6 +97,14 @@ static void ToggleStatus(short bit)
     Prefs_Load(&p);
     p.hide ^= bit;
     App_SetStatusParts(!(p.hide & 1), !(p.hide & 2));
+}
+
+static void AppendNumL(unsigned char *s, long v)
+{
+    char d[12];
+    short k = 0;
+    do { d[k++] = (char)('0' + v % 10); v /= 10; } while (v > 0);
+    while (k > 0) s[++s[0]] = (unsigned char)d[--k];
 }
 
 static short AppendNum(unsigned char *s, short n, short v)
@@ -117,6 +131,45 @@ static void NextTK(void)
     n = AppendNum(msg, n, total);
     msg[0] = (unsigned char)n;
     Chrome_ShowMessage(msg, 2);
+}
+
+/* "Focus for how many minutes?" A small classic dialog; the last goal of
+   that kind is offered again (25 minutes, 500 words to start). */
+static void AskGoal(char kind)
+{
+    static long lastMin = 25, lastWords = 500;
+    unsigned char num[16];
+    DialogPtr d;
+    short hit, type, i;
+    long v = 0;
+    Handle h;
+    Rect box;
+    ParamText(kind == 'm' ? (const unsigned char *)"\pFocus for how many minutes?"
+                          : (const unsigned char *)"\pFocus for how many new words?",
+              (const unsigned char *)"\p", (const unsigned char *)"\p", (const unsigned char *)"\p");
+    d = GetNewDialog(201, NULL, (WindowPtr)-1);
+    if (!d) return;
+    num[0] = 0;
+    AppendNumL(num, kind == 'm' ? lastMin : lastWords);
+    GetDialogItem(d, 4, &type, &h, &box);
+    SetDialogItemText(h, num);
+    SelectDialogItemText(d, 4, 0, 32767);         /* typing replaces it */
+    ShowWindow(d);
+    do {
+        ModalDialog(NULL, &hit);
+    } while (hit != 1 && hit != 2);
+    if (hit == 1) {
+        GetDialogItem(d, 4, &type, &h, &box);
+        GetDialogItemText(h, num);
+        for (i = 1; i <= num[0]; i++)
+            if (num[i] >= '0' && num[i] <= '9' && v < 100000L)
+                v = v * 10 + (num[i] - '0');
+    }
+    DisposeDialog(d);
+    if (hit != 1 || v <= 0) return;
+    if (kind == 'm') { if (v > 600) v = 600; lastMin = v; }
+    else lastWords = v;
+    Chrome_SetGoal(kind, v);
 }
 
 void Cmd_Run(short id)
@@ -155,6 +208,9 @@ void Cmd_Run(short id)
     case cSettings:    Drawer_OpenBlade('t'); break;
     case cTiming:      App_ShowLaunchTiming(); break;
     case cNextTK:      NextTK(); break;
+    case cFocusMinutes: AskGoal('m'); break;
+    case cFocusWords:  AskGoal('w'); break;
+    case cFocusClear:  Chrome_SetGoal(0, 0); break;
     case cInsertTK:    Ed_InsertTK(); break;
     case cQuit:        App_Quit(); break;
     }

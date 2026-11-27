@@ -28,6 +28,14 @@ static unsigned long gClockStart, gLastKey;   /* gClockStart 0: not started */
 #define Elapsed() (gClockStart ? (long)((TickCount() - gClockStart) / 60) : 0L)
 static long      gShownSeconds = -1;
 static long      gWords = -1;             /* -1: needs counting */
+/* Focus goal (ROADMAP, with the Focus Timer): N minutes or N new words
+   this session. Shown in the footer beside the count and the clock; met
+   at the next pause (nothing interrupts mid-sentence), with one small
+   celebration, then cleared. Words carry across documents opened since
+   the goal was set: gGoalPrior holds what earlier documents added. */
+static char      gGoalKind;               /* 0 none, 'm' minutes, 'w' words */
+static long      gGoalTarget, gGoalBase, gGoalPrior, gLastCount;
+static unsigned long gGoalStart;
 static short     gSaveState = kSaveUnsaved;
 static Str63     gTitle;
 
@@ -166,6 +174,36 @@ static void DrawDot(void)
         FrameOval(&r);                   /* empty ring: unsaved changes */
 }
 
+static long GoalDone(void)
+{
+    long d;
+    if (gGoalKind == 'm')
+        return (long)((TickCount() - gGoalStart) / 3600);
+    if (gWords < 0) gWords = CountWords();
+    d = gGoalPrior + gWords - gGoalBase;
+    return d < 0 ? 0 : d;
+}
+
+/* The goal is met: say so in the strip, flash the footer once, clear it. */
+static void Celebrate(void)
+{
+    unsigned char msg[48];
+    Rect r;
+    unsigned long until;
+    msg[0] = 0;
+    AppendStr(msg, "Goal reached: ");
+    AppendNum(msg, gGoalTarget, true);
+    AppendStr(msg, gGoalKind == 'w' ? " new words" : (gGoalTarget == 1 ? " minute" : " minutes"));
+    gGoalKind = 0;
+    SetRect(&r, 0, gWin->portRect.bottom - kFooterH,
+            gWin->portRect.right, gWin->portRect.bottom);
+    InvertRect(&r);
+    Delay(10, &until);
+    InvertRect(&r);
+    DrawStatus();                        /* the footer without the goal */
+    Chrome_ShowMessage(msg, 4);
+}
+
 static void DrawStatus(void)
 {
     Rect r;
@@ -193,12 +231,23 @@ static void DrawStatus(void)
         AppendNum(s, secs % 60, false);
     }
 
+    gLastCount = gWords;
+    if (gGoalKind) {
+        if (s[0] > 0) AppendStr(s, " / ");
+        AppendNum(s, GoalDone(), true);
+        AppendStr(s, " of ");
+        AppendNum(s, gGoalTarget, true);
+        AppendStr(s, gGoalKind == 'w' ? " new words" : " min");
+    }
+
     SetRect(&r, 0, top, kColumnRight - 10, gWin->portRect.bottom);
     EraseRect(&r);
     UIFont(kGeneva, 9, 0);
     MoveTo(kLeft, gWin->portRect.bottom - 3);
     DrawString(s);
     gShownSeconds = secs;
+    if (gGoalKind && GoalDone() >= gGoalTarget)
+        Celebrate();                     /* drawn only at a pause */
 }
 
 /* ---- public ------------------------------------------------------------ */
@@ -370,4 +419,30 @@ void Chrome_SetClockStart(unsigned long t) { gClockStart = t; }
 void Chrome_ResetClock(void)
 {
     gClockStart = 0;                     /* the next keystroke starts it */
+    if (gGoalKind == 'w') {              /* another document: keep what the */
+        gGoalPrior += gLastCount - gGoalBase;   /* last one added, start anew */
+        gWords = CountWords();
+        gGoalBase = gLastCount = gWords;
+    }
+}
+
+void Chrome_SetGoal(char kind, long target)
+{
+    gGoalKind = target > 0 ? kind : 0;
+    gGoalTarget = target;
+    gGoalStart = TickCount();
+    gGoalPrior = 0;
+    if (gWords < 0) gWords = CountWords();
+    gGoalBase = gLastCount = gWords;
+    if (gShown && !gHold && gWin) { SetPort(gWin); DrawStatus(); }
+}
+
+char Chrome_GoalKind(void) { return gGoalKind; }
+
+/* A save: the text is final for now, so count it (cheap beside the
+   write), keeping a word goal right if another document opens next. */
+void Chrome_NoteWords(void)
+{
+    if (gWords < 0) gWords = CountWords();
+    gLastCount = gWords;
 }

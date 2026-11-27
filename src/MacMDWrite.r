@@ -46,3 +46,24 @@ resource 'DITL' (200) {
         {36, 19, 52, 281},  EditText { enabled, "" }
     }
 };
+
+/* Focus goal: "Focus for how many minutes?" / "...new words?" (^0). */
+resource 'DLOG' (201) {
+    {110, 156, 210, 356},
+    dBoxProc,
+    invisible,
+    noGoAway,
+    0,
+    201,
+    "",
+    centerMainScreen
+};
+
+resource 'DITL' (201) {
+    {
+        {68, 114, 88, 184}, Button { enabled, "Start" },
+        {68, 30, 88, 100},  Button { enabled, "Cancel" },
+        {10, 16, 26, 184},  StaticText { disabled, "^0" },
+        {36, 19, 52, 81},   EditText { enabled, "" }
+    }
+};

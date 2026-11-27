@@ -29,6 +29,9 @@ void Chrome_SetTitle(const unsigned char *pascalTitle);
 void Chrome_SetSaveState(short state);
 void Chrome_TextChanged(void);          /* word count is stale */
 void Chrome_ResetClock(void);
+void Chrome_SetGoal(char kind, long target);   /* 'm' minutes, 'w' new words; 0 clears */
+char Chrome_GoalKind(void);
+void Chrome_NoteWords(void);            /* a save: count the words now */
 void Chrome_ShowMessage(const unsigned char *msg, short seconds);   /* in the strip */
 unsigned long Chrome_ClockStart(void);      /* the session clock, kept through */
 void Chrome_SetClockStart(unsigned long t); /* a Move Library reopen */

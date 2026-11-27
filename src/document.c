@@ -341,6 +341,7 @@ static Boolean WriteFile(void)
         SetFInfo(gName, gVRef, &fi);
     }
     FlushVol(NULL, gVRef);
+    Chrome_NoteWords();                  /* keeps a word goal right */
     Ed_ClearChanges();
     gMdBehind = false;
     Chrome_SetSaveState(kSaveSaved);
