@@ -427,6 +427,54 @@ static void DoMouseDown(EventRecord *ev)
     }
 }
 
+/* ---- launch timing: hold Option while launching to see where the time
+   goes (the performance passes measure before they change anything) ---- */
+
+enum { tStart, tToolbox, tEditor, tFiles, tTidy, tInit, tOpen, tDraw, tCount };
+static unsigned long gT[tCount];
+static Boolean gTiming;
+
+#define LM_KeyMap ((volatile unsigned char *)0x0174)   /* the keyboard, now */
+
+static Boolean OptionDown(void)
+{
+    return (LM_KeyMap[0x3A >> 3] >> (0x3A & 7)) & 1;      /* Option (key 0x3A) */
+}
+
+static void AddTenths(unsigned char *s, const char *label, unsigned long ticks)
+{
+    unsigned long t = (ticks * 10 + 30) / 60;      /* tenths of a second */
+    const char *c = label;
+    if (s[0]) { s[++s[0]] = ','; s[++s[0]] = ' '; }
+    while (*c) s[++s[0]] = (unsigned char)*c++;
+    s[++s[0]] = ' ';
+    if (t >= 100) s[++s[0]] = (unsigned char)('0' + t / 100 % 10);
+    s[++s[0]] = (unsigned char)('0' + t / 10 % 10);
+    s[++s[0]] = '.';
+    s[++s[0]] = (unsigned char)('0' + t % 10);
+}
+
+/* After the first full draw: "Launch 4.2: toolbox 0.1, editor 0.3, ..." */
+static void ShowTiming(void)
+{
+    unsigned char m[100];
+    static const char *kLabel[tCount] = { "", "toolbox", "editor", "files", "journals",
+                                          "setup", "open", "draw" };
+    short i;
+    m[0] = 0;
+    AddTenths(m, "Launch", gT[tDraw] - gT[tStart]);
+    m[++m[0]] = ':';
+    {
+        unsigned char rest[100];
+        rest[0] = 0;
+        for (i = 1; i < tCount; i++)
+            AddTenths(rest, kLabel[i], gT[i] - gT[i - 1]);
+        for (i = 1; i <= rest[0] && m[0] < 98; i++) m[++m[0]] = rest[i];
+    }
+    Chrome_ShowMessage(m, 10);
+    gTiming = false;
+}
+
 static void HandleEvent(EventRecord *ev)
 {
     switch (ev->what) {
@@ -497,54 +545,6 @@ static void HandleEvent(EventRecord *ev)
         }
         break;
     }
-}
-
-/* ---- launch timing: hold Option while launching to see where the time
-   goes (the performance passes measure before they change anything) ---- */
-
-enum { tStart, tToolbox, tEditor, tFiles, tTidy, tInit, tOpen, tDraw, tCount };
-static unsigned long gT[tCount];
-static Boolean gTiming;
-
-static Boolean OptionDown(void)
-{
-    KeyMap k;
-    GetKeys(k);
-    return (((unsigned char *)k)[0x3A >> 3] >> (0x3A & 7)) & 1;   /* Option */
-}
-
-static void AddTenths(unsigned char *s, const char *label, unsigned long ticks)
-{
-    unsigned long t = (ticks * 10 + 30) / 60;      /* tenths of a second */
-    const char *c = label;
-    if (s[0]) { s[++s[0]] = ','; s[++s[0]] = ' '; }
-    while (*c) s[++s[0]] = (unsigned char)*c++;
-    s[++s[0]] = ' ';
-    if (t >= 100) s[++s[0]] = (unsigned char)('0' + t / 100 % 10);
-    s[++s[0]] = (unsigned char)('0' + t / 10 % 10);
-    s[++s[0]] = '.';
-    s[++s[0]] = (unsigned char)('0' + t % 10);
-}
-
-/* After the first full draw: "Launch 4.2: toolbox 0.1, editor 0.3, ..." */
-static void ShowTiming(void)
-{
-    unsigned char m[100];
-    static const char *kLabel[tCount] = { "", "toolbox", "editor", "files", "journals",
-                                          "setup", "open", "draw" };
-    short i;
-    m[0] = 0;
-    AddTenths(m, "Launch", gT[tDraw] - gT[tStart]);
-    m[++m[0]] = ':';
-    {
-        unsigned char rest[100];
-        rest[0] = 0;
-        for (i = 1; i < tCount; i++)
-            AddTenths(rest, kLabel[i], gT[i] - gT[i - 1]);
-        for (i = 1; i <= rest[0] && m[0] < 98; i++) m[++m[0]] = rest[i];
-    }
-    Chrome_ShowMessage(m, 10);
-    gTiming = false;
 }
 
 int main(void)
