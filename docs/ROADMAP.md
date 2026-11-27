@@ -57,7 +57,7 @@
    - Copy keeps Markdown balanced: a selection that cuts through a styled
      phrase copies with the missing markers added.
 
-## 0.03 alpha — Markdown coverage (done, builds 78-83)
+## 0.03 alpha — Markdown coverage (done, builds 78-87)
 
 - Strikethrough (\~\~text\~\~), drawn by hand (QuickDraw has no strike
   style). Spaces next to markers follow standard Markdown (`~~ b ~~` and
@@ -74,7 +74,7 @@
   512 x 342. First research how other editors render them, looking for
   permissively licensed (BSD/MIT) solutions we may reuse.
 
-## 0.04 alpha — Library: every writing is a folder (Robert's design)
+## 0.04 alpha — Library: every writing is a folder (done, build 99)
 
 - **No project/document choice up front.** Every writing is a folder
   holding its documents, so a piece can grow into a project later without
