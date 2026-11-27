@@ -460,6 +460,9 @@ history.
 
 - The `New Folder` tile appears only inside a writing (one level); the
   drawer's writing blade ends with `New Document`.
+- Tile names wrap at word breaks onto two lines under the icon, ending in
+  "…" if longer; the picked tile shows its whole name on up to three lines,
+  inside its own column (never over its neighbours).
 - Renaming in place: the field grows to fit the name (over its
   neighbours, as in the Finder) and scrolls if the name is wider still.
 - A document named "Outline" is pinned first in its writing.

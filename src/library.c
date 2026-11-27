@@ -314,6 +314,42 @@ static void Fit(unsigned char *p, short w)
     p[++p[0]] = '\311';
 }
 
+#define kLabelW      (kTileStep - 4)     /* a label line: its own column */
+#define kLabelLines  3
+#define kLabelLineH  11
+
+/* Wrap a name into at most max lines of width w, breaking after spaces
+   (inside a word only when one word is wider than a line); the last line
+   ends in "..." if the name goes on. Returns the number of lines. */
+static short WrapName(const unsigned char *name, short w, short max, unsigned char out[][40])
+{
+    short n = 0, i = 1, k;
+    while (i <= name[0] && n < max) {
+        short start = i, end = i, brk = 0;
+        while (end <= name[0] && TextWidth((Ptr)name, start, end - start + 1) <= w) {
+            if (name[end] == ' ') brk = end;
+            end++;
+        }
+        if (end > name[0]) brk = name[0];             /* the rest fits */
+        else if (brk == 0) brk = end - 1;             /* one long word: cut it */
+        if (brk < start) brk = start;
+        out[n][0] = 0;
+        for (k = start; k <= brk; k++) out[n][++out[n][0]] = name[k];
+        while (out[n][0] > 0 && out[n][out[n][0]] == ' ') out[n][0]--;
+        i = brk + 1;
+        while (i <= name[0] && name[i] == ' ') i++;
+        n++;
+        if (n == max && i <= name[0]) {               /* more left: "..." */
+            short m = out[n - 1][0];
+            if (m < 38) out[n - 1][++m] = ' ';       /* the space it ended at */
+            for (k = i; k <= name[0] && m < 38; k++) out[n - 1][++m] = name[k];
+            out[n - 1][0] = (unsigned char)m;
+            Fit(out[n - 1], w);
+        }
+    }
+    return n;
+}
+
 static void IconDoc(short x, short y, Boolean dashed)
 {
     Rect r;
@@ -425,7 +461,8 @@ static void DrawTile(short row, short idx, short x, short top)
     unsigned char name[40];
     short w;
     Rect r;
-    SetRect(&r, x - 2, top + kIconTop - 1, x + kTileW + 2, top + kLabelBase + 4);
+    SetRect(&r, x - 3, top + kIconTop - 1, x + kTileW + 3,
+            top + kLabelBase + (kLabelLines - 1) * kLabelLineH + 4);
     EraseRect(&r);
     if (row == kRowTpl)
         IconDoc(x + 16, top + kIconTop, true);
@@ -439,14 +476,21 @@ static void DrawTile(short row, short idx, short x, short top)
     if (gRenaming && row == gSelRow && idx == gSelIdx)
         return;                          /* DrawRow draws the field over all */
     TileName(row, idx, name);
-    Fit(name, kTileW - 4);
-    w = StringWidth(name);
-    MoveTo(x + (kTileW - w) / 2, top + kLabelBase);
-    DrawString(name);
-    if (row == gSelRow && idx == gSelIdx) {
-        SetRect(&r, x + (kTileW - w) / 2 - 3, top + kLabelBase - 9,
-                x + (kTileW + w) / 2 + 3, top + kLabelBase + 2);
-        InvertRect(&r);
+    {   /* the name wraps under its icon, in its own column: two lines, or
+           three for the picked tile (its whole name), "..." if still long */
+        Boolean picked = row == gSelRow && idx == gSelIdx;
+        unsigned char line[kLabelLines][40];
+        short n = WrapName(name, kLabelW, picked ? kLabelLines : 2, line), k;
+        for (k = 0; k < n; k++) {
+            short y = top + kLabelBase + k * kLabelLineH;
+            w = StringWidth(line[k]);
+            MoveTo(x + (kTileW - w) / 2, y);
+            DrawString(line[k]);
+            if (picked) {
+                SetRect(&r, x + (kTileW - w) / 2 - 2, y - 9, x + (kTileW + w) / 2 + 2, y + 2);
+                InvertRect(&r);
+            }
+        }
     }
 }
 
@@ -483,24 +527,6 @@ static void DrawRow(short row)
     if (gRenaming && row == gSelRow && gSelIdx >= gFirst[row]
         && gSelIdx < gFirst[row] + kVisible)
         DrawEditField(kLeft + (gSelIdx - gFirst[row]) * kTileStep, top);
-    /* the picked tile shows its whole name, as in the Finder, over its
-       neighbours' labels if it must */
-    if (row == gSelRow && !gRenaming && gSelIdx >= gFirst[row]
-        && gSelIdx < gFirst[row] + kVisible && gSelIdx < n) {
-        unsigned char nm[40];
-        short x = kLeft + (gSelIdx - gFirst[row]) * kTileStep, w, lx;
-        TileName(row, gSelIdx, nm);
-        Fit(nm, gWin->portRect.right - 2 * kLeft);
-        w = StringWidth(nm);
-        lx = x + (kTileW - w) / 2;
-        if (lx < 4) lx = 4;
-        if (lx + w > gWin->portRect.right - 4) lx = gWin->portRect.right - 4 - w;
-        SetRect(&r, lx - 3, top + kLabelBase - 9, lx + w + 3, top + kLabelBase + 2);
-        EraseRect(&r);
-        MoveTo(lx, top + kLabelBase);
-        DrawString(nm);
-        InvertRect(&r);
-    }
     if (gFirst[row] > 0) {                          /* more to the left */
         MoveTo(3, top + kIconTop + 20);
         DrawString(PSTR("\p\307"));                 /* << */
