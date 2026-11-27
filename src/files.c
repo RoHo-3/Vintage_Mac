@@ -1064,3 +1064,26 @@ void Files_BackupName(unsigned char *name)
     name[++n] = (unsigned char)('0' + d.day % 10);
     name[0] = (unsigned char)n;
 }
+
+/* Close every working directory this app opened (tagged with our creator),
+   cached or not. On System 6 under the Finder they outlive the app, and a
+   folder with one open can't leave the Trash ("a file was busy"). Called
+   at quit, and when the library moves away from its old folders. */
+void Files_CloseAll(void)
+{
+    WDPBRec pb;
+    short guard = 0;
+    for (;;) {
+        pb.ioCompletion = NULL;
+        pb.ioNamePtr = NULL;
+        pb.ioVRefNum = 0;
+        pb.ioWDIndex = 1;                /* always the first of ours left */
+        pb.ioWDProcID = kCreator;
+        if (PBGetWDInfoSync(&pb) != noErr || guard++ > 200)
+            break;
+        pb.ioCompletion = NULL;          /* ioVRefNum: the WD just found */
+        if (PBCloseWDSync(&pb) != noErr)
+            break;
+    }
+    gWDCount = 0;
+}

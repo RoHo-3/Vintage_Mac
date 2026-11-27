@@ -265,8 +265,10 @@ void App_MoveLibrary(void)
     InitCursor();
     {
         unsigned long clock = Chrome_ClockStart();   /* the session goes on */
+        Files_CloseAll();                /* let go of the old folders */
         Files_Init();                    /* the library's new home */
         Lib_Reset();
+        Doc_SetNewFolder(0);             /* no stale folder for new pages */
         if (!Doc_Reopen()) {
             Doc_SetNewFolder(0);
             Doc_New();
@@ -622,6 +624,7 @@ int main(void)
         }
         Doc_Idle();
     }
+    Files_CloseAll();            /* no folder left "busy" for the Finder */
     Chrome_ShowMenuBar();
     return 0;
 }

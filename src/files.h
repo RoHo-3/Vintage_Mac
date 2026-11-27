@@ -66,7 +66,8 @@ void    Files_FitNameTo(unsigned char *s, short max);
 Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *dir);
 Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
 Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
-void    Files_WrapLoose(void);       /* launch: loose documents get a folder each */
+void    Files_WrapLoose(void);
+void    Files_CloseAll(void);        /* quit: close our working directories */       /* launch: loose documents get a folder each */
 
 /* The library itself (Settings). Move: the caller saved first and calls
    Files_Init afterwards. */
