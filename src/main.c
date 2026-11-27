@@ -75,7 +75,7 @@ static const char kWelcome[] =
     "## Files\r"
     "\r"
     "Command-O opens the Library: templates, My Writings and recent files. "
-    "Every writing is a folder: the + tile (or Command-N, then Return) "
+    "Every writing is a folder: the New tile (or Command-N, then Return) "
     "starts one on a blank page. Name it with Command-S, or just write: "
     "when you pause, the writing and its first document take their name "
     "from your first line. Double-click a writing to see inside, a "

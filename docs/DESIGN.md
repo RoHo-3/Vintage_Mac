@@ -407,8 +407,8 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    "Writings" folder (next to the app, unless moved: Settings › Move
    Library…) holds two peers, `My Writings` and `Templates`, plus the
    invisible prefs; the shelf is read with HFS catalog calls
-   (`PBGetCatInfo`). The first tile is **New Writing**, a folder with a +
-   in it: a blank page opens at once, and nothing exists on disk
+   (`PBGetCatInfo`). The first tile is **New**, a folder with a + in it
+   (the whole app is about writing, so just "New"): a blank page opens at once, and nothing exists on disk
    until it is named. Its first save (Cmd-S, whose dialog suggests a free
    name; or the quiet first-line naming on a pause) makes the folder and
    its first document, one name for both; while the writing is app-named,
@@ -418,14 +418,24 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    and, one level down only, **New Folder** (a folder with a +). One level
    of folders inside a writing, as planned. A template on the Templates
    shelf opens the same way (a new writing at the top, a new document
-   inside a writing). Cmd-N opens the Library with New Writing picked
+   inside a writing). Cmd-N opens the Library with New picked
    (Return starts it). A loose document found in My Writings at launch
    (dropped in from the Finder) is wrapped in a folder of its own name, its
    journal moving with it.
 3. **Recent** — recently opened files.
 
-**Action bar.** Double-click (or Return) opens: a folder opens in the
-Library, a document opens for writing; a + tile makes its new thing. The
+**Clicks.** Documents and folders work as in the Finder: one click
+selects, a double-click (or Return) opens — a folder in the Library, a
+document for writing. The + tiles and the up tile are buttons, as in the
+Finder's and Standard File's controls: one click does it. Their symbols are
+plain 1-pixel strokes about twice the label's height.
+
+**Names** are at most 23 characters everywhere (the journal's name,
+`<name>.history`, must fit HFS's 31, and a writing's folder and document
+share a name): names the app makes are cut at the last whole word;
+Rename stops at 23.
+
+**Action bar.** The
 bar holds only what acts on a pick — Duplicate · Rename · Move to Trash,
 greyed when they don't fit. Apart at the right, the
 **Import…** pill copies (never moves) a Markdown file from anywhere into a

@@ -213,13 +213,30 @@ Boolean Files_Init(void)
     return true;
 }
 
-/* A name free in (vol, dir): base, "base 2", ... (at most 31 characters). */
+/* Cut s to kNameMax at its last whole word (at a letter only when one word
+   is longer than that), then drop trailing spaces and punctuation. */
+void Files_FitName(unsigned char *s)
+{
+    short n = s[0], k;
+    if (n > kNameMax) {
+        for (k = kNameMax + 1; k > 1 && s[k] != ' '; k--)
+            ;
+        n = k > 1 ? k - 1 : kNameMax;
+    }
+    while (n > 0 && (s[n] == ' ' || s[n] == '.' || s[n] == ',' || s[n] == ';' || s[n] == '-'))
+        n--;
+    s[0] = (unsigned char)n;
+}
+
+/* A name free in (vol, dir): base, "base 2", ... (at most kNameMax). */
 static Boolean FreeIn(short vol, long dir, const unsigned char *base, unsigned char *out)
 {
-    short k, i, n;
+    short k, i, n, room;
     for (k = 1; k < 100; k++) {
         n = 0;
-        for (i = 1; i <= base[0] && n < 27; i++) out[++n] = base[i];
+        room = k == 1 ? kNameMax : kNameMax - (k >= 10 ? 3 : 2);
+        for (i = 1; i <= base[0] && n < room; i++) out[++n] = base[i];
+        while (k > 1 && n > 0 && out[n] == ' ') n--;
         if (k > 1) {
             out[++n] = ' ';
             if (k >= 10) out[++n] = (unsigned char)('0' + k / 10);

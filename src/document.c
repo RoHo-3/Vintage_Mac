@@ -151,6 +151,9 @@ static void SuggestName(unsigned char *name)
             w = k;
         }
     }
+    name[0] = (unsigned char)n;
+    Files_FitName(name);                 /* the one limit, at a whole word */
+    n = name[0];
     if (n == 0) {
         const char *u = "Untitled";
         while (*u) name[++n] = (unsigned char)*u++;
@@ -195,7 +198,6 @@ static Boolean UniqueName(unsigned char *name, short vRef)
         long d;
         unsigned char free[40];
         BaseOf(name, base);
-        if (base[0] > 24) base[0] = 24;
         Files_DocsDir(&v, &d);
         if (!Files_FreeName(v, d, base, free)) return false;
         for (i = 0; i <= free[0]; i++) name[i] = free[i];
@@ -206,7 +208,8 @@ static Boolean UniqueName(unsigned char *name, short vRef)
         return true;
     CopyPString(name, base);
     base[0] -= 3;                        /* without ".md" */
-    if (base[0] > 24) base[0] = 24;      /* room for " 99" + journal's limit */
+    if (base[0] > kNameMax - 3) base[0] = kNameMax - 3;   /* room for " 99" */
+    while (base[0] > 0 && base[base[0]] == ' ') base[0]--;
     for (k = 2; k < 100; k++) {
         n = 0;
         for (i = 1; i <= base[0]; i++) name[++n] = base[i];
@@ -251,7 +254,7 @@ static void FollowFirstLine(void)
     if (namesake) {
         SuggestName(want);
         BaseOf(want, base);
-        if (base[0] > 24) base[0] = 24;
+        Files_FitName(base);
         Files_DocsDir(&wv, &wdir);
         for (k = 1; k < 100; k++) {      /* base, "base 2", ... */
             n = 0;
@@ -335,7 +338,7 @@ static Boolean BecomeFile(const unsigned char *name, short vRef, Boolean follows
         long dir, folder;
         unsigned char base[40], free[40];
         BaseOf(name, base);
-        if (base[0] > 27) base[0] = 27;
+        Files_FitName(base);
         if (!Files_DirOfWD(vRef, &vol, &dir) || !Files_FreeName(vol, dir, base, free)
             || !Files_NewFolder(vol, dir, free, &folder) || !Files_WDFor(vol, folder, &vRef)) {
             SysBeep(1);
@@ -675,7 +678,7 @@ Boolean Doc_Import(void)
     for (i = n; i > 1 && base[i] != '.'; i--)
         ;
     if (i > 1 && n - i <= 8) base[0] = (unsigned char)(i - 1);
-    if (base[0] > 24) base[0] = 24;      /* room for " 99" and the journal */
+    Files_FitName(base);                 /* the one limit, at a whole word */
     Files_DocsDir(&v, &d);
     {
         DirItem items[2];

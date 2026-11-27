@@ -1,7 +1,7 @@
 /*
  * The Library (DESIGN.md): a full-screen browser that replaces the classic
  * Open dialog. Three shelves of 32x32 tiles: Templates, My Writings (every
- * writing is a folder; a + tile, New Writing, leads; breadcrumb inside),
+ * writing is a folder; a + tile, New, leads; breadcrumb inside),
  * Recent. The action bar: Open, Duplicate, Rename (in place), Move to
  * Trash, greyed when they don't fit the pick; inside a writing, New
  * Document and New Folder join them. Open with nothing picked: the classic
@@ -19,7 +19,7 @@
 
 void    Lib_Init(WindowPtr w);
 void    Lib_Open(void);
-void    Lib_OpenNew(void);      /* Cmd-N: New Writing picked; Return (or
+void    Lib_OpenNew(void);      /* Cmd-N: New picked; Return (or
                                    Cmd-N again) starts one */
 void    Lib_Close(void);         /* back to writing */
 Boolean Lib_IsOpen(void);

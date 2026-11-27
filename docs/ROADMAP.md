@@ -96,6 +96,16 @@
   templates move together (same disk: one move; another disk: copied, then
   the original to the Trash).
 
+## Before 0.05: quality pass
+
+- Product Guide: a complete guide to the app, with a "This build adds..."
+  section kept current build by build toward 0.05's code complete.
+- Library polish (done locally): lighter + and up symbols, one click on
+  + and up tiles, "New" instead of "New Writing", one 23-character name
+  limit cut at whole words (Rename stops there too).
+- Mac-only paths to verify: Move Library on one disk, Duplicate folder,
+  loose documents wrapped at launch, System 6 (checklist sent with 92).
+
 ## Performance passes (scheduled after 0.04 feedback)
 
 Launch got slower around builds 81-90. Before changing anything, measure:

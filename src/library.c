@@ -50,7 +50,7 @@ static Boolean   gOpen;
 /* shelves */
 static DirItem   gTpl[kMaxItems];
 static short     gTplN;
-static DirItem   gFiles[kMaxItems];      /* index 0: New Writing at the top,
+static DirItem   gFiles[kMaxItems];      /* index 0: New (a writing) at the top,
                                             the up tile inside a writing */
 static short     gFilesN;
 static Prefs     gPrefs;                 /* Recent comes from here */
@@ -115,7 +115,7 @@ static short RowCount(short row)
 }
 
 /* The tiles that lead the My Writings shelf, before its files:
-   at the top          New Writing (a folder with a +)
+   at the top          New (a writing: a folder with a +)
    inside a writing    up, New Document (a page with a +), New Folder
    one level deeper    up, New Document  (folders go one level deep) */
 enum { kSpNone, kSpUp, kSpNewWriting, kSpNewDoc, kSpNewFolder };
@@ -129,7 +129,7 @@ static short SpecialKind(short row, short idx)
 
 static Boolean IsUp(short row, short idx) { return SpecialKind(row, idx) == kSpUp; }
 
-/* A + tile: New Writing, New Document or New Folder. */
+/* A + tile: New, New Document or New Folder. */
 static Boolean IsNewTile(short row, short idx)
 {
     short k = SpecialKind(row, idx);
@@ -220,7 +220,7 @@ static void LoadFiles(void)
     if (gDepth > 0)                      /* the up tile */
         AddSpecial(kSpUp, gDirName[gDepth - 1], gDir[gDepth - 1]);
     if (gDepth == 0)
-        AddSpecial(kSpNewWriting, (const unsigned char *)"\pNew Writing", 0);
+        AddSpecial(kSpNewWriting, (const unsigned char *)"\pNew", 0);
     else
         AddSpecial(kSpNewDoc, (const unsigned char *)"\pNew Document", 0);
     if (gDepth == 1)                     /* one level of folders inside */
@@ -332,30 +332,26 @@ static void IconFolder(short x, short y, Boolean up)
     MoveTo(x + 2, y + 9);   LineTo(x + 12, y + 9); LineTo(x + 14, y + 6);
     LineTo(x + 22, y + 6);  LineTo(x + 22, y + 9); LineTo(x + 29, y + 9);
     LineTo(x + 29, y + 28); LineTo(x + 2, y + 28); LineTo(x + 2, y + 9);
-    if (up) {
-        PolyHandle p = OpenPoly();
-        MoveTo(x + 16, y + 13); LineTo(x + 11, y + 18); LineTo(x + 14, y + 18);
-        LineTo(x + 14, y + 24); LineTo(x + 18, y + 24); LineTo(x + 18, y + 18);
-        LineTo(x + 21, y + 18); LineTo(x + 16, y + 13);
-        ClosePoly();
-        PaintPoly(p);
-        KillPoly(p);
+    if (up) {                            /* a plain 1-pixel arrow, like the + */
+        MoveTo(x + 16, y + 14); LineTo(x + 16, y + 24);
+        MoveTo(x + 12, y + 18); LineTo(x + 16, y + 14); LineTo(x + 20, y + 18);
     } else {
         MoveTo(x + 3, y + 12); LineTo(x + 28, y + 12);
     }
 }
 
-/* A + in a tile icon's middle, cleared around so it reads on any icon. */
+/* A + in a tile icon's middle: plain 1-pixel strokes, about twice the
+   height of the label text, with a cleared margin so it reads on any icon. */
 static void PlusAt(short cx, short cy)
 {
     Rect r;
-    SetRect(&r, cx - 7, cy - 2, cx + 8, cy + 3);  EraseRect(&r);
-    SetRect(&r, cx - 2, cy - 7, cx + 3, cy + 8);  EraseRect(&r);
-    SetRect(&r, cx - 6, cy - 1, cx + 7, cy + 2);  PaintRect(&r);
-    SetRect(&r, cx - 1, cy - 6, cx + 2, cy + 7);  PaintRect(&r);
+    SetRect(&r, cx - 6, cy - 6, cx + 7, cy + 7);
+    EraseRect(&r);
+    MoveTo(cx - 5, cy); LineTo(cx + 5, cy);
+    MoveTo(cx, cy - 5); LineTo(cx, cy + 5);
 }
 
-/* The + tiles: a folder (New Writing, New Folder) or a page (New
+/* The + tiles: a folder (New, New Folder) or a page (New
    Document) with a + in it. */
 static void IconNew(short kind, short x, short y)
 {
@@ -731,7 +727,7 @@ static void StartRename(void)
 static void EndRename(Boolean commit)
 {
     unsigned char to[40], from[40];
-    short i, max = gEditIsDoc ? 28 : 31;
+    short i, max = kNameMax;            /* the same limit the app names with */
     Target t;
     if (!gRenaming) return;
     gRenaming = false;
@@ -979,7 +975,7 @@ void Lib_Reset(void)
     Files_DocsDir(&gVol, &gDir[0]);
 }
 
-/* Cmd-N: the Library at the top with New Writing picked; Return starts
+/* Cmd-N: the Library at the top with New picked; Return starts
    it (Cmd-N again too). */
 void Lib_OpenNew(void)
 {
@@ -1017,7 +1013,7 @@ static void EditKey(unsigned char c)
             gEditCaret--;
         }
     } else if (c >= 0x20 && c != 0x7F) {
-        if (gEdit[0] >= (gEditIsDoc ? 28 : 31)) { SysBeep(1); return; }
+        if (gEdit[0] >= kNameMax) { SysBeep(1); return; }   /* names stop at 23 */
         for (i = gEdit[0]; i > gEditCaret; i--) gEdit[i + 1] = gEdit[i];
         gEdit[gEditCaret + 1] = c;
         gEdit[0]++;
@@ -1136,6 +1132,21 @@ void Lib_Click(Point pt, EventRecord *ev)
     }
     if (gRenaming && !(row == gSelRow && idx == gSelIdx))
         EndRename(true);
+    if (IsSpecial(row, idx)) {
+        /* the + tiles and the up tile are buttons, as in the classic Finder
+           and Standard File: one click does it (on release over the tile) */
+        Point up;
+        short x0 = kLeft + (idx - gFirst[row]) * kTileStep;
+        Select(row, idx);
+        Redraw();
+        while (StillDown()) ;
+        GetMouse(&up);
+        gLastRow = -1;
+        if (up.h >= x0 && up.h < x0 + kTileW
+            && up.v >= kRowsTop + row * kRowH && up.v < kRowsTop + (row + 1) * kRowH)
+            DoOpen();
+        return;
+    }
     if (row == gLastRow && idx == gLastIdx
         && ev->when - gLastClick <= DblTime() && !gRenaming) {
         gLastRow = -1;
