@@ -108,6 +108,13 @@
   locally). Later, perhaps: a "Use a Backup…" to switch to one.
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
+- **Safe saves (from the Neo review):** saving rewrites the document in
+  place, so on a nearly full floppy a longer version can stop part way
+  and leave the new start joined to the old end. The journal still has
+  the text, but the .md that travels to a modern Mac would be damaged.
+  Fix: grow the file to its new length first (SetEOF, checking for
+  dskFulErr) and write only if that succeeds; say "Disk is full" quietly
+  in the strip and keep the old file whole.
 
 ## Performance passes (done, builds 93-99)
 
@@ -142,6 +149,41 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 ## Later alphas
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
+- **History: see and recover past versions (needed before v1).** Every
+  document already keeps a journal (`.hist`: snapshots, edits and
+  checkpoints), but since 0.04 nothing shows it. Add a History blade (and
+  Cmd-K › History) that lists this document's past versions, newest
+  first, by day and time, with the checkpoints that have names
+  ("Imported", a save, a session's end). Picking one shows it read-only
+  in place, with keys to step back and forward one version at a time,
+  an unlimited back stack through the whole journal. Restore never
+  overwrites: it makes a new document beside the current one, named
+  "Name (Nov 27, 4:24)", so no words are ever lost. Open questions: how
+  far back to keep on a floppy (compacting old edits into snapshots),
+  and memory for replaying a long journal on a 4 MB Mac.
+- **From the Neo review** (docs: "Neo by Hugh Howey — Lessons for Mac
+  MD Write"):
+  - *No last-write-wins* when moving writings between the vintage Mac
+    and a modern one: if only one side changed, take it; if both
+    changed, keep both, the other as "Name (from other Mac)". Part of
+    the file-transfer work (BlueSCSI with Wi-Fi).
+  - *Placeholders:* a standard `TK` mark ("to come") for a fact or name
+    to fill in later; Cmd-K › Next TK jumps to it; the drawer shows a dot
+    beside documents that still have one. Plain text, no Markdown change.
+  - *Cuts (Neo's "Darlings"):* move a selected passage to a plain `Cuts`
+    document in the same writing, with a line saying where it came from,
+    so cut words are kept, not deleted. Restore by pasting.
+  - *Footnote gesture,* for the footnotes item: one key adds `[^n]` and
+    opens its note at the bottom; Enter goes back to the sentence; marks
+    shown as numbers in order on screen, never renumbered in the file.
+  - *Smart typography,* polish if asked: curly quotes, em dash and
+    ellipsis as you type (all in Mac Roman, round-trip to UTF-8). Off by
+    default: it changes the Markdown source.
+  - *Word goals,* later if asked: a goal per writing, a thin progress bar
+    on its Library tile.
+  - *Feature bar,* adopted now: a change belongs if it helps someone
+    finish a piece; one that adds a panel, a prompt or a dependency
+    usually does not.
 - Notes, image placeholders, links and back stack
 - **Default templates — 0.05 alpha:** six, one shelf with no scrolling,
   alphabetical: Article, Book Project (Outline; Chapters/Chapter 1;
