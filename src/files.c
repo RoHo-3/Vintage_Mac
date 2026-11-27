@@ -1,4 +1,5 @@
 #include "files.h"
+#include "templates.h"
 #include "journal.h"
 
 #include <Memory.h>
@@ -203,13 +204,8 @@ Boolean Files_Init(void)
         && OpenWD(rvol, docsDir, &gDocsWD))
         gDocsDir = gProjDir = docsDir;
     if (SubFolder(rvol, rootDir, (ConstStr255Param)"\pTemplates", &tplDir)
-        && OpenWD(rvol, tplDir, &gTemplatesWD)) {
-        /* a Templates folder always offers at least Blank */
-        short ref;
-        if (Create((ConstStr255Param)"\pBlank.md", gTemplatesWD, kCreator, 'TEXT') == noErr
-            && FSOpen((ConstStr255Param)"\pBlank.md", gTemplatesWD, &ref) == noErr)
-            FSClose(ref);
-    }
+        && OpenWD(rvol, tplDir, &gTemplatesWD))
+        Templates_Install(rvol, tplDir);  /* the default set, when it has none */
     return true;
 }
 
@@ -864,6 +860,22 @@ static Boolean CopyTree(short svol, long sdir, short dvol, long dparent,
     }
     if (newDir) *newDir = nd;
     return true;
+}
+
+/* Copy folder from (in sparent) into dparent as to: a folder template
+   becoming a new writing. */
+Boolean Files_CopyFolderTo(short svol, long sparent, ConstStr255Param from,
+                           short dvol, long dparent, ConstStr255Param to, long *newDir)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = (StringPtr)from;
+    ci.dirInfo.ioVRefNum = svol;
+    ci.dirInfo.ioFDirIndex = 0;
+    ci.dirInfo.ioDrDirID = sparent;
+    if (PBGetCatInfoSync(&ci) != noErr || !(ci.dirInfo.ioFlAttrib & 0x10)) return false;
+    gMapN = 0;
+    return CopyTree(svol, ci.dirInfo.ioDrDirID, dvol, dparent, to, newDir, 0);
 }
 
 /* Duplicate a folder beside itself as name (Library: Duplicate). */

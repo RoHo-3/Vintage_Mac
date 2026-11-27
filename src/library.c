@@ -464,7 +464,9 @@ static void DrawTile(short row, short idx, short x, short top)
     SetRect(&r, x - 3, top + kIconTop - 1, x + kTileW + 3,
             top + kLabelBase + (kLabelLines - 1) * kLabelLineH + 4);
     EraseRect(&r);
-    if (row == kRowTpl)
+    if (row == kRowTpl && gTpl[idx].isFolder)
+        IconFolder(x + 16, top + kIconTop, false);   /* a writing of several documents */
+    else if (row == kRowTpl)
         IconDoc(x + 16, top + kIconTop, true);
     else if (IsNewTile(row, idx))
         IconNew(SpecialKind(row, idx), x + 16, top + kIconTop);
@@ -669,6 +671,30 @@ static short NewWD(void)
     return gDepth == 0 ? 0 : WDOfDir(gDir[gDepth]);
 }
 
+/* A folder template (Book Project) becomes a new writing in My Writings,
+   under its own name or the next free one ("Book Project 2"); the Library
+   then shows it open, so its documents are one click away. */
+static void NewFromFolderTemplate(short idx)
+{
+    short tvol, dvol;
+    long tdir, ddir, nd;
+    unsigned char name[40];
+    Files_DocsDir(&dvol, &ddir);
+    if (!Files_DirOfWD(Files_TemplatesWD(), &tvol, &tdir)
+        || !Files_FreeName(dvol, ddir, gTpl[idx].name, name)
+        || !Files_CopyFolderTo(tvol, tdir, gTpl[idx].name, dvol, ddir, name, &nd)) {
+        SysBeep(1);
+        return;
+    }
+    gDepth = 1;                          /* inside the new writing */
+    gDir[1] = nd;
+    CopyP(name, gDirName[1]);
+    LoadFiles();
+    gFirst[kRowFiles] = 0;
+    Select(-1, 0);
+    Redraw();
+}
+
 static void DoOpen(void)
 {
     short wd;
@@ -676,7 +702,9 @@ static void DoOpen(void)
         DoOther();
         return;
     }
-    if (gSelRow == kRowTpl) {
+    if (gSelRow == kRowTpl && gTpl[gSelIdx].isFolder) {
+        NewFromFolderTemplate(gSelIdx);  /* a new writing, shown open */
+    } else if (gSelRow == kRowTpl) {
         /* its text on a new page, named when first saved */
         if (Doc_NewFromTemplate(gTpl[gSelIdx].name, Files_TemplatesWD(), NewWD()))
             Lib_Close();

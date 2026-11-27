@@ -53,6 +53,8 @@ static const char kWelcome[] =
     "\r"
     "## This build adds\r"
     "\r"
+    "- Six templates: Article, Book Project, Essay, Journal, Script and "
+    "Short Story.\r"
     "- Every writing is a folder in the Library: the New tile starts one, "
     "and it can grow into a project with more documents and folders.\r"
     "- Import copies a Markdown file from anywhere into a writing of its own.\r"
@@ -107,6 +109,15 @@ static const char kWelcome[] =
     "a + tile once to make something new; double-click a folder to open "
     "it, or a document to write in it. Command-N opens the Library with "
     "New picked: press Return.\r"
+    "\r"
+    "Templates start a piece with a little structure. Each opens with an "
+    "Untitled heading: type your title over it and the writing takes that "
+    "name. Fill in the short prompts or delete them, then write below the "
+    "line. Book Project is a whole writing: an Outline, a Chapters folder "
+    "and Notes for people, places and research. Script is Fountain, the "
+    "plain-text screenplay format; its [[notes]] and = lines never print. "
+    "Add your own templates by putting Markdown files in the Templates "
+    "folder.\r"
     "\r"
     "## Saving\r"
     "\r"
@@ -377,7 +388,7 @@ static void DoCommandKey(EventRecord *ev)
     }
     switch (c) {
     case 'q': if (Doc_CanQuit()) gQuit = true; break;
-    case 'n': Lib_OpenNew(); break;      /* pick Blank or a template */
+    case 'n': Lib_OpenNew(); break;      /* New, or a template */
     case 'o': Lib_Open(); break;
     case 's': Doc_SaveCommand(); break;
     case 'm': Doc_ToggleMarks(); break;

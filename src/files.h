@@ -67,6 +67,8 @@ Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *d
 Boolean Files_EmptyWriting(short vol, long parent, ConstStr255Param name, long *dir);
 Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
 Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
+Boolean Files_CopyFolderTo(short svol, long sparent, ConstStr255Param from,
+                           short dvol, long dparent, ConstStr255Param to, long *newDir);
 void    Files_WrapLoose(void);
 void    Files_CloseAll(void);        /* quit: close our working directories */       /* launch: loose documents get a folder each */
 

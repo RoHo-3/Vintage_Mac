@@ -21,6 +21,7 @@ set(SOURCES
     src/overlay.c
     src/pill.c
     src/palette.c
+    src/templates.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r

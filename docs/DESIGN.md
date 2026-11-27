@@ -404,11 +404,18 @@ Full-screen browser that replaces the classic Open dialog and handles both
 new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
 
 1. **Templates** — ordinary `.md` files in a Templates folder (users can
-   add their own). Default set (by 0.05 alpha): Blank, Outline, Research,
-   Meeting Notes, Article, Short Story, Novel Project (a folder template:
-   chapter files + notes), Script. `Open` on a template creates a new untitled document from it; the
-   template itself is never changed (edit templates in the Finder — a
-   power-user feature).
+   add their own). Default set (0.05 alpha), shelved alphabetically so all
+   six show without scrolling: Article, Book Project (a folder template:
+   Outline, Chapters/Chapter 1, Notes/People & Characters, Places,
+   Research), Essay, Journal, Script (Fountain, saved as `.md`), Short
+   Story. The set is written when the Templates folder holds none (an
+   emptied folder gets it back; the empty Blank.md of earlier builds is
+   replaced). `Open` on a document template makes a new untitled document
+   from it; on a folder template it copies the folder into My Writings as
+   a new writing ("Book Project 2" if taken) and shows it open. Templates
+   themselves are never changed (edit them in the Finder — a power-user
+   feature). Each opens with a `#` name that reads well if kept ("Untitled
+   Story"), short labelled prompts, a rule, then "Start here."
 2. **My Writings** — every writing is a folder, so a piece can grow from
    one document into a project without a choice up front. On disk, a
    "Writings" folder (next to the app, unless moved: Settings › Move
