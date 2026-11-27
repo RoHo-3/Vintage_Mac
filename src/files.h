@@ -64,6 +64,7 @@ Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
 void    Files_FitName(unsigned char *s);     /* cut to kNameMax at a word */
 void    Files_FitNameTo(unsigned char *s, short max);
 Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *dir);
+Boolean Files_EmptyWriting(short vol, long parent, ConstStr255Param name, long *dir);
 Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
 Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
 void    Files_WrapLoose(void);

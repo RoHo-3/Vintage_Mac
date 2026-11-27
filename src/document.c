@@ -163,6 +163,7 @@ static void SuggestName(unsigned char *name)
 }
 
 static Boolean OpenFile(const unsigned char *name, short vRef);
+static Boolean DecodeIntoBuffer(const unsigned char *raw, long n, FileFormat *fmt);
 
 static Boolean SameName(const unsigned char *a, const unsigned char *b)
 {
@@ -199,6 +200,11 @@ static Boolean UniqueName(unsigned char *name, short vRef)
         unsigned char free[40];
         BaseOf(name, base);
         Files_DocsDir(&v, &d);
+        {
+            long ed;                     /* an empty writing of that name: */
+            if (Files_EmptyWriting(v, d, base, &ed))   /* back into it */
+                return true;
+        }
         if (!Files_FreeName(v, d, base, free)) return false;
         for (i = 0; i <= free[0]; i++) name[i] = free[i];
         name[++name[0]] = '.'; name[++name[0]] = 'm'; name[++name[0]] = 'd';
@@ -339,8 +345,14 @@ static Boolean BecomeFile(const unsigned char *name, short vRef, Boolean follows
         unsigned char base[40], free[40];
         BaseOf(name, base);
         Files_FitName(base);
-        if (!Files_DirOfWD(vRef, &vol, &dir) || !Files_FreeName(vol, dir, base, free)
-            || !Files_NewFolder(vol, dir, free, &folder) || !Files_WDFor(vol, folder, &vRef)) {
+        if (!Files_DirOfWD(vRef, &vol, &dir)) { SysBeep(1); return false; }
+        if (Files_EmptyWriting(vol, dir, base, &folder)) {
+            unsigned char hist[40];      /* its document was taken away: this */
+            JR_HistoryName(name, hist);  /* one moves in, with a fresh history */
+            if (!Files_WDFor(vol, folder, &vRef)) { SysBeep(1); return false; }
+            Files_Trash(vol, folder, hist);
+        } else if (!Files_FreeName(vol, dir, base, free)
+                   || !Files_NewFolder(vol, dir, free, &folder) || !Files_WDFor(vol, folder, &vRef)) {
             SysBeep(1);
             return false;
         }
@@ -581,7 +593,7 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
 {
     short ref;
     long size, n, len = -1;
-    Ptr raw = NULL, text = NULL;
+    Ptr raw = NULL;
     FileFormat fmt;
     if (!SaveIfNeeded())
         return false;
@@ -589,28 +601,26 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
         return false;
     GetEOF(ref, &size);
     raw = NewPtr(size + 1);
-    text = NewPtr(TB_Capacity());
-    if (raw && text) {
+    if (raw) {
         n = size;
         FSRead(ref, &n, raw);
-        len = Enc_Decode((unsigned char *)raw, n, text, TB_Capacity(), &fmt);
     }
     FSClose(ref);
-    if (len >= 0) {
+    if (raw && DecodeIntoBuffer((unsigned char *)raw, n, &fmt)) {
+        len = TB_Len();
         gHasFile = false;
         gNewWD = destWD;
         JR_Detach();
         Doc_Init();
         gFmt = fmt;
         Ed_SetShowMarks(false);
-        Ed_SetText(text, len);
+        Ed_AdoptText();
         Chrome_SetTitle((const unsigned char *)"\pUntitled");
         Chrome_TextChanged();
         Chrome_ResetClock();
         Doc_Remember();                  /* nothing to reopen until it's saved */
     }
     if (raw) DisposePtr(raw);
-    if (text) DisposePtr(text);
     return len >= 0;
 }
 
@@ -683,8 +693,8 @@ Boolean Doc_Import(void)
     {
         DirItem items[2];
         unsigned char hist[40];
-        if (Files_FolderNamed(v, d, base, &nd)
-            && Files_List(v, nd, items, 2) == 0 && Files_WDFor(v, nd, &wd)) {
+        (void)items;
+        if (Files_EmptyWriting(v, d, base, &nd) && Files_WDFor(v, nd, &wd)) {
             /* a writing of that name with no documents left (its file was
                taken out): the file goes back into it, a fresh history too */
             for (i = 0; i <= base[0]; i++) free[i] = base[i];
@@ -726,11 +736,33 @@ Boolean Doc_Location(short *vol, long *dirID)
     return gHasFile && Files_DirOfWD(gVRef, vol, dirID);
 }
 
+/* Decode a file's bytes into the text buffer. The scratch space is sized
+   to the file (decoding only grows for unusual control characters, up to 8
+   times), not to the whole 384 KB buffer: on a small memory partition that
+   left the Toolbox nothing, and the next font load bombed. */
+static Boolean DecodeIntoBuffer(const unsigned char *raw, long n, FileFormat *fmt)
+{
+    long cap = n + n / 8 + 64, len = -1;
+    Ptr text;
+    short tries;
+    for (tries = 0; tries < 2 && len < 0; tries++) {
+        if (cap > TB_Capacity()) cap = TB_Capacity();
+        text = NewPtr(cap);
+        if (!text) return false;
+        len = Enc_Decode(raw, n, text, cap, fmt);
+        if (len >= 0 && !TB_Replace(0, TB_Len(), text, len))
+            len = -1, tries = 2;         /* too big for the text buffer */
+        DisposePtr(text);
+        cap = n * 8 + 64;                /* second try: the worst case */
+    }
+    return len >= 0;
+}
+
 static Boolean OpenFile(const unsigned char *name, short vRef)
 {
     short ref;
     long size, n;
-    Ptr raw, text;
+    Ptr raw;
     OSErr err;
     Boolean ok = false;
 
@@ -738,11 +770,8 @@ static Boolean OpenFile(const unsigned char *name, short vRef)
     if (err != noErr) return false;
     GetEOF(ref, &size);
     raw = NewPtr(size + 1);
-    text = NewPtr(TB_Capacity());
-    if (!raw || !text) {
+    if (!raw) {
         FSClose(ref);
-        if (raw) DisposePtr(raw);
-        if (text) DisposePtr(text);
         SysBeep(1);                      /* too big for memory */
         return false;
     }
@@ -751,18 +780,15 @@ static Boolean OpenFile(const unsigned char *name, short vRef)
     FSClose(ref);
     if (err == noErr || err == eofErr) {
         FileFormat fmt;
-        long len = Enc_Decode((unsigned char *)raw, n, text, TB_Capacity(), &fmt);
         short recovered = kRecoverNone;
-        if (len >= 0 && TB_Replace(0, TB_Len(), text, len)) {
+        Boolean decoded = DecodeIntoBuffer((unsigned char *)raw, n, &fmt);
+        DisposePtr(raw);                 /* free before the journal is read */
+        raw = NULL;
+        if (decoded) {
             JR_Attach(name, vRef);
             recovered = JR_Recover();    /* may leave newer text in the buffer */
-            len = TB_Len();
-            TB_Copy(0, len, text);
-        } else
-            len = -1;
-        if (len >= 0)
             Ed_SetShowMarks((JR_Prefs() & kPrefShowMarks) != 0);
-        if (len >= 0 && Ed_SetText(text, len)) {
+            Ed_AdoptText();
             CopyPString(name, gName);
             gVRef = vRef;
             gFmt = fmt;
@@ -782,8 +808,7 @@ static Boolean OpenFile(const unsigned char *name, short vRef)
             SysBeep(1);                  /* too big for the text buffer */
     } else
         SysBeep(1);
-    DisposePtr(raw);
-    DisposePtr(text);
+    if (raw) DisposePtr(raw);
     return ok;
 }
 
@@ -808,6 +833,7 @@ void Doc_Idle(void)
         /* one small append to the journal; the .md waits for Cmd-S,
            quit, suspend or switching documents */
         Chrome_SetSaveState(kSaveSaving);
+        FollowFirstLine();               /* the name keeps up with the first line */
         if (JR_Checkpoint(Ed_Caret(), NULL)) {
             Ed_ClearChanges();
             gMdBehind = true;

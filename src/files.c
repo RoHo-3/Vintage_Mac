@@ -1087,3 +1087,11 @@ void Files_CloseAll(void)
     }
     gWDCount = 0;
 }
+
+/* An empty writing called name in parent (no documents or folders left in
+   it, journals aside): new work of that name moves back in. */
+Boolean Files_EmptyWriting(short vol, long parent, ConstStr255Param name, long *dir)
+{
+    DirItem items[2];
+    return Files_FolderNamed(vol, parent, name, dir) && Files_List(vol, *dir, items, 2) == 0;
+}

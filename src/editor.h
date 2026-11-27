@@ -35,6 +35,7 @@ long          Ed_Caret(void);
 
 /* Replace the whole document (no undo). */
 Boolean Ed_SetText(const char *text, long len);
+void    Ed_AdoptText(void);         /* the buffer was filled directly */
 
 /* Markdown markers shown or hidden (a per-document setting). */
 void    Ed_SetShowMarks(Boolean on);

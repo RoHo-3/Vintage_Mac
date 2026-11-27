@@ -940,6 +940,8 @@ void Lib_Init(WindowPtr w)
 
 void Lib_Open(void)
 {
+    Doc_Suspend();                       /* the .md current before browsing:
+                                            Duplicate copies what you see */
     if (gDepth == 0)
         Files_DocsDir(&gVol, &gDir[0]);
     gOpen = true;

@@ -1720,6 +1720,14 @@ Boolean Ed_SetText(const char *text, long len)
 {
     if (!TB_Replace(0, TB_Len(), text, len))
         return false;
+    Ed_AdoptText();
+    return true;
+}
+
+/* The text buffer was filled directly (opening a file): start editing it
+   as a fresh document, without a copy of it in between. */
+void Ed_AdoptText(void)
+{
     MD_Invalidate();
     gAnchor = gCaret = 0;
     LY_SetCaret(0);
@@ -1732,7 +1740,6 @@ Boolean Ed_SetText(const char *text, long len)
     gAnchor = gCaret = PrefixEnd(0);     /* start of the visible text, past "# " */
     LY_SetCaret(gCaret);
     Ed_DrawAll();
-    return true;
 }
 
 #define kStripMaxH 48                    /* offscreen strip height */
