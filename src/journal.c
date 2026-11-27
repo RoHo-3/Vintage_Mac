@@ -11,7 +11,7 @@
 #define kSnapshotEvery 64                 /* checkpoints between snapshots */
 
 static Boolean gAttached;
-static Str63   gName;                     /* "<base>.history" */
+static Str63   gName;                     /* "<base>.hist" */
 static short   gVRef;
 static Ptr     gOps;                      /* pending edit ops */
 static long    gOpsLen, gOpsCap;
@@ -100,10 +100,10 @@ void JR_HistoryName(const unsigned char *md, unsigned char *out)
     short n = md[0], i, k = 0;
     if (n > 3 && md[n - 2] == '.' && md[n - 1] == 'm' && md[n] == 'd')
         n -= 3;
-    if (n > 23) n = 23;                   /* + ".history" fits HFS's 31 */
+    if (n > 26) n = 26;                   /* + ".hist" fits HFS\'s 31 */
     for (i = 1; i <= n; i++) out[++k] = md[i];
     {
-        const char *ext = ".history";
+        const char *ext = ".hist";
         while (*ext) out[++k] = (unsigned char)*ext++;
     }
     out[0] = (unsigned char)k;
@@ -131,10 +131,10 @@ void JR_Attach(const unsigned char *md, short vRef)
     short n = md[0], i, k = 0;
     if (n > 3 && md[n - 2] == '.' && md[n - 1] == 'm' && md[n] == 'd')
         n -= 3;
-    if (n > 23) n = 23;                   /* + ".history" fits HFS's 31 */
+    if (n > 26) n = 26;                   /* + ".hist" fits HFS\'s 31 */
     for (i = 1; i <= n; i++) gName[++k] = md[i];
     {
-        const char *ext = ".history";
+        const char *ext = ".hist";
         while (*ext) gName[++k] = (unsigned char)*ext++;
     }
     gName[0] = (unsigned char)k;

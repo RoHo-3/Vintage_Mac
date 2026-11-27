@@ -1,6 +1,6 @@
 /*
  * The append-only journal (docs/STORAGE.md): every change since the last
- * checkpoint is appended to "<name>.history" beside the .md file in one
+ * checkpoint is appended to "<name>.hist" beside the .md file in one
  * small write. Autosave writes only the journal; the .md is rewritten on
  * Cmd-S, quit, suspend and switching documents. On open, the journal is
  * replayed to recover work lost in a crash.

@@ -377,7 +377,6 @@ static void DrawTop(void)
     UIFont(kGeneva, 9, 0);
     MoveTo(x + 10, PanelBottom() - 5);
     if (gDepth == 1) DrawString(PSTR("\pCmd-\\ closes"));
-    else if (b->kind == kSettings) DrawString(PSTR("\pApp preferences"));
     else DrawString(PSTR("\pArrows move \245 Esc back"));
 }
 

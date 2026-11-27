@@ -430,10 +430,10 @@ document for writing. The + tiles and the up tile are buttons, as in the
 Finder's and Standard File's controls: one click does it. Their symbols are
 plain 1-pixel strokes about twice the label's height.
 
-**Names** are at most 23 characters everywhere (the journal's name,
-`<name>.history`, must fit HFS's 31, and a writing's folder and document
+**Names** are at most 26 characters everywhere (the journal's name,
+`<name>.hist`, must fit HFS's 31, and a writing's folder and document
 share a name): names the app makes are cut at the last whole word;
-Rename stops at 23.
+Rename stops at 26.
 
 **Action bar.** The
 bar holds only what acts on a pick — Duplicate · Rename · Move to Trash,

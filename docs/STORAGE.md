@@ -13,9 +13,9 @@ document's folder. Each document is two sibling files:
 | File | Purpose |
 |---|---|
 | `Name.md` | Plain Markdown, readable by any app. Regenerated from the journal. |
-| `Name.history` | Append-only journal — the source of truth. Data fork only. The base name is cut to 23 characters so `.history` fits HFS's 31. Type `MDWJ`, creator `MMDW`. |
+| `Name.hist` | Append-only journal — the source of truth. Data fork only. The base name is cut to 26 characters so `.hist` fits HFS's 31. Type `MDWJ`, creator `MMDW`. |
 
-If a user moves the `.md` without its `.history`, they keep the text but lose
+If a user moves the `.md` without its `.hist`, they keep the text but lose
 the history.
 
 ## Journal records
@@ -103,12 +103,12 @@ changes the bytes the writer actually edited.
   journal checkpoint, the app quietly records the new text as a version in
   History, marked "◆ Edited on another computer". Nothing is lost on either
   side.
-- The `.history` journal stays with the file but is meaningless to other
+- The `.hist` journal stays with the file but is meaningless to other
   editors; they simply ignore it.
 
 ## Out of sight
 
-Each `<name>.history` sits next to its document (so renames and moves in the
+Each `<name>.hist` sits next to its document (so renames and moves in the
 app keep the pair together) but carries the Finder's invisible flag, as the
 system's own bookkeeping files do: the Finder shows only the documents. The
 prefs file ("Mac MD Write Prefs", in Writings) is invisible too. On a modern

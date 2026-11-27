@@ -215,13 +215,15 @@ Boolean Files_Init(void)
 
 /* Cut s to kNameMax at its last whole word (at a letter only when one word
    is longer than that), then drop trailing spaces and punctuation. */
-void Files_FitName(unsigned char *s)
+void Files_FitName(unsigned char *s) { Files_FitNameTo(s, kNameMax); }
+
+void Files_FitNameTo(unsigned char *s, short max)
 {
     short n = s[0], k;
-    if (n > kNameMax) {
-        for (k = kNameMax + 1; k > 1 && s[k] != ' '; k--)
+    if (n > max) {
+        for (k = max + 1; k > 1 && s[k] != ' '; k--)
             ;
-        n = k > 1 ? k - 1 : kNameMax;
+        n = k > 1 ? k - 1 : max;
     }
     while (n > 0 && (s[n] == ' ' || s[n] == '.' || s[n] == ',' || s[n] == ';' || s[n] == '-'))
         n--;
@@ -233,10 +235,10 @@ static Boolean FreeIn(short vol, long dir, const unsigned char *base, unsigned c
 {
     short k, i, n, room;
     for (k = 1; k < 100; k++) {
-        n = 0;
         room = k == 1 ? kNameMax : kNameMax - (k >= 10 ? 3 : 2);
-        for (i = 1; i <= base[0] && n < room; i++) out[++n] = base[i];
-        while (k > 1 && n > 0 && out[n] == ' ') n--;
+        for (i = 0; i <= base[0]; i++) out[i] = base[i];
+        Files_FitNameTo(out, room);      /* " 2" needs room: cut at a word */
+        n = out[0];
         if (k > 1) {
             out[++n] = ' ';
             if (k >= 10) out[++n] = (unsigned char)('0' + k / 10);

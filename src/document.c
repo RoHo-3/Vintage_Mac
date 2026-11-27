@@ -208,8 +208,7 @@ static Boolean UniqueName(unsigned char *name, short vRef)
         return true;
     CopyPString(name, base);
     base[0] -= 3;                        /* without ".md" */
-    if (base[0] > kNameMax - 3) base[0] = kNameMax - 3;   /* room for " 99" */
-    while (base[0] > 0 && base[base[0]] == ' ') base[0]--;
+    Files_FitNameTo(base, kNameMax - 3);  /* room for " 99", at a word */
     for (k = 2; k < 100; k++) {
         n = 0;
         for (i = 1; i <= base[0]; i++) name[++n] = base[i];
@@ -257,8 +256,9 @@ static void FollowFirstLine(void)
         Files_FitName(base);
         Files_DocsDir(&wv, &wdir);
         for (k = 1; k < 100; k++) {      /* base, "base 2", ... */
-            n = 0;
-            for (i = 1; i <= base[0]; i++) cand[++n] = base[i];
+            for (i = 0; i <= base[0]; i++) cand[i] = base[i];
+            Files_FitNameTo(cand, k == 1 ? kNameMax : kNameMax - (k >= 10 ? 3 : 2));
+            n = cand[0];                 /* a suffix makes room at a word */
             if (k > 1) {
                 cand[++n] = ' ';
                 if (k >= 10) cand[++n] = (unsigned char)('0' + k / 10);
@@ -532,7 +532,7 @@ Boolean Doc_RenameFile(short wd, const unsigned char *from, const unsigned char 
     JR_HistoryName(from, h1);
     JR_HistoryName(to, h2);
     if (open) {
-        if (!JR_Rename(to)) {            /* renames the .history too */
+        if (!JR_Rename(to)) {            /* renames the .hist too */
             Rename(to, wd, from);
             return false;
         }

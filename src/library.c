@@ -1013,7 +1013,7 @@ static void EditKey(unsigned char c)
             gEditCaret--;
         }
     } else if (c >= 0x20 && c != 0x7F) {
-        if (gEdit[0] >= kNameMax) { SysBeep(1); return; }   /* names stop at 23 */
+        if (gEdit[0] >= kNameMax) { SysBeep(1); return; }   /* names stop at kNameMax */
         for (i = gEdit[0]; i > gEditCaret; i--) gEdit[i + 1] = gEdit[i];
         gEdit[gEditCaret + 1] = c;
         gEdit[0]++;

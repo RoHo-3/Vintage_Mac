@@ -17,7 +17,7 @@
      kept as escapes (fuzz-tested byte-for-byte). Autosave after a 2 s pause
      once 250 weighted characters changed or 3 min passed; save on suspend
      and quit. Classic Open/Save dialogs stand in for the Library. ✅ build 3
-   - 4b. Append-only journal (`<name>.history`): autosave appends one
+   - 4b. Append-only journal (`<name>.hist`): autosave appends one
      small record; the .md is rewritten on Cmd-S, quit, suspend and
      switching documents. Opening replays it: work lost in a crash is
      restored quietly; a file edited on another computer becomes a new
@@ -101,7 +101,7 @@
 - Product Guide: a complete guide to the app, with a "This build adds..."
   section kept current build by build toward 0.05's code complete.
 - Library polish (done locally): lighter + and up symbols, one click on
-  + and up tiles, "New" instead of "New Writing", one 23-character name
+  + and up tiles, "New" instead of "New Writing", one 26-character name
   limit cut at whole words (Rename stops there too).
 - Settings blade in three groups (App, Library, This document); **Back Up
   Library…** copies the whole library, dated, to any folder or disk (done
@@ -156,7 +156,7 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 
 ## Future exploration
 
-- **Cross-device `.history` (old Mac ↔ new Mac).** Journals sit beside their
+- **Cross-device `.hist` (old Mac ↔ new Mac).** Journals sit beside their
   documents, flagged invisible for the classic Finder; modern macOS ignores
   the flag, and Finder-level moves leave journals behind (cleaned up on
   launch). If a modern-Mac version is built, decide then how history

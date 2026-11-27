@@ -39,7 +39,7 @@ Boolean Files_IsInside(short vol, long dir, long ancestor);
 Boolean Files_FolderName(short vol, long dir, unsigned char *name);
 Boolean Files_ProjectOf(short vol, long dir, long *project);   /* its writing folder */
 void    Files_SetDialogFolder(short wdRef);
-void    Files_TidyJournals(void);  /* launch: orphaned .history files to the Trash */   /* next SFGetFile/SFPutFile */
+void    Files_TidyJournals(void);  /* launch: orphaned .hist files to the Trash */   /* next SFGetFile/SFPutFile */
 
 /* One folder listing: documents (.md / TEXT) and folders, Finder order. */
 #define kMaxItems 64
@@ -58,10 +58,11 @@ Boolean Files_Copy(short wdRef, ConstStr255Param from, ConstStr255Param to);
 Boolean Files_CopyTo(short wdRef, ConstStr255Param from, short dstWD, ConstStr255Param to);
 Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
 /* One limit for every name the app makes or takes (writings, documents,
-   renames): 23 characters, so "<name>.history" still fits HFS's 31 and a
+   renames): 26 characters, so "<name>.hist" still fits HFS's 31 and a
    writing's folder and document can always share a name. */
-#define kNameMax 23
+#define kNameMax 26
 void    Files_FitName(unsigned char *s);     /* cut to kNameMax at a word */
+void    Files_FitNameTo(unsigned char *s, short max);
 Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *dir);
 Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
 Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
