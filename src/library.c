@@ -531,7 +531,7 @@ static void DrawActions(void)
     TextSize(9);
     for (i = 0; i < gActN; i++) {
         CStr(kActName[gActs[i]], s);
-        if (i == gActSplit) {           /* divider */
+        if (i == gActSplit && i > 0) {  /* divider, only between two groups */
             MoveTo(x - 6, kHeaderH + 3);
             LineTo(x - 6, kRowsTop - 4);
             x += 6;
