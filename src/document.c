@@ -423,6 +423,20 @@ static Boolean SaveIfNeeded(void)
    folder (or one inside it) adds the document there. */
 void Doc_SetNewFolder(short wd) { gNewWD = wd; }
 
+/* The text in the editor becomes a new writing called name ("Product
+   Guide.md"): its folder and document, saved now, with its history. The
+   name is the writer's, not the app's: it doesn't follow the first line. */
+Boolean Doc_SaveNewWriting(const unsigned char *name)
+{
+    gNewWD = 0;
+    if (!BecomeFile(name, Files_DocsWD(), false))
+        return false;
+    if (!Doc_Save())
+        return false;
+    Doc_Remember();
+    return true;
+}
+
 /* A blank page, named on its first save (see Doc_SetNewFolder). */
 void Doc_New(void)
 {

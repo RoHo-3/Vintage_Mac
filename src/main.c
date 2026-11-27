@@ -222,11 +222,15 @@ void App_MoveLibrary(void)
         SysBeep(1);                      /* inside itself, a name taken, disk full */
         return;
     }
-    Files_Init();                        /* the library's new home */
-    Lib_Reset();
-    if (!Doc_Reopen()) {
-        Doc_SetNewFolder(0);
-        Doc_New();
+    {
+        unsigned long clock = Chrome_ClockStart();   /* the session goes on */
+        Files_Init();                    /* the library's new home */
+        Lib_Reset();
+        if (!Doc_Reopen()) {
+            Doc_SetNewFolder(0);
+            Doc_New();
+        }
+        Chrome_SetClockStart(clock);
     }
 }
 
@@ -463,7 +467,8 @@ int main(void)
         /* no previous document: a blank page, ready to write (Cmd-O for the
            Library) */
     } else {
-        /* first run: welcome text + which font is in use */
+        /* first run: the Product Guide (+ which font is in use), saved as a
+           real writing so it moves, copies and trashes like any other */
         const char *f = Ed_UsingFallbackFont() ? kFontFallback : kFontOK;
         long n1 = sizeof(kWelcome) - 1, n2 = 0, i;
         static char buf[sizeof(kWelcome) + 128];   /* not on the stack */
@@ -471,6 +476,7 @@ int main(void)
         for (i = 0; i < n1; i++) buf[i] = kWelcome[i];
         for (i = 0; i < n2; i++) buf[n1 + i] = f[i];
         Ed_SetText(buf, n1 + n2);
+        Doc_SaveNewWriting(PSTR("\pProduct Guide.md"));
     }
 
     while (!gQuit) {

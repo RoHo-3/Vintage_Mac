@@ -13,7 +13,8 @@ void    Doc_Init(void);
 void    Doc_New(void);
 Boolean Doc_SaveCommand(void);  /* Cmd-S: Save dialog when untitled */
 Boolean Doc_Open(void);          /* classic dialog (Library's Other...) */
-Boolean Doc_Import(void);        /* copy a .md from anywhere into a new writing */
+Boolean Doc_Import(void);
+Boolean Doc_SaveNewWriting(const unsigned char *name);   /* first run: the guide */        /* copy a .md from anywhere into a new writing */
 Boolean Doc_Save(void);          /* false if cancelled or failed */
 void    Doc_Idle(void);          /* autosave on pause */
 void    Doc_Suspend(void);       /* switching to another app */

@@ -341,6 +341,9 @@ void Chrome_TextChanged(void)
         Chrome_SetSaveState(kSaveUnsaved);
 }
 
+unsigned long Chrome_ClockStart(void) { return gClockStart; }
+void Chrome_SetClockStart(unsigned long t) { gClockStart = t; }
+
 void Chrome_ResetClock(void)
 {
     gClockStart = 0;                     /* the next keystroke starts it */
