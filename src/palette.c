@@ -25,6 +25,23 @@ static short     gQLen;
 static short     gHits[kMaxHits];        /* indexes into the table */
 static short     gHitN, gSel, gTop;
 
+/* Worked out once when the palette opens, not on every keystroke: labels
+   ("Hide Word Count" reads the prefs from disk) and what's available now
+   (some look through the whole document). */
+#define kMaxCmds 64
+static const char *gLabel[kMaxCmds];
+static Boolean     gAvail[kMaxCmds];
+
+static void Snapshot(void)
+{
+    short n, i;
+    const Command *t = Cmd_Table(&n);
+    for (i = 0; i < n && i < kMaxCmds; i++) {
+        gLabel[i] = Cmd_Label(&t[i]);
+        gAvail[i] = Cmd_Available(t[i].id);
+    }
+}
+
 static char Lower(char c) { return (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c; }
 
 /* Is the word q[0..n) inside s (case ignored)? */
@@ -41,7 +58,7 @@ static Boolean Contains(const char *s, const char *q, short n)
 
 /* Every word of the query is in the name or the search words. Returns 2
    when they are all in the name (those come first), 1, or 0. */
-static short Match(const Command *c)
+static short Match(const Command *c, short idx)
 {
     short i = 0, a, best = 2;
     while (i < gQLen) {
@@ -49,7 +66,7 @@ static short Match(const Command *c)
         a = i;
         while (i < gQLen && gQuery[i] != ' ') i++;
         if (i == a) break;
-        if (Contains(Cmd_Label(c), gQuery + a, i - a)) continue;
+        if (Contains(gLabel[idx], gQuery + a, i - a)) continue;
         if (Contains(c->name, gQuery + a, i - a) || Contains(c->keys, gQuery + a, i - a)
             || Contains(c->group, gQuery + a, i - a))
             best = 1;
@@ -66,7 +83,7 @@ static void Filter(void)
     gHitN = 0;
     for (pass = 2; pass >= 1; pass--)
         for (i = 0; i < n && gHitN < kMaxHits; i++)
-            if (Cmd_Available(t[i].id) && Match(&t[i]) == pass)
+            if (i < kMaxCmds && gAvail[i] && Match(&t[i], i) == pass)
                 gHits[gHitN++] = i;
     gSel = gTop = 0;
 }
@@ -97,7 +114,7 @@ static void DrawRows(void)
     for (i = gTop; i < gHitN && i < gTop + kRows; i++, y += kRowH) {
         const Command *c = &t[gHits[i]];
         TextSize(10);
-        Str(Cmd_Label(c), gCard.left + 10, y + 11);
+        Str(gLabel[gHits[i]], gCard.left + 10, y + 11);
         if (c->shortcut[0]) {
             TextSize(9);
             Str(c->shortcut, gCard.right - 10 - SW(c->shortcut), y + 11);
@@ -173,6 +190,7 @@ void Palette_Open(void)
     save.bottom += 2;
     Under_Save(gWin, &save);
     gQLen = 0;
+    Snapshot();
     Filter();
     gOpen = true;
     DrawAll();

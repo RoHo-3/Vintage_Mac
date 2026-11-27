@@ -127,7 +127,6 @@ static void DrawStrip(void)
         DrawString(gMessage);
         return;
     }
-    gMessage[0] = 0;
     UIFont(systemFont, 12, bold);
     w = StringWidth(gTitle);
     MoveTo((gWin->portRect.right - w) / 2, 14);
@@ -276,10 +275,11 @@ void Chrome_ShowMessage(const unsigned char *msg, short seconds)
     short i;
     if (!gWin) return;
     for (i = 0; i <= msg[0] && i < 99; i++) gMessage[i] = msg[i];
+    gStripUntil = TickCount() + 60L * seconds;   /* before drawing: the strip
+                                                    checks it */
     gStripShown = false;
     SetStrip(true);
     GetMouse(&gLastMouse);
-    gStripUntil = TickCount() + 60L * seconds;
 }
 
 void Chrome_ShowTitleBriefly(void)
@@ -324,6 +324,7 @@ void Chrome_Idle(void)
     moved = m.h != gLastMouse.h || m.v != gLastMouse.v;
     if (gStripUntil && TickCount() >= gStripUntil) {
         gStripUntil = 0;                 /* the title has been seen */
+        gMessage[0] = 0;                 /* and any passing note */
         if (!(m.v >= 0 && m.v < kStripH)) SetStrip(false);
     }
     if (moved) {
