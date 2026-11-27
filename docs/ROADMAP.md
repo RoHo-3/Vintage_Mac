@@ -194,7 +194,9 @@ Launch got slower around builds 81-90. Before changing anything, measure:
     "Edited on another computer". Options: give the journal a way to
     record an outside append (a snapshot of the new text), or make Cuts a
     section at the end of the same document.
-  - *Footnote gesture,* for the footnotes item: one key adds `[^n]` and
+  - *Footnote gesture (editing half done, build 107: Cmd-K > Insert
+    Footnote, Jump to Footnote; marks show as plain text until their look
+    is designed),* for the footnotes item: one key adds `[^n]` and
     opens its note at the bottom; Enter goes back to the sentence; marks
     shown as numbers in order on screen, never renumbered in the file.
   - *Smart typography,* polish if asked: curly quotes, em dash and

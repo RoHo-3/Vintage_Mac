@@ -1723,6 +1723,114 @@ void Ed_JumpSection(short dir)
     Ed_SetCaret(p);
 }
 
+/* Footnotes, the editing half (ROADMAP: footnotes before tables). The
+   standard form is a mark [^label] in the text and a note "[^label]: ..."
+   as its own paragraph, usually at the end. How they look on screen is
+   still to be designed; until then they show as the plain text they are. */
+
+/* A footnote mark or note starting at p: "[^" label "]". Returns the end
+   (just past "]") and the label's bounds, or -1. */
+static long FootAt(long p, long len, long *ls, long *le)
+{
+    long q;
+    if (p + 3 >= len || TB_Char(p) != '[' || TB_Char(p + 1) != '^') return -1;
+    for (q = p + 2; q < len && q - p < 34; q++) {
+        unsigned char c = TB_Char(q);
+        if (c == ']') break;
+        if (c == ' ' || c == '\r' || c == '[' || c == '^') return -1;
+    }
+    if (q >= len || TB_Char(q) != ']' || q == p + 2) return -1;
+    *ls = p + 2;
+    *le = q;
+    return q + 1;
+}
+
+static Boolean IsNoteAt(long p, long len)  /* "[^x]:" at a paragraph start */
+{
+    long ls, le, e = FootAt(p, len, &ls, &le);
+    return e > 0 && e < len && TB_Char(e) == ':' && MD_ParaStart(p) == p;
+}
+
+static Boolean SameLabel(long a, long b, long n)
+{
+    long i;
+    for (i = 0; i < n; i++)
+        if (TB_Char(a + i) != TB_Char(b + i)) return false;
+    return true;
+}
+
+/* Insert Footnote: a mark [^n] at the caret (after a selection), n one
+   past the highest number used, and its note "[^n]: " at the end, where
+   the caret goes to write it. Jump to Footnote comes back. */
+Boolean Ed_InsertFootnote(void)
+{
+    long len = TB_Len(), p, ls, le, at = SelEnd(), num = 0, v, q;
+    char buf[48];
+    short n = 0, k;
+    char d[8];
+    if (IsNoteAt(MD_ParaStart(at), len))
+        return false;                    /* marks go in the text, not a note */
+    for (p = 0; p + 3 < len; p++)
+        if (FootAt(p, len, &ls, &le) > 0) {
+            for (v = 0, q = ls; q < le && v < 100000L; q++) {
+                unsigned char c = TB_Char(q);
+                if (c < '0' || c > '9') { v = 0; break; }
+                v = v * 10 + (c - '0');
+            }
+            if (v > num) num = v;
+        }
+    num++;
+    k = 0;
+    do { d[k++] = (char)('0' + num % 10); num /= 10; } while (num > 0);
+    buf[n++] = '['; buf[n++] = '^';
+    while (k > 0) buf[n++] = d[--k];
+    buf[n++] = ']';
+    SetSel(at, at);
+    InsertText(buf, n, false);           /* the mark */
+    len = TB_Len();
+    {
+        char note[56];
+        short m = 0, i;
+        if (len > 0 && TB_Char(len - 1) != '\r') note[m++] = '\r';
+        /* a blank line before the first note; notes then follow each other */
+        if (!(len > 1 && IsNoteAt(MD_ParaStart(len - 1), len)))
+            note[m++] = '\r';
+        for (i = 0; i < n; i++) note[m++] = buf[i];
+        note[m++] = ':'; note[m++] = ' ';
+        SetSel(len, len);
+        InsertText(note, m, false);      /* the note, caret after it */
+    }
+    return true;
+}
+
+/* Jump to Footnote: from a mark to its note, or from a note (anywhere in
+   its paragraph) back to its first mark. False: not on either. */
+Boolean Ed_JumpFootnote(void)
+{
+    long len = TB_Len(), c = gCaret, p, ls, le, e, ps = MD_ParaStart(c), tls, tle, q;
+    Boolean fromNote = IsNoteAt(ps, len);
+    if (fromNote) {
+        FootAt(ps, len, &tls, &tle);
+    } else {
+        for (p = c > 34 ? c - 34 : 0, tls = -1; p <= c && p < len; p++) {
+            e = FootAt(p, len, &ls, &le);
+            if (e > 0 && c >= p && c <= e) { tls = ls; tle = le; break; }
+        }
+        if (tls < 0) return false;
+    }
+    for (q = 0; q + 3 < len; q++) {
+        e = FootAt(q, len, &ls, &le);
+        if (e < 0 || le - ls != tle - tls || !SameLabel(ls, tls, le - ls)) continue;
+        if (fromNote != IsNoteAt(q, len)) {
+            gTyping = false;
+            if (fromNote) SetSel(e, e);              /* just past the mark */
+            else SetSel(e + 2 <= len ? e + 2 : e, e + 2 <= len ? e + 2 : e);  /* after "]: " */
+            return true;
+        }
+    }
+    return false;
+}
+
 /* TK placeholders (ROADMAP, from the Neo review): "TK" is publishing's
    mark for "to come", a fact or name to fill in later. A TK counts when it
    stands as a word of its own, in capitals. */

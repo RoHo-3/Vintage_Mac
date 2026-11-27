@@ -19,7 +19,8 @@ enum {
     cBigger, cSmaller, cNextFont, cWords, cClock, cDrawer, cSettings,
     cTiming, cQuit,
     cNextTK, cInsertTK,
-    cFocusMinutes, cFocusWords, cFocusClear, cHistory
+    cFocusMinutes, cFocusWords, cFocusClear, cHistory,
+    cFootnote, cJumpFootnote
 };
 
 typedef struct {

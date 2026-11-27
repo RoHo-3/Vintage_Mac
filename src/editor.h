@@ -68,4 +68,7 @@ void    Ed_JumpSection(short dir);   /* next (1) / previous (-1) heading */
 short   Ed_NextTK(short *which);     /* select the next TK; how many there are */
 void    Ed_InsertTK(void);
 
+Boolean Ed_InsertFootnote(void);    /* false inside a note */
+Boolean Ed_JumpFootnote(void);      /* mark <-> note; false if on neither */
+
 #endif

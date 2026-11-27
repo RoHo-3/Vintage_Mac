@@ -60,6 +60,8 @@ static const char kWelcome[] =
     "- Command-K, Focus for Minutes or Focus for Words: a goal for this "
     "sitting, shown in the footer.\r"
     "- Command-K, Insert TK marks a spot to come back to; Next TK finds it.\r"
+    "- Command-K, Insert Footnote adds a mark and its note at the end; "
+    "Jump to Footnote goes between them.\r"
     "- Every writing is a folder in the Library: the New tile starts one, "
     "and it can grow into a project with more documents and folders.\r"
     "- Import copies a Markdown file from anywhere into a writing of its own.\r"

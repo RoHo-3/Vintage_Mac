@@ -13,6 +13,7 @@
 static const Command kCommands[] = {
     { cHistory,     "Navigate", "History\311",          "versions past earlier undo restore recover backup old revert", "" },
     { cLibrary,     "Navigate", "Library\311",          "open files browse documents projects folder find file", "Cmd-O" },
+    { cJumpFootnote,"Navigate", "Jump to Footnote",     "note mark back reference endnote go",        "" },
     { cNextTK,      "Navigate", "Next TK",              "placeholder to come todo fill in later find mark xxx", "" },
     { cSections,    "Navigate", "Go to Section\311",    "headings outline jump contents toc chapter",  "" },
     { cNextSection, "Navigate", "Next Section",         "heading down forward jump chapter",           "" },
@@ -32,6 +33,7 @@ static const Command kCommands[] = {
     { cNumbers,     "Write",    "Numbered List",        "ordered numbers list ol 123",                 "Cmd-Shift-7" },
     { cTasks,       "Write",    "Task List",            "todo to-do checkbox check checklist tick",    "Cmd-Shift-9" },
     { cQuote,       "Write",    "Quote",                "blockquote block quote citation cite",        "Cmd-Shift-'" },
+    { cFootnote,    "Write",    "Insert Footnote",      "note reference citation source endnote",     "" },
     { cInsertTK,    "Write",    "Insert TK",            "placeholder to come mark later fill in xxx",  "" },
     { cUndo,        "Write",    "Undo",                 "revert back mistake",                         "Cmd-Z" },
     { cRedo,        "Write",    "Redo",                 "again forward",                               "Cmd-Shift-Z" },
@@ -212,6 +214,14 @@ void Cmd_Run(short id)
     case cSettings:    Drawer_OpenBlade('t'); break;
     case cTiming:      App_ShowLaunchTiming(); break;
     case cNextTK:      NextTK(); break;
+    case cFootnote:
+        if (!Ed_InsertFootnote())
+            Chrome_ShowMessage((const unsigned char *)"\pFootnote marks go in the text, not in a note", 3);
+        break;
+    case cJumpFootnote:
+        if (!Ed_JumpFootnote())
+            Chrome_ShowMessage((const unsigned char *)"\pPut the caret on a footnote mark or note", 3);
+        break;
     case cFocusMinutes: AskGoal('m'); break;
     case cFocusWords:  AskGoal('w'); break;
     case cFocusClear:  Chrome_SetGoal(0, 0); break;
