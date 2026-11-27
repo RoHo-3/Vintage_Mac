@@ -143,9 +143,19 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
 - Notes, image placeholders, links and back stack
-- **Default templates — no later than 0.05 alpha:** Blank, Outline,
-  Research, Meeting Notes, Article, Short Story, Novel Project, Script
-  (structures designed together; see to-do list)
+- **Default templates — 0.05 alpha:** six, one shelf with no scrolling,
+  alphabetical: Article, Book Project (Outline; Chapters/Chapter 1;
+  Notes/People & Characters, Places, Research), Essay, Journal, Script
+  (Fountain, saved as .md, opens with a `#` section line), Short Story.
+  Blank leaves the shelf (New already makes one). Each opens with a `#`
+  name that reads well if kept ("Untitled Story"), short labelled prompts,
+  then "Start here." Parked: Poem, Meeting Notes, a chosen shelf order.
+- **Library ideation — end of 0.05, before the next polish round:** is a
+  shelf of big tiles the right picture for the Library, and for adding?
+  Up, New Document and New Folder might read better as three small text
+  rows at the left, closer to Finder's list sizes and names, keeping them
+  beside the writing's files so the layout still shows how writings are
+  built. Explore with sketches before any code.
 
 ## Polish (to decide with real use)
 
@@ -157,6 +167,13 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   would change too); (b) named once at the first save, like TextEdit /
   Pages; (c) today's rule, made visible (a mark in the title strip or
   drawer when the name follows). Decide after writing real pieces with it.
+  Also tabled: how a template's "Untitled" name prompts a rename (in the
+  document or in the Library), and whether Library Rename stays at all;
+  it is today the only way to rename a folder such as a Book Project.
+- **Fountain files:** import and export of .fountain wait until moving
+  files between vintage and modern Macs is solved (likely a BlueSCSI with
+  Wi-Fi). Then a title page can be built from the script's `#` line.
+- **Footnotes before tables** (templates parking lot).
 
 ## Readying for release
 
