@@ -57,7 +57,7 @@ static const char kWelcome[] =
     "and it can grow into a project with more documents and folders.\r"
     "- Import copies a Markdown file from anywhere into a writing of its own.\r"
     "- Settings: Move Library and Back Up Library.\r"
-    "- Hold Option while launching to see how long launch took.\r"
+    "- Command-K, then Launch Timing: how long this launch took.\r"
     "\r"
     "## Writing\r"
     "\r"
@@ -429,19 +429,14 @@ static void DoMouseDown(EventRecord *ev)
     }
 }
 
-/* ---- launch timing: hold Option while launching to see where the time
-   goes (the performance passes measure before they change anything) ---- */
+/* ---- launch timing: every launch is timed; Cmd-K > Launch Timing shows
+   where the time went (the performance passes measure first). Not a
+   modifier key at launch: on System 6, Option-opening an app asks the
+   Finder to make its disk the startup disk. ---- */
 
 enum { tStart, tToolbox, tEditor, tFiles, tTidy, tInit, tOpen, tDraw, tCount };
 static unsigned long gT[tCount];
 static Boolean gTiming;
-
-#define LM_KeyMap ((volatile unsigned char *)0x0174)   /* the keyboard, now */
-
-static Boolean OptionDown(void)
-{
-    return (LM_KeyMap[0x3A >> 3] >> (0x3A & 7)) & 1;      /* Option (key 0x3A) */
-}
 
 static void AddTenths(unsigned char *s, const char *label, unsigned long ticks)
 {
@@ -456,8 +451,8 @@ static void AddTenths(unsigned char *s, const char *label, unsigned long ticks)
     s[++s[0]] = (unsigned char)('0' + t % 10);
 }
 
-/* After the first full draw: "Launch 4.2: toolbox 0.1, editor 0.3, ..." */
-static void ShowTiming(void)
+/* "Launch 4.2: toolbox 0.1, editor 0.3, ..." in the title strip. */
+void App_ShowLaunchTiming(void)
 {
     unsigned char m[100];
     static const char *kLabel[tCount] = { "", "toolbox", "editor", "files", "journals",
@@ -474,7 +469,6 @@ static void ShowTiming(void)
         for (i = 1; i <= rest[0] && m[0] < 98; i++) m[++m[0]] = rest[i];
     }
     Chrome_ShowMessage(m, 10);
-    gTiming = false;
 }
 
 static void HandleEvent(EventRecord *ev)
@@ -520,9 +514,9 @@ static void HandleEvent(EventRecord *ev)
                 Palette_Redraw();
             }
             EndUpdate(gWindow);
-            if (gTiming) {               /* Option held at launch */
+            if (gTiming) {               /* the first full draw ends the launch */
                 gT[tDraw] = TickCount();
-                ShowTiming();
+                gTiming = false;
             }
         }
         break;
@@ -557,7 +551,7 @@ int main(void)
     gT[tStart] = TickCount();
     InitMemory();
     InitToolbox();
-    gTiming = OptionDown();
+    gTiming = true;
     gT[tToolbox] = TickCount();
     gHasWNE = HasWaitNextEvent();
     OpenCanvas();

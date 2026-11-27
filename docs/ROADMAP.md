@@ -113,7 +113,7 @@
 
 Launch got slower around builds 81-90. Before changing anything, measure:
 
-1. **Measure.** A timing build that records ticks for each launch phase
+1. **Measure.** Every launch records ticks for each phase (Cmd-K > Launch Timing shows them)
    (Files_Init, wrapping loose documents, tidying journals, prefs, reopening
    the last document and its journal, first layout, first draw) and shows
    them, so we fix what's actually slow on a 68000.

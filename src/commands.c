@@ -44,6 +44,7 @@ static const Command kCommands[] = {
     { cClock,       "View",     "Show Session Clock",   "timer time elapsed hide turn off",            "" },
     { cDrawer,      "View",     "Drawer",               "menu sidebar hamburger panel",                "Cmd-\\" },
     { cSettings,    "View",     "Settings\311",         "preferences options prefs font size",         "" },
+    { cTiming,      "App",      "Launch Timing",        "speed performance startup slow time how long", "" },
     { cQuit,        "App",      "Quit",                 "exit close leave stop",                       "Cmd-Q" },
 };
 
@@ -123,6 +124,7 @@ void Cmd_Run(short id)
     case cClock:       ToggleStatus(2); break;
     case cDrawer:      Drawer_Open(); break;
     case cSettings:    Drawer_OpenBlade('t'); break;
+    case cTiming:      App_ShowLaunchTiming(); break;
     case cQuit:        App_Quit(); break;
     }
 }
