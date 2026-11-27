@@ -17,7 +17,8 @@ enum {
     cMarks, cNextSection, cPrevSection, cSections,
     cLibrary, cNew, cSave,
     cBigger, cSmaller, cNextFont, cWords, cClock, cDrawer, cSettings,
-    cTiming, cQuit
+    cTiming, cQuit,
+    cNextTK, cInsertTK
 };
 
 typedef struct {

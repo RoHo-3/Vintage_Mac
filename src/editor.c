@@ -1723,6 +1723,60 @@ void Ed_JumpSection(short dir)
     Ed_SetCaret(p);
 }
 
+/* TK placeholders (ROADMAP, from the Neo review): "TK" is publishing's
+   mark for "to come", a fact or name to fill in later. A TK counts when it
+   stands as a word of its own, in capitals. */
+static Boolean IsLetter(unsigned char c)
+{
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+        || c >= 0x80;                    /* accented letters in Mac Roman */
+}
+
+static Boolean TKAt(long p, long len)
+{
+    return p + 1 < len && TB_Char(p) == 'T' && TB_Char(p + 1) == 'K'
+        && (p == 0 || !IsLetter(TB_Char(p - 1)))
+        && (p + 2 >= len || !IsLetter(TB_Char(p + 2)));
+}
+
+/* Select the next TK after the selection, wrapping to the top. Returns
+   how many there are (0: none) and which one is now picked (1-based). */
+short Ed_NextTK(short *which)
+{
+    long len = TB_Len(), p, from = SelEnd(), hit = -1;
+    short total = 0, at = 0;
+    for (p = 0; p + 1 < len; p++)
+        if (TKAt(p, len)) {
+            total++;
+            if (hit < 0 && p >= from) { hit = p; at = total; }
+            if (total == 32767) break;
+        }
+    if (total == 0) return 0;
+    if (hit < 0) {                       /* none below: wrap to the first */
+        for (p = 0; !TKAt(p, len); p++)
+            ;
+        hit = p;
+        at = 1;
+    }
+    gTyping = false;
+    SetSel(hit, hit + 2);                /* typing replaces it */
+    if (which) *which = at;
+    return total;
+}
+
+/* Drop a TK at the caret (or over the selection), spaced as a word. */
+void Ed_InsertTK(void)
+{
+    long a = SelStart(), e = SelEnd(), len = TB_Len();
+    char buf[4];
+    short n = 0;
+    if (a > 0 && TB_Char(a - 1) != ' ' && TB_Char(a - 1) != '\r') buf[n++] = ' ';
+    buf[n++] = 'T';
+    buf[n++] = 'K';
+    if (e < len && TB_Char(e) != ' ' && TB_Char(e) != '\r') buf[n++] = ' ';
+    InsertText(buf, n, false);
+}
+
 void Ed_SetCaret(long pos)
 {
     if (pos < 0) pos = 0;

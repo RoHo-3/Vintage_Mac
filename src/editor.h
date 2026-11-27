@@ -65,4 +65,7 @@ void    Ed_SelectionBounds(Rect *firstLine, Rect *lastLine);   /* on screen */
 Boolean Ed_HasHeadings(void);
 void    Ed_JumpSection(short dir);   /* next (1) / previous (-1) heading */
 
+short   Ed_NextTK(short *which);     /* select the next TK; how many there are */
+void    Ed_InsertTK(void);
+
 #endif

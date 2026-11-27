@@ -5,11 +5,13 @@
 #include "drawer.h"
 #include "files.h"
 #include "app.h"
+#include "chrome.h"
 
 /* Search words are what a writer might type instead of the name:
    "cancel", "turn off", a plain-language word for a Markdown term. */
 static const Command kCommands[] = {
     { cLibrary,     "Navigate", "Library\311",          "open files browse documents projects folder find file", "Cmd-O" },
+    { cNextTK,      "Navigate", "Next TK",              "placeholder to come todo fill in later find mark xxx", "" },
     { cSections,    "Navigate", "Go to Section\311",    "headings outline jump contents toc chapter",  "" },
     { cNextSection, "Navigate", "Next Section",         "heading down forward jump chapter",           "" },
     { cPrevSection, "Navigate", "Previous Section",     "heading up back jump chapter",                "" },
@@ -28,6 +30,7 @@ static const Command kCommands[] = {
     { cNumbers,     "Write",    "Numbered List",        "ordered numbers list ol 123",                 "Cmd-Shift-7" },
     { cTasks,       "Write",    "Task List",            "todo to-do checkbox check checklist tick",    "Cmd-Shift-9" },
     { cQuote,       "Write",    "Quote",                "blockquote block quote citation cite",        "Cmd-Shift-'" },
+    { cInsertTK,    "Write",    "Insert TK",            "placeholder to come mark later fill in xxx",  "" },
     { cUndo,        "Write",    "Undo",                 "revert back mistake",                         "Cmd-Z" },
     { cRedo,        "Write",    "Redo",                 "again forward",                               "Cmd-Shift-Z" },
     { cCut,         "Write",    "Cut",                  "clipboard remove",                            "Cmd-X" },
@@ -90,6 +93,32 @@ static void ToggleStatus(short bit)
     App_SetStatusParts(!(p.hide & 1), !(p.hide & 2));
 }
 
+static short AppendNum(unsigned char *s, short n, short v)
+{
+    char d[6];
+    short k = 0;
+    do { d[k++] = (char)('0' + v % 10); v /= 10; } while (v > 0);
+    while (k > 0) s[++n] = (unsigned char)d[--k];
+    return n;
+}
+
+/* "TK 2 of 5" in the strip, so the writer knows how many are left. */
+static void NextTK(void)
+{
+    unsigned char msg[40];
+    short which = 0, total = Ed_NextTK(&which), n = 0;
+    if (total == 0) {
+        Chrome_ShowMessage((const unsigned char *)"\pNo TK marks", 2);
+        return;
+    }
+    msg[++n] = 'T'; msg[++n] = 'K'; msg[++n] = ' ';
+    n = AppendNum(msg, n, which);
+    msg[++n] = ' '; msg[++n] = 'o'; msg[++n] = 'f'; msg[++n] = ' ';
+    n = AppendNum(msg, n, total);
+    msg[0] = (unsigned char)n;
+    Chrome_ShowMessage(msg, 2);
+}
+
 void Cmd_Run(short id)
 {
     switch (id) {
@@ -125,6 +154,8 @@ void Cmd_Run(short id)
     case cDrawer:      Drawer_Open(); break;
     case cSettings:    Drawer_OpenBlade('t'); break;
     case cTiming:      App_ShowLaunchTiming(); break;
+    case cNextTK:      NextTK(); break;
+    case cInsertTK:    Ed_InsertTK(); break;
     case cQuit:        App_Quit(); break;
     }
 }
