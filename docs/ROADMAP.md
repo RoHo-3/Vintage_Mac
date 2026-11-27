@@ -174,6 +174,13 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   files between vintage and modern Macs is solved (likely a BlueSCSI with
   Wi-Fi). Then a title page can be built from the script's `#` line.
 - **Footnotes before tables** (templates parking lot).
+- **Template guides (P2, not on the v1 path):** each template carries one
+  line linking to a short best-practice guide in the Product Guide folder
+  (one per template or style: inverted pyramid, persuasive vs informative
+  essay, Fountain lines), each guide listing outside reading such as
+  Wikipedia. Needs link following (Later alphas). Note: a relative link
+  copied into a writing breaks once the file moves to another Mac without
+  the Guide; consider linking by name and resolving inside the app.
 
 ## Readying for release
 
