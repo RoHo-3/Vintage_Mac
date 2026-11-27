@@ -438,6 +438,7 @@ void Chrome_SetGoal(char kind, long target)
 }
 
 char Chrome_GoalKind(void) { return gGoalKind; }
+long Chrome_GoalTarget(void) { return gGoalTarget; }
 
 /* A save: the text is final for now, so count it (cheap beside the
    write), keeping a word goal right if another document opens next. */

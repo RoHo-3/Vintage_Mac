@@ -8,6 +8,7 @@
 #include "markdown.h"
 #include "textbuf.h"
 #include "app.h"
+#include "commands.h"
 
 #include <Quickdraw.h>
 #include <Fonts.h>
@@ -29,10 +30,10 @@
 static short gY;                         /* top of the panel being drawn: 0, or kInset */
 #define PanelBottom() (gWin->portRect.bottom - gY)
 
-enum { kRoot, kProject, kFolder, kSections, kSettings, kHistory };
+enum { kRoot, kProject, kFolder, kSections, kSettings, kHistory, kFocus };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
        aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup, aNewFolder,
-       aVersion };
+       aVersion, aGoal, aGoalOther, aGoalOff };
 
 typedef struct {
     short kind;
@@ -69,6 +70,11 @@ static void CStr(const char *c, unsigned char *p)
     short n = 0;
     while (c[n] && n < 31) { p[n + 1] = (unsigned char)c[n]; n++; }
     p[0] = (unsigned char)n;
+}
+
+static void CStrCat(unsigned char *p, const char *c)
+{
+    while (*c && p[0] < 31) p[++p[0]] = (unsigned char)*c++;
 }
 
 static void CopyP(const unsigned char *s, unsigned char *d, short max)
@@ -195,6 +201,17 @@ static void BuildHistory(void)
     }
 }
 
+/* The goal now set, for the right side of its row: "25 min", "500 words". */
+static void GoalValue(unsigned char *v)
+{
+    long t = Chrome_GoalTarget();
+    v[0] = 0;
+    if (!Chrome_GoalKind()) return;
+    NumToString(t, v);
+    if (Chrome_GoalKind() == 'm') CStrCat(v, " min");
+    else CStrCat(v, " words");
+}
+
 static void BuildRows(void)
 {
     Blade *b = &gStack[gDepth - 1];
@@ -214,6 +231,8 @@ static void BuildRows(void)
         }
         r = AddRow("Sections", Ed_HasHeadings() ? aPush : aNone, -kSections);
         r->arrow = 1;                        /* greyed until there are headings */
+        r = AddRow("Focus", aPush, -kFocus); r->arrow = 1;
+        GoalValue(r->value);                 /* "25 min" while one is set */
         r = AddRow("History", Doc_HasFile() ? aPush : aNone, -kHistory);
         r->arrow = 1;                        /* greyed until it has a file */
         r = AddRow("Settings", aPush, -kSettings); r->arrow = 1;
@@ -234,6 +253,26 @@ static void BuildRows(void)
     case kSections:
         CStr("Sections", gBladeTitle);
         BuildSections();
+        break;
+    case kFocus:
+        CStr("Focus", gBladeTitle);
+        AddRow("Minutes", aNone, 0);
+        AddRow("15 minutes", aGoal, 15);
+        AddRow("25 minutes", aGoal, 25);
+        AddRow("45 minutes", aGoal, 45);
+        AddRow("60 minutes", aGoal, 60);
+        AddRow("Other\311", aGoalOther, 'm');
+        r = AddRow("", aNone, 0); r->sep = 1;
+        AddRow("New words", aNone, 0);
+        AddRow("250 words", aGoal, -250);
+        AddRow("500 words", aGoal, -500);
+        AddRow("1,000 words", aGoal, -1000);
+        AddRow("Other\311", aGoalOther, 'w');
+        if (Chrome_GoalKind()) {
+            r = AddRow("", aNone, 0); r->sep = 1;
+            r = AddRow("Stop This Goal", aGoalOff, 0);
+            GoalValue(r->value);
+        }
         break;
     case kHistory:
         CStr("History", gBladeTitle);
@@ -501,6 +540,7 @@ static void Activate(short i)
     case aPush:
         if (r->arg == -kSections) Push(kSections, 0);
         else if (r->arg == -kSettings) Push(kSettings, 0);
+        else if (r->arg == -kFocus) Push(kFocus, 0);
         else if (r->arg == -kHistory) {
             Doc_Suspend();               /* what's on the page is the latest */
             Push(kHistory, 0);
@@ -572,6 +612,18 @@ static void Activate(short i)
         Drawer_Draw();                   /* the dialog drew over the drawer */
         break;
     }
+    case aGoal:                          /* minutes > 0, words < 0 */
+        Drawer_Close();
+        Chrome_SetGoal(r->arg > 0 ? 'm' : 'w', r->arg > 0 ? r->arg : -r->arg);
+        break;
+    case aGoalOther:
+        Drawer_Close();
+        Cmd_Run(r->arg == 'm' ? cFocusMinutes : cFocusWords);
+        break;
+    case aGoalOff:
+        Drawer_Close();
+        Chrome_SetGoal(0, 0);
+        break;
     case aVersion: {
         Ptr t;
         long len;

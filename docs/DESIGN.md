@@ -325,13 +325,19 @@ when it changes, erases and redraws only the timer's own small rectangle
 capped at 30 ticks while the footer shows so the clock never lags more than
 half a second. Cost: one tiny redraw per second.
 
-**Focus Timer (drawer → Focus Timer ›, top level):**
-- Sets a focus goal (e.g. 25 min); the footer clock then counts down
-  instead of up.
-- The session clock itself is turned on or off in Settings.
-- When the countdown reaches zero, the app celebrates with a brief,
-  non-blocking 1-bit animation and a toast; it never interrupts typing or
-  forces a dialog. (Celebration animation: still to be designed.)
+**Focus (drawer → Focus ›, top level; also Cmd-K):** a goal for this
+sitting, in minutes or in new words (built in 104-106).
+- Presets: 15 · 25 · 45 · 60 minutes, 250 · 500 · 1,000 new words, and
+  Other… (a small dialog; it offers the last number used). Stop This Goal
+  ends one early. The drawer row shows the goal set ("25 min").
+- The footer adds the progress beside the count and the clock:
+  "312 of 500 new words", "12 of 25 min". New words are what this sitting
+  added, across documents opened since the goal was set.
+- Met at the next pause, never mid-sentence: the footer flashes once, the
+  strip says "Goal reached: 500 new words", and the goal clears.
+- The session clock itself is turned on or off in Settings. (Earlier idea,
+  not built: the clock counting down instead of up. A richer celebration
+  animation is still open.)
 
 ### Save state
 
@@ -355,7 +361,7 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 | `Sections ›` | Sections | Headings of the current document, indented by level |
 | `Links ›` | Links | Links in this document (target, ⚠ if broken, web links marked) and **Linking here** — backlinks from other project documents. Clicking goes there; editing/removing stays in the link pill |
 | `Find ›` | Find | Find & Replace (see below); opened by the row or Cmd-F, prefilled with the selection if there is one |
-| `Focus Timer ›` | Focus Timer | 15 · 25 · 45 · 60 min · Custom… · Off |
+| `Focus ›` | Focus | 15 · 25 · 45 · 60 min, 250 · 500 · 1,000 new words, Other…, Stop This Goal |
 | `History ›` | History | One timeline of versions (see below) |
 | `Export ›` | Export | Markdown… · Print… · Template… |
 | `Settings ›` | Settings | App preferences: Session clock on/off, Word count on/off |
@@ -367,8 +373,14 @@ the blade, prefilled with the next "Draft N" and selected, so typing replaces
 it — Return marks, Esc cancels (nothing is marked). The name is stored as
 the checkpoint's label in the journal (STORAGE.md). Marked versions show
 bold with ◆ beside their time.
-Restoring a version never deletes anything newer: the restored text becomes
-the newest version, so it can always be undone. (Parallel, separately
+Restoring a version never deletes anything newer. Built so far (105): the
+blade lists one version per sitting (the last checkpoint before a pause of
+ten minutes or more), every named moment, and the latest, up to 60;
+picking one rebuilds it from the journal and opens it as a new document
+beside this one, "Name (Nov 27 16.24)". Not yet built: `+ Mark this
+version…`, and stepping back and forward through every version in place.
+Open question: restore as a copy (built) or as the newest version of the
+same document (the first design). (Parallel, separately
 editable drafts — the Ellipsus "connected drafts" idea — are in the parking
 lot.)
 
