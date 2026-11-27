@@ -32,6 +32,12 @@ static short gSize[7] = { 10, 20, 16, 14, 12, 12, 10 };
 static short gFontID;                    /* 0: MDW Mono (our families) */
 #define kSize gSize
 static short gAsc[7], gLH[7], gCW[7];
+static Boolean gHave[7];                 /* that size measured yet? */
+static short gOffH;                      /* the offscreen strip's height */
+static void Need(short level);
+#define Asc(l) (Need(l), gAsc[l])
+#define LH(l)  (Need(l), gLH[l])
+#define CWm(l) (Need(l), gCW[l])
 static short CW(short level, unsigned char sty, unsigned char c);
 
 static WindowPtr gWin;
@@ -127,7 +133,7 @@ typedef struct {
 
 static short LineH(long line)
 {
-    return gLH[line < LY_Count() ? LY_Level(line) : 0];
+    return LH(line < LY_Count() ? LY_Level(line) : 0);
 }
 
 static void GetLine(long line, LineInfo *li)
@@ -274,9 +280,17 @@ static unsigned char *Widths(short level, short fi)
     gCodeRun = fi == 4;
     SetFont(level, fi == 1 || fi == 3, fi == 2 || fi == 3);
     gCodeRun = false;
-    for (i = 0; i < 256; i++) {
-        short w = CharWidth((short)i);
-        t[i] = (unsigned char)(w > 255 ? 255 : w);
+    {   /* a fixed-width font (MDW Mono, Monaco, Courier): one width for all,
+           instead of 256 CharWidth calls */
+        short w = CharWidth('m');
+        if (CharWidth('i') == w && CharWidth('W') == w && CharWidth('.') == w
+            && CharWidth(' ') == w) {
+            for (i = 0; i < 256; i++) t[i] = (unsigned char)(w > 255 ? 255 : w);
+        } else
+            for (i = 0; i < 256; i++) {
+                short cw = CharWidth((short)i);
+                t[i] = (unsigned char)(cw > 255 ? 255 : cw);
+            }
     }
     SetPort(port);
     gWTab[level][fi] = t;
@@ -289,7 +303,7 @@ static short CW(short level, unsigned char sty, unsigned char c)
     unsigned char *t;
     if (level == 6 && c >= 'a' && c <= 'z') c -= 'a' - 'A';
     t = Widths(level, FaceIndex(sty));
-    return t ? t[c] : gCW[level];
+    return t ? t[c] : CWm(level);
 }
 
 static void DrawRun(short level, unsigned char style, short x, short base, short n)
@@ -303,7 +317,7 @@ static void DrawRun(short level, unsigned char style, short x, short base, short
     DrawText(gRun, 0, n);
     if (style & MD_STRIKE) {             /* QuickDraw has no strike style: draw it */
         Point e;
-        short y = base - (gAsc[level] * 3) / 10;
+        short y = base - (Asc(level) * 3) / 10;
         GetPen(&e);
         MoveTo(x, y);
         LineTo(e.h - 1, y);
@@ -326,7 +340,7 @@ static void DrawBlock(LineInfo *li, short y, short h, short base)
         PaintRect(&r);
     }
     x = li->x0;
-    cy = base - (gAsc[li->level] * 35) / 100;      /* middle of a lowercase letter */
+    cy = base - (Asc(li->level) * 35) / 100;      /* middle of a lowercase letter */
     if (first && (k == MD_BULLET)) {
         SetRect(&r, x - 11, cy - 2, x - 6, cy + 3);
         if (MD_LISTDEPTH(b) & 1) FrameOval(&r); else PaintOval(&r);
@@ -340,7 +354,7 @@ static void DrawBlock(LineInfo *li, short y, short h, short base)
             wsum += CW(li->level, 0, (unsigned char)gRun[d]);
         DrawRun(li->level, 0, x - wsum - 4, base, n);
     } else if (first && (k == MD_TASK || k == MD_TASKDONE)) {
-        short sz = gAsc[li->level] < 9 ? 9 : gAsc[li->level];
+        short sz = Asc(li->level) < 9 ? 9 : Asc(li->level);
         if (sz > 13) sz = 13;
         SetRect(&r, x - sz - 5, base - sz + 1, x - 5, base + 1);
         FrameRect(&r);
@@ -372,8 +386,9 @@ static void DrawLine(long line, short y)
     long p, a, b, next;
     unsigned char st, runSt = 0;
     char c;
+    Boolean off = gOffOK && h <= gOffH;  /* a line too tall draws directly */
 
-    if (gOffOK) {                        /* compose offscreen at y = 0 */
+    if (off) {                           /* compose offscreen at y = 0 */
         SetPort(&gOffPort);
         y = 0;
     }
@@ -383,7 +398,7 @@ static void DrawLine(long line, short y)
         goto done;
 
     GetLine(line, &li);
-    base = y + gAsc[li.level];
+    base = y + Asc(li.level);
 
     /* the heading prefix hangs in the margin while the cursor is here */
     if (li.active && li.s == li.ps && li.prefixEnd > li.ps) {
@@ -436,7 +451,7 @@ static void DrawLine(long line, short y)
         }
     }
 done:
-    if (gOffOK) {
+    if (off) {
         SetPort(gWin);
         SetRect(&r, 0, 0, gWin->portRect.right - 2, h);
         SetRect(&dst, 0, screenY, gWin->portRect.right - 2, screenY + h);
@@ -1744,19 +1759,34 @@ void Ed_AdoptText(void)
 
 #define kStripMaxH 48                    /* offscreen strip height */
 
-static void Measure(void)
+/* A size's metrics, the first time something needs them: a heading size
+   no document uses never has its font loaded (each is a resource read from
+   disk, slow from a floppy). */
+static void Need(short level)
 {
     FontInfo fi;
+    GrafPtr port;
+    if (gHave[level]) return;
+    GetPort(&port);
+    SetPort(gWin);
+    SetFont(level, false, false);
+    GetFontInfo(&fi);
+    gAsc[level] = fi.ascent;
+    gLH[level] = fi.ascent + fi.descent + fi.leading;
+    gCW[level] = CharWidth('m');
+    gHave[level] = true;
+    SetPort(port);
+}
+
+static void Measure(void)
+{
     short i;
-    for (i = 0; i < 7; i++) {            /* measure body and each heading */
-        SetFont(i, false, false);
-        GetFontInfo(&fi);
-        gAsc[i] = fi.ascent;
-        gLH[i] = fi.ascent + fi.descent + fi.leading;
-        gCW[i] = CharWidth('m');
-    }
+    for (i = 0; i < 7; i++)
+        gHave[i] = false;                /* measured again as needed */
+    Need(0);                             /* the body, which every page has */
+    SetPort(gWin);
     SetFont(0, false, false);
-    ForgetWidths();                      /* re-measured as needed */
+    ForgetWidths();
 }
 
 /* The nearest size the font really has (RealFont: a bitmap, or TrueType). */
@@ -1815,9 +1845,8 @@ void Ed_SetFontChoice(short fontID, short body)
 #if defined(DIAG_NO_OFFSCREEN) || defined(DIAG_MINIMAL)
     gOffOK = false;
 #endif
-    for (i = 0; i < 7; i++)
-        if (gLH[i] > kStripMaxH) gOffOK = false;
-    MD_Invalidate();
+    MD_Invalidate();                     /* (a line taller than the strip
+                                            draws directly) */
     LY_Init(kColumnW, CW);
     if (!ScrollToCaret())
         Ed_DrawAll();
@@ -1838,8 +1867,7 @@ Boolean Ed_Init(WindowPtr w)
     {   /* offscreen line strip, tall enough for any font choice's lines */
         short maxH = kStripMaxH, rowBytes = ((w->portRect.right + 15) / 16) * 2;
         Rect b;
-        for (i = 0; i < 7; i++)
-            if (gLH[i] > maxH) maxH = gLH[i];
+        gOffH = maxH;                    /* taller lines draw directly */
         gOffBits.baseAddr = NewPtr((long)rowBytes * maxH);
 #if defined(DIAG_NO_OFFSCREEN) || defined(DIAG_MINIMAL)
         gOffBits.baseAddr = 0;

@@ -579,6 +579,8 @@ int main(void)
     Pill_Init(gWindow);
     Palette_Init(gWindow);
     gT[tInit] = TickCount();
+    Ed_Hold(true);               /* no drawing while it opens: the first
+                                    update draws the page once */
     if (Doc_Reopen()) {
         /* back where you left off */
     } else if (Prefs_Exist()) {
@@ -596,6 +598,9 @@ int main(void)
         Ed_SetText(buf, n1 + n2);
         Doc_SaveNewWriting(PSTR("\pProduct Guide.md"));
     }
+    Ed_Hold(false);
+    SetPort(gWindow);
+    InvalRect(&gWindow->portRect);
     gT[tOpen] = TickCount();
 
     while (!gQuit) {
