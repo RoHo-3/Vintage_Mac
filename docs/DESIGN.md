@@ -124,7 +124,9 @@ interface is visually distinct from the prose.
   The writing row (the folder the open document is in) is hidden for a page
   not yet saved. Rows that list files carry a small icon at the front, a
   folder for writings and folders and a page for documents, as in the
-  Finder's list views; `›` at the end means "opens another level". Sections
+  Finder's list views; `›` at the end means "opens another level". Only the
+  selection is inverted; the open document's name is bold (a Window menu's
+  check mark), and a writing's blade opens with the selection on it. Sections
   is greyed until the document has a heading. A writing's blade ends with
   New Document and (one level of folders) New Folder…. Blade slide is a few frames
   on an SE/30, instant on a Plus. 50%

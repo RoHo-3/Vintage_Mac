@@ -346,9 +346,12 @@ static void DrawRow(short i, short x, short y, Boolean sel)
     }
     vw = r->value[0] ? StringWidth(r->value) + 8 : 0;
     CopyP(r->text, t, 39);
+    if (r->current) TextFace(bold);      /* the open document, wherever the
+                                            selection is (a Window menu's ✓) */
     FitTo(t, x + kPanelW - 14 - vw - (r->arrow ? 10 : 0) - tx);
     MoveTo(tx, y + 12);
     DrawString(t);
+    TextFace(0);
     if (r->value[0]) {
         UIFont(kGeneva, 9, 0);
         MoveTo(x + kPanelW - 12 - StringWidth(r->value) - (r->arrow ? 10 : 0), y + 12);
@@ -365,7 +368,7 @@ static void DrawRow(short i, short x, short y, Boolean sel)
         PaintRect(&box);
         PenNormal();
     }
-    if (sel || r->current)
+    if (sel)                             /* one highlight: the selection */
         InvertRect(&box);
 }
 
@@ -393,7 +396,7 @@ static void DrawTop(void)
     }
     DrawHeader(x, gDepth == 1);
     for (i = b->top, y = gY + kRowsTop; i < gRowN && i < b->top + vis; i++, y += kRowH)
-        DrawRow(i, x, y, i == b->sel && !gRows[i].current);
+        DrawRow(i, x, y, i == b->sel);
     UIFont(kGeneva, 9, 0);
     MoveTo(x + 10, PanelBottom() - 5);
     if (gDepth == 1) DrawString(PSTR("\pCmd-\\ closes"));
