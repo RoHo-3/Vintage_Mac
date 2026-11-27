@@ -108,7 +108,7 @@
   locally). Later, perhaps: a "Use a Backup…" to switch to one.
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
-- **Safe saves (from the Neo review):** saving rewrites the document in
+- **Safe saves (from the Neo review; done, build 103):** saving rewrites the document in
   place, so on a nearly full floppy a longer version can stop part way
   and leave the new start joined to the old end. The journal still has
   the text, but the .md that travels to a modern Mac would be damaged.
@@ -150,7 +150,8 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
 - **Focus goal: N minutes or N words (one milestone with the Focus
-  Timer).** One place to set a session goal, either a timer or a word
+  Timer; first version done, build 104: Cmd-K > Focus for Minutes... /
+  Focus for Words... / Clear Focus Goal).** One place to set a session goal, either a timer or a word
   count. The quiet footer shows progress beside the word count and the
   session clock (for words: "312 / 500"), only when a goal is set. Reaching
   either goal gives one small celebration, then the goal clears.
@@ -159,7 +160,11 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   celebration looks like while staying quiet (a strip message and a
   brief footer flash, no sound by default). Decided: a word goal counts
   words added in this session, not the document's total.
-- **History: see and recover past versions (needed before v1).** Every
+- **History: see and recover past versions (needed before v1; first
+  version done, build 105: drawer > History, Cmd-K > History...; one entry
+  per sitting plus named moments, up to 60; picking one opens a copy
+  beside the document. Still to do: step back and forward through every
+  version in place, read-only).** Every
   document already keeps a journal (`.hist`: snapshots, edits and
   checkpoints), but since 0.04 nothing shows it. Add a History blade (and
   Cmd-K › History) that lists this document's past versions, newest
@@ -177,12 +182,18 @@ Launch got slower around builds 81-90. Before changing anything, measure:
     and a modern one: if only one side changed, take it; if both
     changed, keep both, the other as "Name (from other Mac)". Part of
     the file-transfer work (BlueSCSI with Wi-Fi).
-  - *Placeholders:* a standard `TK` mark ("to come") for a fact or name
+  - *Placeholders (done, build 103: Cmd-K > Insert TK, Next TK; the
+    drawer dot is still to do):* a standard `TK` mark ("to come") for a fact or name
     to fill in later; Cmd-K › Next TK jumps to it; the drawer shows a dot
     beside documents that still have one. Plain text, no Markdown change.
   - *Cuts (Neo's "Darlings"):* move a selected passage to a plain `Cuts`
     document in the same writing, with a line saying where it came from,
-    so cut words are kept, not deleted. Restore by pasting.
+    so cut words are kept, not deleted. Restore by pasting. Open design
+    point: appending to Cuts.md while another document is open bypasses
+    Cuts' own journal, so its History would later call that change
+    "Edited on another computer". Options: give the journal a way to
+    record an outside append (a snapshot of the new text), or make Cuts a
+    section at the end of the same document.
   - *Footnote gesture,* for the footnotes item: one key adds `[^n]` and
     opens its note at the bottom; Enter goes back to the sentence; marks
     shown as numbers in order on screen, never renumbered in the file.
