@@ -109,7 +109,19 @@
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
 
-## Performance passes (scheduled after 0.04 feedback)
+## Performance passes (done, builds 93-99)
+
+Measured on an emulated SE with System 6.0.8, Product Guide open:
+6.1 s → **1.1 s** from a hard disk, 5.0 s from a floppy (the rest there is
+the floppy reading font resources). Untitled page: 4.4 s → 1.6 s from a
+floppy. Changes: text sizes measured when first used; fixed-width fonts
+fill width tables in one step; launch draws once; journals replay from the
+last snapshot; re-layout reaches neighbours only around underlines; the
+palette works its labels out once. Later, only if needed on floppies:
+smaller heading strikes (H1 18 pt instead of 20 saves ~3 KB per style).
+
+### The plan, as scheduled
+
 
 Launch got slower around builds 81-90. Before changing anything, measure:
 
