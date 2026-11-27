@@ -149,6 +149,16 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 ## Later alphas
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
+- **Focus goal: N minutes or N words (one milestone with the Focus
+  Timer).** One place to set a session goal, either a timer or a word
+  count. The quiet footer shows progress beside the word count and the
+  session clock (for words: "312 / 500"), only when a goal is set. Reaching
+  either goal gives one small celebration, then the goal clears.
+  The word count already exists, so the word goal is little extra work;
+  it moves people toward finishing a piece. To settle: what the
+  celebration looks like while staying quiet (a strip message and a
+  brief footer flash, no sound by default), and whether a goal counts
+  words added this session or the document's total.
 - **History: see and recover past versions (needed before v1).** Every
   document already keeps a journal (`.hist`: snapshots, edits and
   checkpoints), but since 0.04 nothing shows it. Add a History blade (and
@@ -179,8 +189,6 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   - *Smart typography,* polish if asked: curly quotes, em dash and
     ellipsis as you type (all in Mac Roman, round-trip to UTF-8). Off by
     default: it changes the Markdown source.
-  - *Word goals,* later if asked: a goal per writing, a thin progress bar
-    on its Library tile.
   - *Feature bar,* adopted now: a change belongs if it helps someone
     finish a piece; one that adds a panel, a prompt or a dependency
     usually does not.
