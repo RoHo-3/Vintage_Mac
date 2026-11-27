@@ -661,6 +661,7 @@ Boolean Doc_Import(void)
     unsigned char base[40], free[40], md[40];
     short v, wd, i, n;
     long d, nd, srcSize, dstSize;
+    Boolean reused = false;
     GrafPtr port;
     if (!SaveIfNeeded())
         return false;
@@ -676,20 +677,37 @@ Boolean Doc_Import(void)
     if (i > 1 && n - i <= 8) base[0] = (unsigned char)(i - 1);
     if (base[0] > 24) base[0] = 24;      /* room for " 99" and the journal */
     Files_DocsDir(&v, &d);
-    if (!Files_FreeName(v, d, base, free) || !Files_NewFolder(v, d, free, &nd)
-        || !Files_WDFor(v, nd, &wd)) {
-        SysBeep(1);
-        return false;
+    {
+        DirItem items[2];
+        unsigned char hist[40];
+        if (Files_FolderNamed(v, d, base, &nd)
+            && Files_List(v, nd, items, 2) == 0 && Files_WDFor(v, nd, &wd)) {
+            /* a writing of that name with no documents left (its file was
+               taken out): the file goes back into it, a fresh history too */
+            for (i = 0; i <= base[0]; i++) free[i] = base[i];
+            for (i = 0; i <= base[0]; i++) md[i] = base[i];
+            md[++md[0]] = '.'; md[++md[0]] = 'm'; md[++md[0]] = 'd';
+            JR_HistoryName(md, hist);
+            Files_Trash(v, nd, hist);    /* fnfErr: there was none */
+            reused = true;
+        } else if (!Files_FreeName(v, d, base, free) || !Files_NewFolder(v, d, free, &nd)
+                   || !Files_WDFor(v, nd, &wd)) {
+            SysBeep(1);
+            return false;
+        }
     }
-    for (i = 0; i <= free[0]; i++) md[i] = free[i];
-    md[++md[0]] = '.'; md[++md[0]] = 'm'; md[++md[0]] = 'd';
+    if (!reused) {
+        for (i = 0; i <= free[0]; i++) md[i] = free[i];
+        md[++md[0]] = '.'; md[++md[0]] = 'm'; md[++md[0]] = 'd';
+    }
     /* the copy must be whole (same size as the original) before it opens;
        anything less is refused, nothing half-made left behind */
     if (!Files_CopyTo(reply.vRefNum, reply.fName, wd, md)
         || !FileSize(reply.fName, reply.vRefNum, &srcSize)
         || !FileSize(md, wd, &dstSize) || srcSize != dstSize
         || !OpenFile(md, wd)) {
-        Files_Trash(v, d, free);
+        if (reused) Files_Trash(v, nd, md);   /* the folder was there before */
+        else Files_Trash(v, d, free);
         SysBeep(1);
         return false;
     }

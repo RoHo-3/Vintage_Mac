@@ -990,3 +990,17 @@ Boolean Files_LibraryName(unsigned char *name)
 {
     return Files_FolderName(gRootVol, gRootDir, name);
 }
+
+/* The folder called name in parent, if there is one (no creating). */
+Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *dir)
+{
+    CInfoPBRec ci;
+    ci.dirInfo.ioCompletion = NULL;
+    ci.dirInfo.ioNamePtr = (StringPtr)name;
+    ci.dirInfo.ioVRefNum = vol;
+    ci.dirInfo.ioFDirIndex = 0;
+    ci.dirInfo.ioDrDirID = parent;
+    if (PBGetCatInfoSync(&ci) != noErr || !(ci.dirInfo.ioFlAttrib & 0x10)) return false;
+    *dir = ci.dirInfo.ioDrDirID;
+    return true;
+}

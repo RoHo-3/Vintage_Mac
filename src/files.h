@@ -57,6 +57,7 @@ Boolean Files_Trash(short vol, long dirID, ConstStr255Param name);
 Boolean Files_Copy(short wdRef, ConstStr255Param from, ConstStr255Param to);
 Boolean Files_CopyTo(short wdRef, ConstStr255Param from, short dstWD, ConstStr255Param to);
 Boolean Files_Exists(short vol, long dirID, ConstStr255Param name);
+Boolean Files_FolderNamed(short vol, long parent, ConstStr255Param name, long *dir);
 Boolean Files_FreeName(short vol, long dir, const unsigned char *base, unsigned char *out);
 Boolean Files_CopyFolder(short vol, long parent, ConstStr255Param from, ConstStr255Param to);
 void    Files_WrapLoose(void);       /* launch: loose documents get a folder each */

@@ -209,11 +209,14 @@ static void BuildRows(void)
         r = AddRow("Word count", aWords, 0);    r->check = 1; r->checked = gWords;
         r = AddRow("Session clock", aClock, 0); r->check = 1; r->checked = gClock;
         r = AddRow("", aNone, 0); r->sep = 1;
-        r = AddRow("Show Markdown", aMarks, 0); r->check = 1; r->checked = Ed_ShowMarks();
-        CStr("this doc", r->value);
-        r = AddRow("", aNone, 0); r->sep = 1;
         r = AddRow("Move Library\311", aMoveLib, 0);
         if (!Files_LibraryPlace(r->value)) r->value[0] = 0;   /* the folder it's in */
+        /* per-document settings under their own grey heading; the shortcut
+           at the right, as the drawer shows for Library and Quit */
+        r = AddRow("", aNone, 0); r->sep = 1;
+        AddRow("This document", aNone, 0);
+        r = AddRow("Show Markdown", aMarks, 0); r->check = 1; r->checked = Ed_ShowMarks();
+        CStr("Cmd-M", r->value);
         break;
     }
     if (b->sel >= gRowN) b->sel = gRowN - 1;
