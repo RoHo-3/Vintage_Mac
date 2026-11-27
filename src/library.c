@@ -369,8 +369,8 @@ static void IconFolder(short x, short y, Boolean up)
     LineTo(x + 22, y + 6);  LineTo(x + 22, y + 9); LineTo(x + 29, y + 9);
     LineTo(x + 29, y + 28); LineTo(x + 2, y + 28); LineTo(x + 2, y + 9);
     if (up) {                            /* a plain 1-pixel arrow, like the + */
-        MoveTo(x + 16, y + 14); LineTo(x + 16, y + 24);
-        MoveTo(x + 12, y + 18); LineTo(x + 16, y + 14); LineTo(x + 20, y + 18);
+        MoveTo(x + 16, y + 15); LineTo(x + 16, y + 23);
+        MoveTo(x + 13, y + 18); LineTo(x + 16, y + 15); LineTo(x + 19, y + 18);
     } else {
         MoveTo(x + 3, y + 12); LineTo(x + 28, y + 12);
     }
@@ -381,10 +381,10 @@ static void IconFolder(short x, short y, Boolean up)
 static void PlusAt(short cx, short cy)
 {
     Rect r;
-    SetRect(&r, cx - 6, cy - 6, cx + 7, cy + 7);
+    SetRect(&r, cx - 5, cy - 5, cx + 6, cy + 6);
     EraseRect(&r);
-    MoveTo(cx - 5, cy); LineTo(cx + 5, cy);
-    MoveTo(cx, cy - 5); LineTo(cx, cy + 5);
+    MoveTo(cx - 4, cy); LineTo(cx + 4, cy);
+    MoveTo(cx, cy - 4); LineTo(cx, cy + 4);
 }
 
 /* The + tiles: a folder (New, New Folder) or a page (New
