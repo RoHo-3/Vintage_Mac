@@ -99,11 +99,12 @@ static const Tpl kTpls[] = {
       "\n"
       "---\n"
       "\n"
+      "Cmd-click a link to go there.\n"
+      "\n"
       "Plan it in the [Outline](Outline.md), then write\n"
       "[Chapter 1](Chapters/Chapter%201.md). Keep notes on\n"
       "[People & Characters](Notes/People%20&%20Characters.md),\n"
-      "[Places](Notes/Places.md) and [Research](Notes/Research.md).\n"
-      "Cmd-click a link to go there.\n" },
+      "[Places](Notes/Places.md) and [Research](Notes/Research.md).\n" },
     { 1, "Outline.md",
       "# Outline\n"
       "\n"
@@ -261,35 +262,48 @@ static Boolean ReplaceFirstSet(short vol, long dir)
     return true;
 }
 
-/* Build 114's Book title page said where things were; now it links to
-   them. Rewritten once, only while it is still exactly that text. */
-static const char kOldBookPage[] =
-    "# Untitled Book\n\n- **In one line:** \n- **For readers who:** \n\n"
-    "[How To Write Great Books](https://en.wikipedia.org/wiki/Writing_process)\n"
-    "\n---\n\nChapters are in Chapters; people, places and research in Notes.\n";
+/* Earlier Book title pages: 114's said where things were, 116's had the
+   Cmd-click note last. Rewritten once to the current page, only while one
+   is still exactly as installed. */
+#define kOldHead "# Untitled Book\n\n- **In one line:** \n- **For readers who:** \n\n" \
+    "[How To Write Great Books](https://en.wikipedia.org/wiki/Writing_process)\n\n---\n\n"
+static const char *const kOldBookPages[] = {
+    kOldHead "Chapters are in Chapters; people, places and research in Notes.\n",
+    kOldHead "Plan it in the [Outline](Outline.md), then write\n"
+    "[Chapter 1](Chapters/Chapter%201.md). Keep notes on\n"
+    "[People & Characters](Notes/People%20&%20Characters.md),\n"
+    "[Places](Notes/Places.md) and [Research](Notes/Research.md).\n"
+    "Cmd-click a link to go there.\n"
+};
 
 static void RefreshBookPage(short vol, long dir)
 {
-    long book, n, len = sizeof kOldBookPage - 1, i;
+    long book, n, len, eof, i;
     unsigned char p[64];
-    char buf[sizeof kOldBookPage];
-    short ref;
+    char buf[640];
+    short ref, k;
     PStr("Book", p);
     if (!Files_FolderNamed(vol, dir, p, &book)) return;
     PStr("Book.md", p);
     if (HOpen(vol, book, p, fsRdWrPerm, &ref) != noErr) return;
-    n = len;
-    if (GetEOF(ref, &i) == noErr && i == len
-        && FSRead(ref, &n, buf) == noErr && n == len) {
-        for (i = 0; i < len && buf[i] == kOldBookPage[i]; i++) ;
-        if (i == len) {
-            for (i = 0; i < kTplCount; i++)
-                if (kTpls[i].folder == 1 && kTpls[i].name[0] == 'B') break;
-            n = 0;
-            while (kTpls[i].text[n]) n++;
-            if (SetFPos(ref, fsFromStart, 0) == noErr && SetEOF(ref, n) == noErr)
-                FSWrite(ref, &n, (Ptr)kTpls[i].text);
-        }
+    n = sizeof buf;
+    if (GetEOF(ref, &eof) == noErr && eof <= (long)sizeof buf) {
+        n = eof;
+        if (FSRead(ref, &n, buf) == noErr && n == eof)
+            for (k = 0; k < (short)(sizeof kOldBookPages / sizeof kOldBookPages[0]); k++) {
+                const char *o = kOldBookPages[k];
+                for (len = 0; o[len]; len++) ;
+                if (len != n) continue;
+                for (i = 0; i < len && buf[i] == o[i]; i++) ;
+                if (i < len) continue;
+                for (i = 0; i < kTplCount; i++)
+                    if (kTpls[i].folder == 1 && kTpls[i].name[0] == 'B') break;
+                n = 0;
+                while (kTpls[i].text[n]) n++;
+                if (SetFPos(ref, fsFromStart, 0) == noErr && SetEOF(ref, n) == noErr)
+                    FSWrite(ref, &n, (Ptr)kTpls[i].text);
+                break;
+            }
     }
     FSClose(ref);
 }
