@@ -289,6 +289,7 @@ static void FollowFirstLine(void)
     }
     if (namesake && !SameName(folder, cand))
         Files_Rename(wv, wdir, folder, cand);
+    Doc_ForgetRecent(gVRef, gName, want);   /* Recent follows, not doubles */
     CopyPString(want, gName);
     Chrome_SetTitle(gName);
 }

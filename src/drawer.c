@@ -288,6 +288,7 @@ static void BuildRows(void)
     case kFocus:
         CStr("Focus", gBladeTitle);
         AddRow("Minutes", aNone, 0);
+        AddRow("10 minutes", aGoal, 10);
         AddRow("15 minutes", aGoal, 15);
         AddRow("25 minutes", aGoal, 25);
         AddRow("45 minutes", aGoal, 45);

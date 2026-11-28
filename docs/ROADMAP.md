@@ -255,6 +255,13 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - A "Start Here" guide shipped as a real Markdown document in My
   Documents, replacing the first-run welcome text.
 - Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
+- **Web links through FrogFind (Robert tests, BlueSCSI Wi-Fi Mac):** check
+  the template "How To Write Great" pages read well on 512x342 through
+  `http://frogfind.com/read.php?a=<url>` (start with the Short Story and
+  Essay links). If they do, web links in the app open wrapped that way
+  on the vintage Mac (files keep the plain https link; the proxy is a
+  setting). Today a web link says it opens on a modern computer. Fallbacks
+  to note: 68k.news, Wiby. FrogFind is GPL-3.0: link to it, never copy it.
 
 ## Known limits in the first build
 
