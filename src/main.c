@@ -27,6 +27,9 @@
 #include "pill.h"
 #include "palette.h"
 #include "build_number.h"
+#include "links.h"
+
+static char gLinkURL[256];
 
 #define kWaitNextEventTrap 0xA860
 #define kUnimplementedTrap 0xA89F
@@ -53,6 +56,8 @@ static const char kWelcome[] =
     "\r"
     "## This build adds\r"
     "\r"
+    "- Links between documents: Command-click one to go there. The Book "
+    "title page links to its Outline, chapters and notes.\r"
     "- The Library: inside a writing, Recent steps aside and your documents "
     "get two rows. In a folder like Chapters, New makes the next chapter.\r"
     "- Six templates: Article, Book, Essay, Journal, Script and "
@@ -126,7 +131,8 @@ static const char kWelcome[] =
     "Untitled heading: type your title over it and the writing takes that "
     "name. Fill in the short prompts or delete them, then write below the "
     "line. Book is a whole writing: a title page, an Outline, a Chapters folder "
-    "and Notes for people, places and research. Script is Fountain, the "
+    "and Notes for people, places and research; the title page links to "
+    "each (Command-click a link to go there). Script is Fountain, the "
     "plain-text screenplay format; its [[notes]] and = lines never print. "
     "Add your own templates by putting Markdown files in the Templates "
     "folder.\r"
@@ -470,7 +476,11 @@ static void DoMouseDown(EventRecord *ev)
             else {
                 Pill_Hide();
                 if (Chrome_HamburgerClick(pt)) Drawer_Open();
-                else {
+                else if ((ev->modifiers & cmdKey)
+                         && Link_At(Ed_PosAt(pt), gLinkURL, sizeof gLinkURL)) {
+                    while (StillDown()) ;    /* Cmd-click a link: follow it */
+                    Link_Follow(gLinkURL);
+                } else {
                     Ed_Click(pt, ev);
                     if (Ed_ClickWasHold()) Pill_ShowAtCaret();
                     else if (Ed_HasSelection()) Pill_Show();   /* mouse selections only */

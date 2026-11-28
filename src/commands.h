@@ -20,7 +20,7 @@ enum {
     cTiming, cQuit,
     cNextTK, cInsertTK,
     cFocusMinutes, cFocusWords, cFocusClear, cHistory,
-    cFootnote, cJumpFootnote, cCuts,
+    cFootnote, cJumpFootnote, cFollowLink, cCuts,
     cTplArticle, cTplBook, cTplEssay, cTplJournal, cTplScript, cTplStory
 };
 

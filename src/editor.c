@@ -1572,6 +1572,8 @@ static long HitTest(Point pt)
     return PrefixEnd(PosAt(&li, pt.h));
 }
 
+long Ed_PosAt(Point pt) { return HitTest(pt); }
+
 #define kHoldTicks 30                    /* half a second */
 static Boolean gPressHeld;
 

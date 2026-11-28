@@ -6,6 +6,7 @@
 #include "files.h"
 #include "app.h"
 #include "chrome.h"
+#include "links.h"
 #include <Dialogs.h>
 
 /* Search words are what a writer might type instead of the name:
@@ -14,6 +15,7 @@ static const Command kCommands[] = {
     { cHistory,     "Navigate", "History\311",          "versions past earlier undo restore recover backup old revert", "" },
     { cLibrary,     "Navigate", "Library\311",          "open files browse documents projects folder find file", "Cmd-O" },
     { cJumpFootnote,"Navigate", "Jump to Footnote",     "note mark back reference endnote go",        "" },
+    { cFollowLink,  "Navigate", "Follow Link",          "open link go url page document cmd-click",   "" },
     { cNextTK,      "Navigate", "Next TK",              "placeholder to come todo fill in later find mark xxx", "" },
     { cSections,    "Navigate", "Go to Section\311",    "headings outline jump contents toc chapter",  "" },
     { cNextSection, "Navigate", "Next Section",         "heading down forward jump chapter",           "" },
@@ -258,6 +260,14 @@ void Cmd_Run(short id)
         if (!Ed_JumpFootnote())
             Chrome_ShowMessage((const unsigned char *)"\pPut the caret on a footnote mark or note", 3);
         break;
+    case cFollowLink: {
+        static char url[256];
+        long a, b;
+        Ed_SelRange(&a, &b);
+        if (Link_At(a, url, sizeof url)) Link_Follow(url);
+        else Chrome_ShowMessage((const unsigned char *)"\pPut the caret in a link", 3);
+        break;
+    }
     case cFocusMinutes: AskGoal('m'); break;
     case cFocusWords:  AskGoal('w'); break;
     case cFocusClear:  Chrome_SetGoal(0, 0); break;

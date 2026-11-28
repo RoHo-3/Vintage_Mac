@@ -99,7 +99,11 @@ static const Tpl kTpls[] = {
       "\n"
       "---\n"
       "\n"
-      "Chapters are in Chapters; people, places and research in Notes.\n" },
+      "Plan it in the [Outline](Outline.md), then write\n"
+      "[Chapter 1](Chapters/Chapter%201.md). Keep notes on\n"
+      "[People & Characters](Notes/People%20&%20Characters.md),\n"
+      "[Places](Notes/Places.md) and [Research](Notes/Research.md).\n"
+      "Cmd-click a link to go there.\n" },
     { 1, "Outline.md",
       "# Outline\n"
       "\n"
@@ -257,14 +261,49 @@ static Boolean ReplaceFirstSet(short vol, long dir)
     return true;
 }
 
+/* Build 114's Book title page said where things were; now it links to
+   them. Rewritten once, only while it is still exactly that text. */
+static const char kOldBookPage[] =
+    "# Untitled Book\n\n- **In one line:** \n- **For readers who:** \n\n"
+    "[How To Write Great Books](https://en.wikipedia.org/wiki/Writing_process)\n"
+    "\n---\n\nChapters are in Chapters; people, places and research in Notes.\n";
+
+static void RefreshBookPage(short vol, long dir)
+{
+    long book, n, len = sizeof kOldBookPage - 1, i;
+    unsigned char p[64];
+    char buf[sizeof kOldBookPage];
+    short ref;
+    PStr("Book", p);
+    if (!Files_FolderNamed(vol, dir, p, &book)) return;
+    PStr("Book.md", p);
+    if (HOpen(vol, book, p, fsRdWrPerm, &ref) != noErr) return;
+    n = len;
+    if (GetEOF(ref, &i) == noErr && i == len
+        && FSRead(ref, &n, buf) == noErr && n == len) {
+        for (i = 0; i < len && buf[i] == kOldBookPage[i]; i++) ;
+        if (i == len) {
+            for (i = 0; i < kTplCount; i++)
+                if (kTpls[i].folder == 1 && kTpls[i].name[0] == 'B') break;
+            n = 0;
+            while (kTpls[i].text[n]) n++;
+            if (SetFPos(ref, fsFromStart, 0) == noErr && SetEOF(ref, n) == noErr)
+                FSWrite(ref, &n, (Ptr)kTpls[i].text);
+        }
+    }
+    FSClose(ref);
+}
+
 void Templates_Install(short vol, long dir)
 {
     long folder[4];
     Boolean blank;
     short n = Contents(vol, dir, &blank), i;
     if (n > 1 || (n == 1 && !blank)) {
-        if (!ReplaceFirstSet(vol, dir))
-            return;                      /* the writer's own set: leave it */
+        if (!ReplaceFirstSet(vol, dir)) {
+            RefreshBookPage(vol, dir);   /* the writer's own set: leave it */
+            return;
+        }
         blank = false;
     }
     if (blank) {                         /* Blank left the shelf in 0.05: */

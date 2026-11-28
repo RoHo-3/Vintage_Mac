@@ -295,7 +295,15 @@ The app never loads or decodes images (no practical PNG/JPEG decoding on a
 
 Built in 114 (display only): `[text](url)` shows its text underlined;
 `[`, `](url)` hide like other markers and show while the caret is in the
-paragraph. Following a link waits for the rest of this section. Every
+paragraph. Built in 116: **Cmd-click** a link (or Cmd-K, Follow Link with
+the caret in it) to open a document it names by a relative path from this
+document's folder, as standard Markdown writes it: `Outline.md`,
+`Chapters/Chapter%201.md`, `../Book.md`; `#section` parts are ignored for
+now. A plain click still only places the caret. Web links say "Web links
+open on a modern computer" (no browser to hand them to on System 6; the
+FrogFind wrapping waits for that). The Book title page links to its
+Outline, Chapter 1 and the three Notes. Known gap: renaming a linked
+document breaks links to it. The rest of this section waits. Every
 template carries one "How To Write Great <Kind>" link to a free
 resource (Purdue OWL, Wikipedia, Fountain).
 

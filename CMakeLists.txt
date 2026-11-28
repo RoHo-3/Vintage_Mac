@@ -22,6 +22,7 @@ set(SOURCES
     src/pill.c
     src/palette.c
     src/templates.c
+    src/links.c
     src/textbuf.c
     src/MacMDWrite.r
     src/fonts.r
