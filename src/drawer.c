@@ -555,11 +555,33 @@ static void Push(short kind, long dir)
     DrawTop();
 }
 
+/* Back a blade: only what the closed blade uncovers changes. Left of the
+   blade beneath's right edge it was the same gray as the dimmed panels
+   under it; right of that, the dimmed page shows again. So the page is
+   drawn and dimmed in that strip alone (clipped), then the blade beneath
+   is drawn whole: no repaint of the page, no flash. */
 static void Pop(void)
 {
+    short right, left;
+    Rect strip;
     if (gDepth <= 1) { Drawer_Close(); return; }
+    right = (gDepth - 1) * kStep + kPanelW + 2;          /* closing blade's edge */
     gDepth--;
-    Drawer_Draw();
+    left = gDepth > 1 ? (gDepth - 2) * kStep + kPanelW + 2   /* gray under it */
+                      : kPanelW + 2;                        /* the root frame */
+    SetPort(gWin);
+    SetRect(&strip, left, 0, right + 1, gWin->portRect.bottom);
+    ClipRect(&strip);
+    Ed_Hold(false);
+    Chrome_Hold(false);
+    Ed_DrawAll();
+    Chrome_Draw();
+    Ed_Hold(true);
+    Chrome_Hold(true);
+    DimPage();
+    ClipRect(&gWin->portRect);
+    BuildRows();
+    DrawTop();
 }
 
 static void Activate(short i)
