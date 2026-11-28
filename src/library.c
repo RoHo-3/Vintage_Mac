@@ -429,10 +429,12 @@ static void IconDoc(short x, short y, Boolean dashed)
 {
     Rect r;
     if (dashed) PenPat(&qd.gray);
-    MoveTo(x + 6, y + 2);  LineTo(x + 20, y + 2); LineTo(x + 26, y + 8);
-    LineTo(x + 26, y + 29); LineTo(x + 6, y + 29); LineTo(x + 6, y + 2);
+    /* page and folder share a top (y+3) and a bottom (y+29), so a tile
+       that turns from one to the other doesn't jump */
+    MoveTo(x + 6, y + 3);  LineTo(x + 20, y + 3); LineTo(x + 26, y + 9);
+    LineTo(x + 26, y + 29); LineTo(x + 6, y + 29); LineTo(x + 6, y + 3);
     PenNormal();
-    MoveTo(x + 20, y + 2); LineTo(x + 20, y + 8); LineTo(x + 26, y + 8);
+    MoveTo(x + 20, y + 3); LineTo(x + 20, y + 9); LineTo(x + 26, y + 9);
     SetRect(&r, x + 10, y + 13, x + 22, y + 14); PaintRect(&r);
     SetRect(&r, x + 10, y + 17, x + (dashed ? 19 : 22), y + 18); PaintRect(&r);
     SetRect(&r, x + 10, y + 21, x + (dashed ? 21 : 18), y + 22); PaintRect(&r);
@@ -440,14 +442,14 @@ static void IconDoc(short x, short y, Boolean dashed)
 
 static void IconFolder(short x, short y, Boolean up)
 {
-    MoveTo(x + 2, y + 9);   LineTo(x + 12, y + 9); LineTo(x + 14, y + 6);
-    LineTo(x + 22, y + 6);  LineTo(x + 22, y + 9); LineTo(x + 29, y + 9);
-    LineTo(x + 29, y + 28); LineTo(x + 2, y + 28); LineTo(x + 2, y + 9);
+    MoveTo(x + 2, y + 6);   LineTo(x + 12, y + 6); LineTo(x + 14, y + 3);
+    LineTo(x + 22, y + 3);  LineTo(x + 22, y + 6); LineTo(x + 29, y + 6);
+    LineTo(x + 29, y + 29); LineTo(x + 2, y + 29); LineTo(x + 2, y + 6);
     if (up) {                            /* a plain 1-pixel arrow, like the + */
-        MoveTo(x + 16, y + 15); LineTo(x + 16, y + 23);
-        MoveTo(x + 13, y + 18); LineTo(x + 16, y + 15); LineTo(x + 19, y + 18);
+        MoveTo(x + 16, y + 14); LineTo(x + 16, y + 23);
+        MoveTo(x + 13, y + 17); LineTo(x + 16, y + 14); LineTo(x + 19, y + 17);
     } else {
-        MoveTo(x + 3, y + 12); LineTo(x + 28, y + 12);
+        MoveTo(x + 3, y + 9); LineTo(x + 28, y + 9);
     }
 }
 
@@ -476,7 +478,7 @@ static void IconNew(short kind, short x, short y)
         PlusAt(x + 16, y + 18);
     } else {
         IconFolder(x, y, false);
-        PlusAt(x + 16, y + 20);
+        PlusAt(x + 16, y + 19);          /* the middle under the inner line */
     }
 }
 
