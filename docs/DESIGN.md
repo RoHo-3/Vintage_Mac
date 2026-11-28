@@ -592,7 +592,10 @@ Ideas kept for later, deliberately not built yet:
   (a common-words dictionary of a few hundred KB, checked on pause, never
   while typing, and shown quietly — e.g. a dotted underline). Grammar
   checking is much heavier and likely out of reach on a 68000.
-- **Footnotes** (`[^1]`), the main reason writers want superscript.
+- **Footnotes** (`[^1]`): built (Insert Footnote, Jump to Footnote). Shown
+  as "[1]" with only the `^` hidden, away from the caret like other
+  markers (build 129); the note "[^1]: ..." shows as "[1]: ...". No
+  superscript: it wouldn't round-trip and is unreadable at 10 px.
 - **1-bit image previews:** a dithered thumbnail instead of the placeholder.
 - **Insert Image command** (v1 only shows images that are already linked).
 - **Focus Timer celebration animation.** To be designed (see to-do list).

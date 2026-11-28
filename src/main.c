@@ -58,6 +58,7 @@ static const char kWelcome[] =
     "\r"
     "## This build adds\r"
     "\r"
+    "- Footnotes show as [1], tidy until you put the cursor in them.\r"
     "- Links between documents: Command-click one to go there. The Book "
     "title page links to its Outline, chapters and notes.\r"
     "- The Library: inside a writing, Recent steps aside and your documents "

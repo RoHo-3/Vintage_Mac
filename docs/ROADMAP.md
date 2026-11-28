@@ -98,6 +98,11 @@
 
 ## Before 0.05: quality pass
 
+- **Decide: keep or remove the Library's Rename.** Names follow the first
+  line, so Rename is mostly a second way to do it; renaming a document
+  also breaks links to it. Left in for now (easy to remove); decide with
+  real use.
+
 - Product Guide: a complete guide to the app, with a "This build adds..."
   section kept current build by build toward 0.05's code complete.
 - Library polish (done locally): lighter + and up symbols, one click on

@@ -509,10 +509,20 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 ApplyStyle(i + 2, len, MD_STRIKE);
                 i += 1;
             }
+        } else if (c == '[' && i + 1 < len && gTxt[i + 1] == '^') {
+            /* [^8]: a footnote mark shows as "[8]", only the ^ hidden
+               (away from the caret, as ** is); its note "[^8]: ..." too */
+            long k = i + 2;
+            while (k < len && gTxt[k] != ']' && gTxt[k] != ' ' && gTxt[k] != '[')
+                k++;
+            if (k < len && gTxt[k] == ']' && k > i + 2) {
+                Mark(i + 1, 1, mark);
+                i = k;
+            }
         } else if (c == '[' && i + 1 < len && gTxt[i + 1] != '^') {
             /* [text](url): the text underlined, "[" and "](url)" markers
-               (hidden away from the caret, as ** is). Footnote marks
-               [^1] and task boxes stay as they are. */
+               (hidden away from the caret, as ** is). Task boxes stay
+               as they are. */
             long k = i + 1, m;
             while (k < len && gTxt[k] != ']' && gTxt[k] != '[' && !(gSty[k] & MD_MARK))
                 k++;
