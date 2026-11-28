@@ -27,4 +27,7 @@ void    Drawer_Draw(void);               /* update events */
 void    Drawer_Key(EventRecord *ev);
 void    Drawer_Click(Point local, EventRecord *ev);
 
+void    Drawer_OpenByHover(void);   /* the pointer rested on the hamburger */
+void    Drawer_Idle(void);          /* closes a hover-opened drawer the pointer left */
+
 #endif

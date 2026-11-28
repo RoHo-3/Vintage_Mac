@@ -363,6 +363,20 @@ void Chrome_KeyPressed(void)
     EraseRect(&r);
 }
 
+/* Hover to open the drawer (an experiment; one commit to revert): the
+   pointer resting on the hamburger for half a second opens it. Passing
+   through, or flinging the mouse into the corner, doesn't. */
+#define kHoverTicks 30
+static unsigned long gHoverSince;         /* 0: not over the hamburger */
+static Boolean gHoverFired, gHoverWant;
+
+Boolean Chrome_TakeHoverOpen(void)
+{
+    Boolean w = gHoverWant;
+    gHoverWant = false;
+    return w;
+}
+
 void Chrome_Idle(void)
 {
     Point m;
@@ -371,6 +385,17 @@ void Chrome_Idle(void)
     SetPort(gWin);
     GetMouse(&m);
     moved = m.h != gLastMouse.h || m.v != gLastMouse.v;
+    if (gStripShown && !gHold && m.v >= 0 && m.v < kStripH && m.h >= 0 && m.h < 26) {
+        if (!gHoverSince) gHoverSince = TickCount();
+        else if (!gHoverFired && TickCount() - gHoverSince >= kHoverTicks
+                 && !Button()) {         /* (a press is the click's to handle) */
+            gHoverFired = true;
+            gHoverWant = true;
+        }
+    } else {
+        gHoverSince = 0;
+        gHoverFired = false;
+    }
     if (gStripUntil && TickCount() >= gStripUntil) {
         gStripUntil = 0;                 /* the title has been seen */
         gMessage[0] = 0;                 /* and any passing note */

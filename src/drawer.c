@@ -56,6 +56,7 @@ typedef struct {
 
 static WindowPtr gWin;
 static Boolean   gOpen;
+static Boolean   gByHover, gTouched;     /* opened by hovering; used since */
 static Blade     gStack[kMaxDepth];
 static short     gDepth = 1;             /* blades in the stack; [0] is the drawer */
 static Row       gRows[kMaxRows];
@@ -727,6 +728,7 @@ void Drawer_OpenBlade(char which)
 
 void Drawer_Close(void)
 {
+    gByHover = false;
     if (!gOpen) return;
     gOpen = false;
     Ed_Hold(false);
@@ -761,6 +763,7 @@ static void MoveSel(short d)
 void Drawer_Key(EventRecord *ev)
 {
     unsigned char c = (unsigned char)(ev->message & charCodeMask);
+    gTouched = true;
     switch (c) {
     case 0x1E: MoveSel(-1); break;                       /* up */
     case 0x1F: MoveSel(1); break;                        /* down */
@@ -771,10 +774,32 @@ void Drawer_Key(EventRecord *ev)
     }
 }
 
+/* Opened by hovering: if the pointer leaves the drawer before anything in
+   it is touched, it closes again, quietly. */
+void Drawer_OpenByHover(void)
+{
+    if (gOpen) return;
+    Drawer_Open();
+    gByHover = true;
+    gTouched = false;
+}
+
+void Drawer_Idle(void)
+{
+    Point m;
+    if (!gOpen || !gByHover || gTouched) return;
+    SetPort(gWin);
+    GetMouse(&m);
+    if (m.h > (gDepth - 1) * kStep + kPanelW + 12 || m.v > gWin->portRect.bottom
+        || m.h < -4 || m.v < -4)
+        Drawer_Close();
+}
+
 void Drawer_Click(Point pt, EventRecord *ev)
 {
     short x = (gDepth - 1) * kStep, i;
     (void)ev;
+    gTouched = true;
     if (pt.h >= x + kPanelW + 2) { Drawer_Close(); return; }   /* the page */
     if (pt.h < x) {                      /* a strip underneath: back to it */
         short level = pt.h / kStep + 1;

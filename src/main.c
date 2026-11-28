@@ -638,11 +638,15 @@ int main(void)
         UpdateCursor();
         if (Lib_IsOpen())
             Lib_Idle();
-        else if (Drawer_IsOpen() || Palette_IsOpen())
-            ;                            /* nothing may draw under a card */
+        else if (Drawer_IsOpen())
+            Drawer_Idle();               /* nothing may draw under a card */
+        else if (Palette_IsOpen())
+            ;
         else {
             Ed_Idle();
             Chrome_Idle();
+            if (Chrome_TakeHoverOpen())
+                Drawer_OpenByHover();
         }
         Doc_Idle();
     }
