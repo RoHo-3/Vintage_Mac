@@ -106,10 +106,6 @@
 - Settings blade in three groups (App, Library, This document); **Back Up
   Library…** copies the whole library, dated, to any folder or disk (done
   locally). Later, perhaps: a "Use a Backup…" to switch to one.
-- **Product Guide editorial pass:** one read-through of the whole guide
-  for voice, length and order, now that it has grown section by section
-  (templates, links, History, Focus, TK, footnotes, Cuts). Keep it short
-  enough to read in one sitting.
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
 - **Safe saves (from the Neo review; done, build 103):** saving rewrites the document in
@@ -255,6 +251,13 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - A "Start Here" guide shipped as a real Markdown document in My
   Documents, replacing the first-run welcome text.
 - Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
+- **Product Guide editorial pass:** one read-through of the whole guide
+  for voice, length and order, now that it has grown section by section
+  (templates, links, History, Focus, TK, footnotes, Cuts), bringing in
+  what it doesn't cover yet (Cmd-click links, writing icons, Recent's
+  writing names and path, Focus starting on the first keystroke, any
+  writing holding more documents). Keep it short enough to read in one
+  sitting.
 - **System 7 full evaluation pass** (day-to-day testing and feedback are
   on System 6.0.8, the more limited system; 7.1 is re-validated here).
   Work found or held for it:
