@@ -169,7 +169,8 @@ static void NextTK(void)
    that kind is offered again (25 minutes, 500 words to start). */
 static void AskGoal(char kind)
 {
-    static long lastMin = 25, lastWords = 500;
+    Prefs pr;
+    long lastMin, lastWords;
     unsigned char num[16];
     DialogPtr d;
     short hit, type, i;
@@ -179,6 +180,9 @@ static void AskGoal(char kind)
     ParamText(kind == 'm' ? (const unsigned char *)"\pFocus for how many minutes?"
                           : (const unsigned char *)"\pFocus for how many new words?",
               (const unsigned char *)"\p", (const unsigned char *)"\p", (const unsigned char *)"\p");
+    Prefs_Load(&pr);                     /* the last Other... kept, across launches */
+    lastMin = pr.goalMin > 0 ? pr.goalMin : 25;
+    lastWords = pr.goalWords > 0 ? pr.goalWords : 500;
     d = GetNewDialog(201, NULL, (WindowPtr)-1);
     if (!d) return;
     num[0] = 0;
@@ -199,8 +203,9 @@ static void AskGoal(char kind)
     }
     DisposeDialog(d);
     if (hit != 1 || v <= 0) return;
-    if (kind == 'm') { if (v > 600) v = 600; lastMin = v; }
-    else lastWords = v;
+    if (kind == 'm') { if (v > 600) v = 600; pr.goalMin = v; }
+    else pr.goalWords = v;
+    Prefs_Save(&pr);
     Chrome_SetGoal(kind, v);
 }
 

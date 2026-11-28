@@ -99,6 +99,7 @@ typedef struct {
     short      fontID;               /* 0 = MDW Mono, else a system font ID */
     short      bodySize;             /* 0 = default */
     short      hide;                 /* Settings: 1 = no word count, 2 = no clock */
+    long       goalMin, goalWords;   /* Focus, Other...: last asked; 0 = none yet */
 } Prefs;
 
 Boolean Prefs_Exist(void);           /* false on the very first launch */

@@ -789,6 +789,7 @@ void Prefs_Load(Prefs *p)
     p->fontID = 0;
     p->bodySize = 0;
     p->hide = 0;
+    p->goalMin = p->goalWords = 0;
     if (FSOpen(kPrefsName, gRootWD, &ref) != noErr)
         return;
     FSRead(ref, &n, (Ptr)&tmp);          /* eofErr: an older, shorter file */
