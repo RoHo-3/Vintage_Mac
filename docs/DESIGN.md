@@ -428,7 +428,13 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    themselves are never changed (edit them in the Finder — a power-user
    feature). Each opens with a `#` name that reads well if kept ("Untitled
    Story"), short labelled prompts, a rule, then "Start here."
-2. **My Writings** — every writing is a folder, so a piece can grow from
+2. **My Writings** (A2, build 110): inside a writing, Recent tucks away
+   (a classic zoom outline) and this shelf takes two lines of six tiles,
+   scrolled a line at a time with a 2-px hairline at the right; at the
+   top it's one line and Recent shows. The New tile follows the folder:
+   "New Chapter" in a folder named Chapters (any plain English plural),
+   starting "# Chapter 4" (one past the highest) or "# Untitled Chapter".
+   **My Writings** — every writing is a folder, so a piece can grow from
    one document into a project without a choice up front. On disk, a
    "Writings" folder (next to the app, unless moved: Settings › Move
    Library…) holds two peers, `My Writings` and `Templates`, plus the

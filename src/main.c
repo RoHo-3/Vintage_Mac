@@ -53,6 +53,8 @@ static const char kWelcome[] =
     "\r"
     "## This build adds\r"
     "\r"
+    "- The Library: inside a writing, Recent steps aside and your documents "
+    "get two rows. In a folder like Chapters, New makes the next chapter.\r"
     "- Six templates: Article, Book Project, Essay, Journal, Script and "
     "Short Story.\r"
     "- History in the drawer (or Command-K, History): pick a past version "

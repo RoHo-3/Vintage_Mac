@@ -74,4 +74,6 @@ Boolean Ed_JumpFootnote(void);      /* mark <-> note; false if on neither */
 void    Ed_SelRange(long *start, long *end);
 void    Ed_DeleteSelection(void);
 
+void    Ed_Select(long a, long b);
+
 #endif

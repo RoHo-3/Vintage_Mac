@@ -11,6 +11,7 @@
 
 void    Doc_Init(void);
 void    Doc_New(void);
+void    Doc_NewWithText(const char *text, long len, long selA, long selB);
 Boolean Doc_SaveCommand(void);  /* Cmd-S: Save dialog when untitled */
 Boolean Doc_Open(void);          /* classic dialog (Library's Other...) */
 Boolean Doc_Import(void);

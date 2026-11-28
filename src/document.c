@@ -483,6 +483,24 @@ void Doc_New(void)
     Doc_Remember();                      /* nothing to reopen until it's saved */
 }
 
+/* A new page that starts with some text (the Library's folder-aware New:
+   "# Chapter 4"), selection a..b; named on its first save, as Doc_New. */
+void Doc_NewWithText(const char *text, long len, long a, long b)
+{
+    if (!SaveIfNeeded())
+        return;
+    gHasFile = false;
+    JR_Detach();
+    Doc_Init();
+    Ed_SetShowMarks(false);
+    Ed_SetText(text, len);
+    Ed_Select(a, b);
+    Chrome_SetTitle((const unsigned char *)"\pUntitled");
+    Chrome_TextChanged();
+    Chrome_ResetClock();
+    Doc_Remember();
+}
+
 static Boolean SameLoc(const FolderLoc *a, const FolderLoc *b)
 {
     return a->dirID == b->dirID && SameName(a->volName, b->volName);

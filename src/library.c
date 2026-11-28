@@ -107,11 +107,13 @@ static void ShownName(const unsigned char *n, unsigned char *out)
     if (HasMd(out)) out[0] -= 3;
 }
 
+static Boolean Expanded(void);
+
 static short RowCount(short row)
 {
     if (row == kRowTpl) return gTplN;
     if (row == kRowFiles) return gFilesN;
-    return gPrefs.recentCount;
+    return Expanded() ? 0 : gPrefs.recentCount;   /* tucked away inside a writing */
 }
 
 /* The tiles that lead the My Writings shelf, before its files:
@@ -203,6 +205,40 @@ static void Reload(void)
     if (gSelRow >= 0 && gSelIdx < 0) gSelRow = -1;
 }
 
+/* A folder named as a plain English plural, as its documents' kind:
+   "Chapters" -> "Chapter", "Stories" -> "Story", "Sketches" -> "Sketch".
+   False for anything else ("Research", "Book Project", "Series"), and for
+   a kind too long for a tile's label; then New stays "New Document".
+   English only (US, UK, Canada, Australia: ROADMAP). */
+static Boolean Singular(const unsigned char *name, unsigned char *out)
+{
+    short n = name[0], i;
+    unsigned char a, b, c;
+#define Low(ch) ((unsigned char)((ch) >= 'A' && (ch) <= 'Z' ? (ch) + 32 : (ch)))
+    if (n < 4 || n > 16) return false;
+    for (i = 1; i <= n; i++)             /* letters and spaces only */
+        if (!((name[i] >= 'a' && name[i] <= 'z') || (name[i] >= 'A' && name[i] <= 'Z')
+              || name[i] == ' '))
+            return false;
+    a = Low(name[n - 2]); b = Low(name[n - 1]); c = Low(name[n]);
+    if (c != 's' || b == 's' || b == 'u' || b == 'i' || name[n - 1] == ' ')
+        return false;                    /* glass, status, analysis */
+    if ((n >= 6 && Low(name[n - 5]) == 's' && Low(name[n - 4]) == 'e' && a == 'i' && b == 'e')
+        || (n >= 4 && Low(name[n - 3]) == 'n' && a == 'e' && b == 'w'))
+        return false;                    /* series, news */
+    for (i = 0; i <= n; i++) out[i] = name[i];
+    if (a == 'i' && b == 'e') {          /* stories -> story */
+        out[0] = (unsigned char)(n - 2);
+        out[n - 2] = (unsigned char)(name[n - 2] == 'I' ? 'Y' : 'y');
+    } else if (b == 'e' && (a == 'x' || a == 'z'
+               || ((a == 'h') && (Low(name[n - 3]) == 'c' || Low(name[n - 3]) == 's'))))
+        out[0] = (unsigned char)(n - 2); /* sketches -> sketch, boxes -> box */
+    else
+        out[0] = (unsigned char)(n - 1); /* chapters -> chapter */
+#undef Low
+    return out[0] <= 12;                 /* "New " + it fits two label lines */
+}
+
 static void AddSpecial(short kind, const unsigned char *name, long dirID)
 {
     short n = gSpecialN;
@@ -221,8 +257,16 @@ static void LoadFiles(void)
         AddSpecial(kSpUp, gDirName[gDepth - 1], gDir[gDepth - 1]);
     if (gDepth == 0)
         AddSpecial(kSpNewWriting, (const unsigned char *)"\pNew", 0);
-    else
-        AddSpecial(kSpNewDoc, (const unsigned char *)"\pNew Document", 0);
+    else {
+        unsigned char label[40], one[40];
+        short i;
+        CopyP((const unsigned char *)"\pNew Document", label);
+        if (Singular(gDirName[gDepth], one)) {   /* "New Chapter" in Chapters */
+            label[0] = 4;
+            for (i = 1; i <= one[0]; i++) label[++label[0]] = one[i];
+        }
+        AddSpecial(kSpNewDoc, label, 0);
+    }
     if (gDepth == 1)                     /* one level of folders inside */
         AddSpecial(kSpNewFolder, (const unsigned char *)"\pNew Folder", 0);
     gFilesN = gSpecialN + Files_List(gVol, gDir[gDepth], gFiles + gSpecialN,
@@ -240,8 +284,38 @@ static void LoadAll(void)
     Prefs_Load(&gPrefs);
 }
 
+/* Inside a writing, Recent tucks away and My Writings takes its room: two
+   lines of tiles, scrolled up and down a line at a time (a 2-pixel
+   hairline at the right shows where), never sideways. Templates and
+   Recent keep one line each, with the << >> arrows. */
+#define kLineStep  92                    /* second line of tiles, from the first */
+
+static Boolean Expanded(void) { return gDepth > 0; }
+static Boolean Shown(short row) { return row != kRowRecent || !Expanded(); }
+static short Lines(short row) { return (row == kRowFiles && Expanded()) ? 2 : 1; }
+static short PerShelf(short row) { return kVisible * Lines(row); }
+static short RowTop(short row) { return kRowsTop + row * kRowH; }
+static short RowBottom(short row) { return RowTop(row) + kRowH * Lines(row); }
+
+/* Where tile idx sits now: false if scrolled out of view. */
+static Boolean TileAt(short row, short idx, short *x, short *top)
+{
+    short k = idx - gFirst[row];
+    if (k < 0 || k >= PerShelf(row)) return false;
+    *x = kLeft + (k % kVisible) * kTileStep;
+    *top = RowTop(row) + (k / kVisible) * kLineStep;
+    return true;
+}
+
 static void ScrollIntoView(short row, short idx)
 {
+    if (row == kRowFiles) {              /* whole lines, up and down */
+        short line = idx / kVisible, first = gFirst[row] / kVisible;
+        if (line < first) first = line;
+        if (line >= first + Lines(row)) first = line - Lines(row) + 1;
+        gFirst[row] = first * kVisible;
+        return;
+    }
     if (idx < gFirst[row]) gFirst[row] = idx;
     if (idx >= gFirst[row] + kVisible) gFirst[row] = idx - kVisible + 1;
     if (gFirst[row] < 0) gFirst[row] = 0;
@@ -496,12 +570,29 @@ static void DrawTile(short row, short idx, short x, short top)
     }
 }
 
+/* My Writings' position: a 2-pixel hairline at the right edge (DESIGN.md:
+   "Scroll position"), only when there is more than fits. */
+static Boolean HairlineRect(Rect *track, Rect *thumb)
+{
+    short n = RowCount(kRowFiles), lines = (n + kVisible - 1) / kVisible;
+    short top = RowTop(kRowFiles) + kIconTop, bottom = RowBottom(kRowFiles) - 8, h;
+    if (lines <= Lines(kRowFiles)) return false;
+    SetRect(track, gWin->portRect.right - 5, top, gWin->portRect.right - 3, bottom);
+    h = bottom - top;
+    *thumb = *track;
+    thumb->top = top + (short)((long)h * (gFirst[kRowFiles] / kVisible) / lines);
+    thumb->bottom = top + (short)((long)h * (gFirst[kRowFiles] / kVisible + Lines(kRowFiles)) / lines);
+    if (thumb->bottom > bottom) thumb->bottom = bottom;
+    return true;
+}
+
 static void DrawRow(short row)
 {
-    short top = kRowsTop + row * kRowH, i, n = RowCount(row);
+    short top = RowTop(row), i, n = RowCount(row), x, y;
     unsigned char s[100];
-    Rect r;
-    SetRect(&r, 0, top, gWin->portRect.right, top + kRowH - 1);
+    Rect r, track, thumb;
+    if (!Shown(row)) return;
+    SetRect(&r, 0, top, gWin->portRect.right, RowBottom(row) - 1);
     EraseRect(&r);
     TextFont(kGeneva);
     TextSize(9);
@@ -525,22 +616,27 @@ static void DrawRow(short row)
         if (row == kRowRecent) DrawString(PSTR("\pNothing opened yet"));
         else if (row == kRowFiles) DrawString(PSTR("\pEmpty"));   /* (never at the top: + leads) */
     }
-    for (i = gFirst[row]; i < n && i < gFirst[row] + kVisible; i++)
-        DrawTile(row, i, kLeft + (i - gFirst[row]) * kTileStep, top);
-    if (gRenaming && row == gSelRow && gSelIdx >= gFirst[row]
-        && gSelIdx < gFirst[row] + kVisible)
-        DrawEditField(kLeft + (gSelIdx - gFirst[row]) * kTileStep, top);
-    if (gFirst[row] > 0) {                          /* more to the left */
-        MoveTo(3, top + kIconTop + 20);
-        DrawString(PSTR("\p\307"));                 /* << */
+    for (i = gFirst[row]; i < n; i++)
+        if (TileAt(row, i, &x, &y))
+            DrawTile(row, i, x, y);
+    if (gRenaming && row == gSelRow && TileAt(row, gSelIdx, &x, &y))
+        DrawEditField(x, y);
+    if (row == kRowFiles) {
+        if (HairlineRect(&track, &thumb))
+            PaintRect(&thumb);
+    } else {
+        if (gFirst[row] > 0) {                      /* more to the left */
+            MoveTo(3, top + kIconTop + 20);
+            DrawString(PSTR("\p\307"));             /* << */
+        }
+        if (gFirst[row] + kVisible < n) {           /* more to the right */
+            MoveTo(gWin->portRect.right - 12, top + kIconTop + 20);
+            DrawString(PSTR("\p\310"));             /* >> */
+        }
     }
-    if (gFirst[row] + kVisible < n) {               /* more to the right */
-        MoveTo(gWin->portRect.right - 12, top + kIconTop + 20);
-        DrawString(PSTR("\p\310"));                 /* >> */
-    }
-    if (row < kRows - 1) {
-        MoveTo(0, top + kRowH - 1);
-        LineTo(gWin->portRect.right, top + kRowH - 1);
+    if (RowBottom(row) < gWin->portRect.bottom) {   /* the line between shelves */
+        MoveTo(0, RowBottom(row) - 1);
+        LineTo(gWin->portRect.right, RowBottom(row) - 1);
     }
 }
 
@@ -645,8 +741,32 @@ static void Redraw(void)
 
 /* ---- actions ------------------------------------------------------------ */
 
+/* Recent tucks away as a writing opens (and comes back at the top): the
+   classic Finder's zoom, a few dotted outlines drawn in turn, between the
+   Recent shelf and its bottom edge. XOR, so nothing under it is redrawn. */
+static void ZoomRecent(Boolean hiding)
+{
+    Rect r;
+    short top = RowTop(kRowRecent), bottom = gWin->portRect.bottom - 1, i, k;
+    long until;
+    SetPort(gWin);
+    PenNormal();
+    PenMode(patXor);
+    PenPat(&qd.gray);
+    for (i = 1; i <= 6; i++) {
+        k = hiding ? i : 7 - i;          /* 1..6: from the whole shelf down */
+        SetRect(&r, 4 + k * 2, top + (short)((long)(bottom - top) * k / 7),
+                gWin->portRect.right - 4 - k * 2, bottom);
+        FrameRect(&r);
+        Delay(2, &until);
+        FrameRect(&r);                   /* XOR again: gone */
+    }
+    PenNormal();
+}
+
 static void Navigate(short idx)
 {
+    Boolean wasExpanded = Expanded();
     if (IsUp(kRowFiles, idx)) {
         gDepth--;
     } else if (gDepth < kMaxDepth - 1) {
@@ -657,6 +777,8 @@ static void Navigate(short idx)
         SysBeep(1);
         return;
     }
+    if (wasExpanded != Expanded())
+        ZoomRecent(Expanded());
     LoadFiles();
     gFirst[kRowFiles] = 0;
     Select(-1, 0);
@@ -688,6 +810,7 @@ static void NewFromFolderTemplate(short idx)
         SysBeep(1);
         return;
     }
+    if (!Expanded()) ZoomRecent(true);
     gDepth = 1;                          /* inside the new writing */
     gDir[1] = nd;
     CopyP(name, gDirName[1]);
@@ -955,10 +1078,47 @@ static void DoOther(void)
 
 /* At the top (or the + tile): a new writing, named when first saved.
    Inside a writing: a new document there. */
+/* A new page here. In a folder named as a plural it starts named for its
+   kind: "# Chapter 4" when "Chapter 1".."Chapter 3" are there (one past
+   the highest), else "# Untitled Chapter" with the name picked, so typing
+   replaces it. Elsewhere, a blank page as before. */
 static void DoNewDocument(void)
 {
+    unsigned char one[40], base[40];
+    char text[48];
+    short n = 0, i, k;
+    long hi = 0, v;
     Doc_SetNewFolder(NewWD());
-    Doc_New();
+    if (gDepth >= 1 && Singular(gDirName[gDepth], one)) {
+        for (k = 0; k < gFilesN; k++) {  /* "Chapter 7.md": its number */
+            if (IsSpecial(kRowFiles, k) || gFiles[k].isFolder) continue;
+            ShownName(gFiles[k].name, base);
+            if (base[0] <= one[0] + 1 || base[one[0] + 1] != ' ') continue;
+            for (i = 1; i <= one[0] && base[i] == one[i]; i++) ;
+            if (i <= one[0]) continue;
+            for (v = 0, i = one[0] + 2; i <= base[0] && base[i] >= '0' && base[i] <= '9'; i++)
+                v = v * 10 + (base[i] - '0');
+            if (i > base[0] && v > hi) hi = v;
+        }
+        text[n++] = '#'; text[n++] = ' ';
+        if (hi > 0) {
+            char d[8];
+            short m = 0;
+            for (i = 1; i <= one[0]; i++) text[n++] = (char)one[i];
+            text[n++] = ' ';
+            hi++;
+            do { d[m++] = (char)('0' + hi % 10); hi /= 10; } while (hi > 0);
+            while (m > 0) text[n++] = d[--m];
+            text[n++] = '\r'; text[n++] = '\r';
+            Doc_NewWithText(text, n, n, n);          /* caret below the heading */
+        } else {
+            const char *u = "Untitled ";
+            for (i = 0; u[i]; i++) text[n++] = u[i];
+            for (i = 1; i <= one[0]; i++) text[n++] = (char)one[i];
+            Doc_NewWithText(text, n, 2, n);          /* the name picked */
+        }
+    } else
+        Doc_New();
     Lib_Close();
 }
 
@@ -1099,12 +1259,25 @@ static void MoveSel(short dRow, short dIdx)
         Redraw();
         return;
     }
+    if (dRow && row == kRowFiles) {      /* up and down its own lines first */
+        short n0 = RowCount(row), t = idx + dRow * kVisible;
+        if (t >= 0 && t < n0) { Select(row, t); Redraw(); return; }
+        if (dRow > 0 && idx / kVisible < (n0 - 1) / kVisible) {
+            Select(row, n0 - 1);         /* a short last line: its last tile */
+            Redraw();
+            return;
+        }
+    }
     if (dRow) {
-        short r = row;
+        short r = row, col = (gSelIdx - gFirst[gSelRow]) % kVisible;   /* same column */
+        if (col < 0) col = 0;
         do { r += dRow; } while (r >= 0 && r < kRows && RowCount(r) == 0);
         if (r < 0 || r >= kRows) return;
         row = r;
-        idx = gFirst[row] + (gSelIdx - gFirst[gSelRow]);   /* same column */
+        idx = gFirst[row] + col;
+        if (row == kRowFiles && dRow < 0)            /* from below: its last line shown */
+            idx += (Lines(row) - 1) * kVisible;
+        if (idx >= RowCount(row)) idx = RowCount(row) - 1;
     }
     idx += dIdx;
     n = RowCount(row);
@@ -1177,18 +1350,36 @@ void Lib_Click(Point pt, EventRecord *ev)
         return;
     }
     if (pt.v < kRowsTop) return;
-    row = (pt.v - kRowsTop) / kRowH;
+    for (row = 0; row < kRows; row++)
+        if (Shown(row) && pt.v >= RowTop(row) && pt.v < RowBottom(row)) break;
     if (row >= kRows) return;
-    if (pt.h < kLeft) {                  /* << */
+    if (row == kRowFiles) {
+        Rect track, thumb;
+        if (HairlineRect(&track, &thumb) && pt.h >= track.left - 6) {
+            short line = gFirst[row] / kVisible;   /* above or below the mark: */
+            if (pt.v < thumb.top && line > 0) line--;        /* a line up */
+            else if (pt.v >= thumb.bottom) line++;           /* a line down */
+            if (line * kVisible < RowCount(row)) gFirst[row] = line * kVisible;
+            DrawRow(row);
+            return;
+        }
+    } else if (pt.h < kLeft) {           /* << */
         if (gFirst[row] > 0) { gFirst[row] -= kVisible; if (gFirst[row] < 0) gFirst[row] = 0; DrawRow(row); }
         return;
-    }
-    if (pt.h >= kLeft + kVisible * kTileStep - (kTileStep - kTileW)) {   /* >> */
+    } else if (pt.h >= kLeft + kVisible * kTileStep - (kTileStep - kTileW)) {   /* >> */
         if (gFirst[row] + kVisible < RowCount(row)) { gFirst[row] += kVisible; DrawRow(row); }
         return;
     }
-    idx = gFirst[row] + (pt.h - kLeft) / kTileStep;
-    if ((pt.h - kLeft) % kTileStep >= kTileW || idx >= RowCount(row)) {
+    {
+        short line = (pt.v - RowTop(row)) / kLineStep, col;
+        if (line >= Lines(row)) line = Lines(row) - 1;
+        if (pt.h < kLeft) return;
+        col = (pt.h - kLeft) / kTileStep;
+        if (col >= kVisible) col = kVisible;          /* past the last column */
+        idx = gFirst[row] + line * kVisible + col;
+        if (col == kVisible) idx = RowCount(row);     /* nothing there */
+    }
+    if (pt.h < kLeft || (pt.h - kLeft) % kTileStep >= kTileW || idx >= RowCount(row)) {
         EndRename(true);                 /* a click on nothing */
         Select(-1, 0);
         Redraw();
@@ -1200,14 +1391,14 @@ void Lib_Click(Point pt, EventRecord *ev)
         /* the + tiles and the up tile are buttons, as in the classic Finder
            and Standard File: one click does it (on release over the tile) */
         Point up;
-        short x0 = kLeft + (idx - gFirst[row]) * kTileStep;
+        short x0, y0;
         Select(row, idx);
         Redraw();
         while (StillDown()) ;
         GetMouse(&up);
         gLastRow = -1;
-        if (up.h >= x0 && up.h < x0 + kTileW
-            && up.v >= kRowsTop + row * kRowH && up.v < kRowsTop + (row + 1) * kRowH)
+        if (TileAt(row, idx, &x0, &y0) && up.h >= x0 && up.h < x0 + kTileW
+            && up.v >= y0 && up.v < y0 + kLineStep)
             DoOpen();
         return;
     }

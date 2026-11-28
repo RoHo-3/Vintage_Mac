@@ -1723,6 +1723,17 @@ void Ed_JumpSection(short dir)
     Ed_SetCaret(p);
 }
 
+/* Select a..b (the Library's folder-aware New picks "Untitled Chapter"). */
+void Ed_Select(long a, long b)
+{
+    long len = TB_Len();
+    if (a < 0) a = 0;
+    if (b > len) b = len;
+    if (a > b) a = b;
+    gTyping = false;
+    SetSel(a, b);
+}
+
 /* The selection as positions in the text (start <= end). */
 void Ed_SelRange(long *start, long *end)
 {

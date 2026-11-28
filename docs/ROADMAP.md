@@ -262,15 +262,17 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - H6 uses capitals as a stand-in for small caps; testing focuses on System
   7.1 until a full System 6.0.8 pass later.
 
-## Library: decisions so far (for the end-of-0.05 ideation)
+## Library: A2 chosen (first build: 110)
 
-- B (side rows and a file list) is ruled out: it loses the quiet look.
-  The choice is between A2 and C (Library ideation sketches canvas).
+- A2 chosen (B ruled out: it loses the quiet look; C not taken). Built
+  in 110: everything below, to check on System 6 and 7.
 - Recent hides only while a writing is open in My Writings, which then
   takes two rows of tiles; it comes back at the top level. A classic
   zoom-outline animation, not a slide.
-- Scrolling: a thin vertical scroll line like the writing view's, one row
-  at a time, replacing the sideways arrows.
+- Scrolling: a 2-pixel hairline at the right (DESIGN.md's "scroll
+  position" spec), one line of tiles at a time, replacing the sideways
+  arrows on My Writings; click above or below the mark to move a line.
+  The writing view doesn't draw its hairline yet: to add.
 - The lines between shelves stay.
 - Folder-aware New: inside a folder whose name is a plain English plural,
   the New tile reads "New <singular>" ("New Chapter" in Chapters, "New
