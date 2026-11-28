@@ -460,16 +460,24 @@ Boolean Files_SetKind(short vol, long dir, ConstStr255Param kind)
 {
     short ref;
     long n = kind[0];
-    FInfo fi;
     OSErr err = HCreate(vol, dir, (ConstStr255Param)kKindName, kCreator, 'KIND');
     if (err != noErr && err != dupFNErr) return false;
     if (HOpen(vol, dir, (ConstStr255Param)kKindName, fsWrPerm, &ref) != noErr) return false;
     err = FSWrite(ref, &n, (Ptr)(kind + 1));
     SetEOF(ref, kind[0]);
     FSClose(ref);
-    if (HGetFInfo(vol, dir, (ConstStr255Param)kKindName, &fi) == noErr) {
-        fi.fdFlags |= 0x4000;            /* invisible: not a document */
-        HSetFInfo(vol, dir, (ConstStr255Param)kKindName, &fi);
+    {
+        HParamBlockRec pb;               /* invisible: not a document */
+        pb.fileParam.ioCompletion = NULL;
+        pb.fileParam.ioNamePtr = (StringPtr)kKindName;
+        pb.fileParam.ioVRefNum = vol;
+        pb.fileParam.ioFDirIndex = 0;
+        pb.fileParam.ioDirID = dir;
+        if (PBHGetFInfoSync(&pb) == noErr) {
+            pb.fileParam.ioFlFndrInfo.fdFlags |= 0x4000;
+            pb.fileParam.ioDirID = dir;
+            PBHSetFInfoSync(&pb);
+        }
     }
     return err == noErr;
 }
