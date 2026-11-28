@@ -72,7 +72,10 @@ leaves things as they were. There are no naming dialogs or pop-ups.
   back chip (see Going back). Shown on launch / mouse movement; hidden on
   keystroke.
 - Text column: **420 px** wide, **46 px** margins each side ("balanced compact").
-- Scroll position: 2 px hairline on the right edge instead of a scrollbar.
+- Scroll position: 2 px hairline on the right edge instead of a scrollbar
+  (built for 0.06): the last 2 pixels, which lines never paint; only when
+  the document is longer than the screen; the thumb is the part on
+  screen, at least 6 px, redrawn only when it moves.
 - Status footer (10 px): fades in after ~2 s idle. Left: word count and
   session time, separated by a slash — `1,284 words / 5:45`. Right: the
   6 px save dot (see Save state).

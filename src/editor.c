@@ -471,6 +471,35 @@ static Boolean gHold;                    /* the Library is up: draw nothing */
 
 void Ed_Hold(Boolean hold) { gHold = hold; if (hold) gCaretOn = false; }
 
+/* Scroll position (DESIGN.md, Layout): a 2-pixel hairline in the right
+   edge's last 2 pixels, which lines never paint; only when the document
+   is longer than the screen. The thumb is the part on screen, by lines.
+   Redrawn only when it moves, so typing never flickers it. */
+static Rect gThumb;                      /* last drawn; empty: none */
+static long LastVisible(void);
+
+static void DrawHairline(Boolean force)
+{
+    Rect track, thumb;
+    long n = LY_Count(), last;
+    short top = kTopPad, bottom = Bottom(), h = bottom - top;
+    if (gHold) return;
+    SetRect(&track, gWin->portRect.right - 2, top, gWin->portRect.right, bottom);
+    SetRect(&thumb, 0, 0, 0, 0);
+    last = LastVisible();
+    if (n > 0 && (gTop > 0 || last < n - 1)) {   /* more than fits */
+        thumb = track;
+        thumb.top = top + (short)((long)h * gTop / n);
+        thumb.bottom = top + (short)((long)h * (last + 1) / n);
+        if (thumb.bottom < thumb.top + 6) thumb.bottom = thumb.top + 6;
+        if (thumb.bottom > bottom) { thumb.bottom = bottom; thumb.top = bottom - 6; }
+    }
+    if (!force && EqualRect(&thumb, &gThumb)) return;
+    EraseRect(&track);
+    if (!EmptyRect(&thumb)) PaintRect(&thumb);
+    gThumb = thumb;
+}
+
 static void DrawLines(long from, long to)
 {
     short y, bottom = Bottom();
@@ -486,6 +515,7 @@ static void DrawLines(long from, long to)
         SetRect(&r, 0, y, gWin->portRect.right - 2, gWin->portRect.bottom - kFooterH);
         EraseRect(&r);
     }
+    DrawHairline(false);
 }
 
 #define kToEnd 0x7FFFFFFFL
@@ -511,6 +541,7 @@ void Ed_DrawAll(void)
         SetRect(&r, 0, Bottom(), gWin->portRect.right, gWin->portRect.bottom - kFooterH);
         EraseRect(&r);
     }
+    SetRect(&gThumb, 0, 0, 0, 0);        /* its column was just cleared */
     DrawLines(gTop, kToEnd);             /* (clears below the last line too) */
     ShowCaret();
 }
