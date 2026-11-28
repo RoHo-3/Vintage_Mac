@@ -274,6 +274,11 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   arrows on My Writings; click above or below the mark to move a line.
   The writing view doesn't draw its hairline yet: to add.
 - The lines between shelves stay.
+- The path is clickable too (local, after 111): each name in "MY
+  WRITINGS > BOOK PROJECT > CHAPTERS" goes back to that level, lit while
+  pressed; Cmd-Up goes up one (System 7's Finder key). The Up tile stays
+  as the obvious way, so nobody gets lost; the folder just left is
+  picked on arrival. Revisit the Up tile only if testing shows it unused.
 - Folder-aware New: inside a folder whose name is a plain English plural,
   the New tile reads "New <singular>" ("New Chapter" in Chapters, "New
   Note" in Notes, renamed folders followed); else "New Document". The new

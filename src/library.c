@@ -72,6 +72,7 @@ static short     gActN;
 static Rect      gActRect[kActCount];
 static Rect      gBackRect;
 static Rect      gImportRect;            /* the Import... pill at the right */
+static Rect      gCrumb[kMaxDepth];      /* the path's names: MY WRITINGS > ... */
 
 /* renaming in place */
 static Boolean   gRenaming;
@@ -600,13 +601,17 @@ static void DrawRow(short row)
     MoveTo(kLeft, top + 13);
     if (row == kRowTpl) DrawString(PSTR("\pTEMPLATES"));
     else if (row == kRowRecent) DrawString(PSTR("\pRECENT"));
-    else {
+    else {                               /* each name of the path is a way */
+        Point pen;                       /* back to its level (gCrumb) */
+        SetRect(&gCrumb[0], kLeft - 2, top + 3, kLeft + StringWidth(PSTR("\pMY WRITINGS")) + 2, top + 16);
         DrawString(PSTR("\pMY WRITINGS"));
         for (i = 1; i <= gDepth; i++) {
             DrawString(PSTR("\p \310 "));          /* \310 = MacRoman >> */
             ShownName(gDirName[i], s);
             Upper(s);
             if (i == gDepth) TextFace(bold);
+            GetPen(&pen);
+            SetRect(&gCrumb[i], pen.h - 2, top + 3, pen.h + StringWidth(s) + 2, top + 16);
             DrawString(s);
             TextFace(0);
         }
@@ -782,6 +787,23 @@ static void Navigate(short idx)
     LoadFiles();
     gFirst[kRowFiles] = 0;
     Select(-1, 0);
+    Redraw();
+}
+
+/* Back up the path to level d (a name in the path, Cmd-Up): the folder
+   just left is picked, as in the Finder. */
+static void GoToDepth(short d)
+{
+    Boolean was = Expanded();
+    unsigned char from[32];
+    if (d < 0 || d >= gDepth) return;
+    CopyP(gDirName[d + 1], from);
+    gDepth = d;
+    if (was != Expanded()) ZoomRecent(Expanded());
+    LoadFiles();
+    gFirst[kRowFiles] = 0;
+    Select(-1, 0);
+    SelectFileNamed(from);
     Redraw();
 }
 
@@ -1314,6 +1336,10 @@ void Lib_Key(EventRecord *ev)
         else if (c == 'd' || c == 'D') { if (Offered(kActDuplicate)) DoDuplicate(); }
         else if (c == 0x08) { if (Offered(kActTrash)) DoTrash(); }
         else if (c == 'o' || c == 'O') Lib_Close();
+        else if (c == 0x1E) {            /* Cmd-Up: the folder above */
+            if (gDepth > 0) { EndRename(true); GoToDepth(gDepth - 1); }
+            else SysBeep(1);
+        }
         return;
     }
     switch (c) {
@@ -1353,6 +1379,23 @@ void Lib_Click(Point pt, EventRecord *ev)
     for (row = 0; row < kRows; row++)
         if (Shown(row) && pt.v >= RowTop(row) && pt.v < RowBottom(row)) break;
     if (row >= kRows) return;
+    if (row == kRowFiles && pt.v < RowTop(row) + 16) {   /* the path */
+        for (i = 0; i < gDepth; i++)     /* (the last name is where you are) */
+            if (PtInRect(pt, &gCrumb[i])) {
+                Boolean in = true, was = false;
+                SetPort(gWin);
+                while (StillDown()) {    /* a button: lit while pressed over it */
+                    Point m;
+                    GetMouse(&m);
+                    in = PtInRect(m, &gCrumb[i]);
+                    if (in != was) { InvertRect(&gCrumb[i]); was = in; }
+                }
+                if (was) InvertRect(&gCrumb[i]);
+                if (in) { EndRename(true); GoToDepth(i); }
+                return;
+            }
+        return;
+    }
     if (row == kRowFiles) {
         Rect track, thumb;
         if (HairlineRect(&track, &thumb) && pt.h >= track.left - 6) {
