@@ -20,7 +20,8 @@ enum {
     cTiming, cQuit,
     cNextTK, cInsertTK,
     cFocusMinutes, cFocusWords, cFocusClear, cHistory,
-    cFootnote, cJumpFootnote, cCuts
+    cFootnote, cJumpFootnote, cCuts,
+    cTplArticle, cTplBook, cTplEssay, cTplJournal, cTplScript, cTplStory
 };
 
 typedef struct {

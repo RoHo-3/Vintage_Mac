@@ -43,6 +43,12 @@ static const Command kCommands[] = {
     { cPaste,       "Write",    "Paste",                "clipboard insert",                            "Cmd-V" },
     { cSelectAll,   "Write",    "Select All",           "everything whole document",                   "Cmd-A" },
     { cNew,         "Document", "New Document\311",     "create blank start template",                 "Cmd-N" },
+    { cTplArticle,  "Document", "New Article",          "template news report piece headline lede",   "" },
+    { cTplBook,     "Document", "New Book Project",     "template novel book chapters project memoir", "" },
+    { cTplEssay,    "Document", "New Essay",            "template argument opinion blog post",        "" },
+    { cTplJournal,  "Document", "New Journal",          "template diary entry daily pages",           "" },
+    { cTplScript,   "Document", "New Script",           "template screenplay fountain film play",     "" },
+    { cTplStory,    "Document", "New Short Story",      "template fiction tale story",                "" },
     { cSave,        "Document", "Save",                 "store write keep",                            "Cmd-S" },
     { cMarks,       "View",     "Show Markdown",        "markers syntax source reveal hide markdown symbols", "Cmd-M" },
     { cBigger,      "View",     "Bigger Text",          "zoom in larger increase font size",           "Cmd-=" },
@@ -82,6 +88,19 @@ const char *Cmd_Label(const Command *c)
     return c->name;
 }
 
+/* The default templates' names, as the Library shows them. */
+static const unsigned char *TemplateName(short id)
+{
+    switch (id) {
+    case cTplArticle: return (const unsigned char *)"\pArticle";
+    case cTplBook:    return (const unsigned char *)"\pBook Project";
+    case cTplEssay:   return (const unsigned char *)"\pEssay";
+    case cTplJournal: return (const unsigned char *)"\pJournal";
+    case cTplScript:  return (const unsigned char *)"\pScript";
+    }
+    return (const unsigned char *)"\pShort Story";
+}
+
 Boolean Cmd_Available(short id)
 {
     switch (id) {
@@ -95,6 +114,9 @@ Boolean Cmd_Available(short id)
         return Chrome_GoalKind() != 0;
     case cHistory:
         return Doc_HasFile();
+    case cTplArticle: case cTplBook: case cTplEssay:
+    case cTplJournal: case cTplScript: case cTplStory:
+        return Lib_HasTemplate(TemplateName(id));
     }
     return true;
 }
@@ -217,6 +239,10 @@ void Cmd_Run(short id)
     case cSettings:    Drawer_OpenBlade('t'); break;
     case cTiming:      App_ShowLaunchTiming(); break;
     case cNextTK:      NextTK(); break;
+    case cTplArticle: case cTplBook: case cTplEssay:
+    case cTplJournal: case cTplScript: case cTplStory:
+        if (!Lib_NewFromTemplateNamed(TemplateName(id))) SysBeep(1);
+        break;
     case cCuts:
         switch (Doc_MoveToCuts()) {
         case 0: Chrome_ShowMessage((const unsigned char *)"\pMoved to Cuts", 2); break;

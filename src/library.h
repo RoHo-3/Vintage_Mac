@@ -30,4 +30,7 @@ void    Lib_Key(EventRecord *ev);
 void    Lib_Click(Point local, EventRecord *ev);
 void    Lib_Idle(void);
 
+Boolean Lib_NewFromTemplateNamed(const unsigned char *name);   /* Cmd-K > New Article */
+Boolean Lib_HasTemplate(const unsigned char *name);
+
 #endif

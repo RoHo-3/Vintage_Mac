@@ -274,6 +274,10 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   arrows on My Writings; click above or below the mark to move a line.
   The writing view doesn't draw its hairline yet: to add.
 - The lines between shelves stay.
+- Shelf order flipped: Recent, My Writings, Templates (top to bottom).
+  Every template also has a Cmd-K command (New Article, New Book
+  Project, ...) and the Product Guide lists them, so templates stay one
+  step away at the bottom.
 - The path is clickable too (local, after 111): each name in "MY
   WRITINGS > BOOK PROJECT > CHAPTERS" goes back to that level, lit while
   pressed; Cmd-Up goes up one (System 7's Finder key). The Up tile stays

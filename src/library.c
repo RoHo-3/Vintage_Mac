@@ -34,7 +34,7 @@
 #define kLabelBase 62                    /* label baseline within a row */
 #define kGeneva    3
 
-enum { kRowTpl, kRowFiles, kRowRecent, kRows };
+enum { kRowRecent, kRowFiles, kRowTpl, kRows };   /* top to bottom */
 enum { kActOpen, kActDuplicate, kActRename, kActTrash,
        kActNewFolder, kActOther, kActNewDoc, kActCount };
 
@@ -295,7 +295,13 @@ static Boolean Expanded(void) { return gDepth > 0; }
 static Boolean Shown(short row) { return row != kRowRecent || !Expanded(); }
 static short Lines(short row) { return (row == kRowFiles && Expanded()) ? 2 : 1; }
 static short PerShelf(short row) { return kVisible * Lines(row); }
-static short RowTop(short row) { return kRowsTop + row * kRowH; }
+static short RowTop(short row)           /* below the shelves shown above it */
+{
+    short r, y = kRowsTop;
+    for (r = 0; r < row; r++)
+        if (Shown(r)) y += kRowH * Lines(r);
+    return y;
+}
 static short RowBottom(short row) { return RowTop(row) + kRowH * Lines(row); }
 
 /* Where tile idx sits now: false if scrolled out of view. */
@@ -748,22 +754,23 @@ static void Redraw(void)
 
 /* ---- actions ------------------------------------------------------------ */
 
-/* Recent tucks away as a writing opens (and comes back at the top): the
-   classic Finder's zoom, a few dotted outlines drawn in turn, between the
-   Recent shelf and its bottom edge. XOR, so nothing under it is redrawn. */
+/* Recent (the top shelf) tucks away as a writing opens, and comes back at
+   the top level: the classic Finder's zoom, a few dotted outlines drawn in
+   turn, between the Recent shelf and its top edge. XOR, so nothing under
+   it is redrawn. */
 static void ZoomRecent(Boolean hiding)
 {
     Rect r;
-    short top = RowTop(kRowRecent), bottom = gWin->portRect.bottom - 1, i, k;
+    short top = kRowsTop, bottom = kRowsTop + kRowH, i, k;
     long until;
     SetPort(gWin);
     PenNormal();
     PenMode(patXor);
     PenPat(&qd.gray);
     for (i = 1; i <= 6; i++) {
-        k = hiding ? i : 7 - i;          /* 1..6: from the whole shelf down */
-        SetRect(&r, 4 + k * 2, top + (short)((long)(bottom - top) * k / 7),
-                gWin->portRect.right - 4 - k * 2, bottom);
+        k = hiding ? i : 7 - i;          /* 1..6: from the whole shelf up */
+        SetRect(&r, 4 + k * 2, top,
+                gWin->portRect.right - 4 - k * 2, bottom - (short)((long)(bottom - top) * k / 7));
         FrameRect(&r);
         Delay(2, &until);
         FrameRect(&r);                   /* XOR again: gone */
@@ -1221,6 +1228,45 @@ void Lib_Reset(void)
 {
     gDepth = 0;
     Files_DocsDir(&gVol, &gDir[0]);
+}
+
+/* Cmd-K > New Article (the guide lists one per template): a template by
+   name. A page template starts a new writing at once; a folder template
+   (Book Project) is copied into My Writings and the Library shows it
+   open. False if there's no such template. */
+Boolean Lib_NewFromTemplateNamed(const unsigned char *name)
+{
+    short i, j;
+    if (gDepth == 0) Files_DocsDir(&gVol, &gDir[0]);
+    LoadAll();                           /* the shelves, without showing them */
+    for (i = 0; i < gTplN; i++) {
+        unsigned char shown[40];
+        ShownName(gTpl[i].name, shown);
+        if (shown[0] != name[0]) continue;
+        for (j = 1; j <= name[0] && shown[j] == name[j]; j++) ;
+        if (j <= name[0]) continue;
+        if (gTpl[i].isFolder) {          /* a writing of several documents: */
+            if (!gOpen) Lib_Open();      /* shown open in the Library */
+            NewFromFolderTemplate(i);
+            return true;
+        }
+        return Doc_NewFromTemplate(gTpl[i].name, Files_TemplatesWD(), 0);
+    }
+    return false;
+}
+
+/* Is there a template of that name (for Cmd-K: greyed if not)? */
+Boolean Lib_HasTemplate(const unsigned char *name)
+{
+    short vol;
+    long dir;
+    unsigned char f[40];
+    short i;
+    if (!Files_DirOfWD(Files_TemplatesWD(), &vol, &dir)) return false;
+    if (Files_Exists(vol, dir, name)) return true;   /* a folder: Book Project */
+    for (i = 0; i <= name[0]; i++) f[i] = name[i];
+    f[++f[0]] = '.'; f[++f[0]] = 'm'; f[++f[0]] = 'd';
+    return Files_Exists(vol, dir, f);
 }
 
 /* Cmd-N: the Library at the top with New picked; Return starts

@@ -413,7 +413,10 @@ Library) is named automatically from its first line:
 ### Library (Cmd-O, drawer → Library…)
 
 Full-screen browser that replaces the classic Open dialog and handles both
-new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
+new and open. Three shelves of 32×32 1-bit icons, top to bottom: Recent,
+My Writings, Templates (flipped in 113: returning work first; the Product
+Guide's Templates section and Cmd-K > New Article... reach every
+template). Numbered below in their original order:
 
 1. **Templates** — ordinary `.md` files in a Templates folder (users can
    add their own). Default set (0.05 alpha), shelved alphabetically so all
