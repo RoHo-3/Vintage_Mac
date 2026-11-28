@@ -113,10 +113,61 @@ and the typewriter app icon.
 - **TK dot in the drawer** beside documents that still have a placeholder.
 - **Writing-view scroll hairline**, matching the Library's.
 - **Quality: keep or remove Rename** (below).
+- **Focus celebration, final design:** today a strip message and one
+  footer flash; settle what it looks like while staying quiet (no sound
+  by default).
 
-Held for 0.07 or later: moving writings to and from a modern Mac over
-BlueSCSI Wi-Fi (no last-write-wins), Export, the Links blade and back
-stack, web links through FrogFind, smart typography.
+**The plan to v1.** 0.06 and 0.07 make the app ideation complete and
+draft-code complete, tested in the emulator. 0.08 is the one milestone
+on a real Macintosh (Robert's SE/30): everything that needs real hardware
+is validated and fixed there in one trip. 0.09 holds whatever we table
+along the way. Then release readiness.
+
+## 0.07 alpha — draft complete
+
+Everything left to design and write before real hardware, so 0.08 only
+validates and adjusts.
+- **Moving writings between Macs** (BlueSCSI with Wi-Fi), designed and
+  drafted against disk images: no last-write-wins (one side changed:
+  take it; both: keep both, the other as "Name (from other Mac)").
+- **Export**, and **Fountain** import/export with it (a title page from
+  the script's `#` line).
+- **Links, the rest:** a Links blade (what links here), a back stack for
+  jumps, links that survive a rename (resolve by name inside the app).
+- **Web links through FrogFind:** the code and its setting (wrap
+  `http://frogfind.com/read.php?a=<url>` at click time, files keep the
+  plain link); Robert's look on real hardware is in 0.08.
+- **Image placeholders** and an Insert Image command.
+- **Smart typography** (curly quotes, em dash, ellipsis as you type; off
+  by default, as it changes the Markdown source).
+- **Decide the first-line naming rule** (see Polish below).
+- **Find existing .md files** (migration), if it makes v1.
+
+## 0.08 alpha — on a real Macintosh
+
+Robert's SE/30 (and a Plus or SE if one is at hand), System 6.0.8. The
+heaviest milestone for Robert and the most important: all real-hardware
+work in one pass, validated and changed as needed on the spot.
+- Real-hardware pass: Plus, SE, SE/30 timing, memory, drawing.
+- Full System 6.0.8 pass on hardware.
+- **BlueSCSI Wi-Fi:** moving writings between the SE/30 and a modern Mac.
+- **Web links through FrogFind (Robert tests):** the template "How To
+  Write Great" pages on 512x342 (start with Short Story and Essay).
+  Fallbacks to note: 68k.news, Wiby. FrogFind is GPL-3.0: link to it,
+  never copy it.
+- **Floppy speed work**, measured on real floppies: font resources at
+  launch, smaller heading strikes (H1 18 pt instead of 20 saves ~3 KB
+  per style) if needed.
+- The release floppy: the Disk Copy 4.2 image written to a real 800K
+  disk and run from it.
+
+## 0.09 alpha — tabled to here
+
+Whatever we table along the way lands here, decided with real use.
+Today:
+- **Tables:** post-v1 unless decided otherwise (hard on a 512-pixel,
+  1-bit screen).
+- Template guides (P2), from Polish below.
 
 ## Before 0.05: quality pass
 
@@ -269,7 +320,6 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - **Fountain files:** import and export of .fountain wait until moving
   files between vintage and modern Macs is solved (likely a BlueSCSI with
   Wi-Fi). Then a title page can be built from the script's `#` line.
-- **Footnotes before tables** (templates parking lot).
 - **Template guides (P2, not on the v1 path):** each template carries one
   line linking to a short best-practice guide in the Product Guide folder
   (one per template or style: inverted pyramid, persuasive vs informative
@@ -283,9 +333,7 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - Release disk images: an app disk in Disk Copy 4.2 format (writable to a
   real 800K floppy) and a BlueSCSI image. App only: no Apple System
   software is redistributed.
-- A "Start Here" guide shipped as a real Markdown document in My
-  Documents, replacing the first-run welcome text.
-- Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
+- Real-hardware and full System 6.0.8 passes: done in 0.08.
 - **Product Guide editorial pass:** one read-through of the whole guide
   for voice, length and order, now that it has grown section by section
   (templates, links, History, Focus, TK, footnotes, Cuts), bringing in
@@ -310,13 +358,6 @@ Launch got slower around builds 81-90. Before changing anything, measure:
     plus the folder's has-custom-icon flag, added when the writing is
     made and once for older writings. System 6 has no custom folder
     icons, so writings stay plain folders there (expected, build 128).
-- **Web links through FrogFind (Robert tests, BlueSCSI Wi-Fi Mac):** check
-  the template "How To Write Great" pages read well on 512x342 through
-  `http://frogfind.com/read.php?a=<url>` (start with the Short Story and
-  Essay links). If they do, web links in the app open wrapped that way
-  on the vintage Mac (files keep the plain https link; the proxy is a
-  setting). Today a web link says it opens on a modern computer. Fallbacks
-  to note: 68k.news, Wiby. FrogFind is GPL-3.0: link to it, never copy it.
 
 ## Known limits in the first build
 
