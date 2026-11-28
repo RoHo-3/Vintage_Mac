@@ -255,8 +255,9 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - A "Start Here" guide shipped as a real Markdown document in My
   Documents, replacing the first-run welcome text.
 - Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
-- **System 7 full evaluation pass** (all testing so far is on System 6;
-  7.1 is a stated target). Work found or held for it:
+- **System 7 full evaluation pass** (day-to-day testing and feedback are
+  on System 6.0.8, the more limited system; 7.1 is re-validated here).
+  Work found or held for it:
   - **Writing icons in the Finder (System 7 only):** give each writing's
     folder its Library icon (Book, Essay, Manuscript...) as a custom
     folder icon: an invisible "Icon" file inside it holding the icon,
@@ -273,13 +274,12 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 
 ## Known limits in the first build
 
-- A new document needs one Save (dialog) before autosave takes over; the
-  Library will remove that step.
 - Mixed line endings in one file are normalized to the first one found.
 - Tab inserts four spaces; tab characters in pasted text show as a box.
 - Fonts are automatic rasterizations, not hand-tuned.
-- H6 uses capitals as a stand-in for small caps; testing focuses on System
-  7.1 until a full System 6.0.8 pass later.
+- H6 uses capitals as a stand-in for small caps.
+- Testing and feedback happen on System 6.0.8, the more limited system;
+  System 7.1 is re-validated in the release readiness pass.
 
 ## Library: A2 chosen (first build: 111)
 
