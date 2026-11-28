@@ -657,7 +657,8 @@ int main(void)
 
     while (!gQuit) {
         if (gHasWNE) {
-            gotEvent = WaitNextEvent(everyEvent, &ev, 15, NULL);
+            gotEvent = WaitNextEvent(everyEvent, &ev,
+                                     Chrome_Hovering() ? 1 : 15, NULL);
         } else {
             SystemTask();
             gotEvent = GetNextEvent(everyEvent, &ev);

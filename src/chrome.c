@@ -364,11 +364,18 @@ void Chrome_KeyPressed(void)
 }
 
 /* Hover to open the drawer (an experiment; one commit to revert): the
-   pointer resting on the hamburger for half a second opens it. Passing
+   pointer resting on the hamburger for a fifth of a second opens it. Passing
    through, or flinging the mouse into the corner, doesn't. */
-#define kHoverTicks 30
+#define kHoverTicks 12
 static unsigned long gHoverSince;         /* 0: not over the hamburger */
 static Boolean gHoverFired, gHoverWant;
+
+/* Resting on the hamburger, the timer is running: the event loop should
+   look again soon rather than sleep a quarter second. */
+Boolean Chrome_Hovering(void)
+{
+    return gHoverSince != 0 && !gHoverFired;
+}
 
 Boolean Chrome_TakeHoverOpen(void)
 {
