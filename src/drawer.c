@@ -428,10 +428,11 @@ static void DrawRow(short i, short x, short y, Boolean sel)
     UIFont(kGeneva, 10, 0);
     if (r->icon) {                       /* small folder or page, as in the
                                             Finder's list views */
-        if (r->icon == 'f') {
-            MoveTo(tx, y + 5); LineTo(tx + 3, y + 5); LineTo(tx + 4, y + 4);
-            LineTo(tx + 6, y + 4); LineTo(tx + 7, y + 5); LineTo(tx + 10, y + 5);
-            LineTo(tx + 10, y + 12); LineTo(tx, y + 12); LineTo(tx, y + 5);
+        if (r->icon == 'f') {            /* same top (y+3) and bottom (y+13)
+                                            as the page beside it */
+            MoveTo(tx, y + 4); LineTo(tx + 3, y + 4); LineTo(tx + 4, y + 3);
+            LineTo(tx + 6, y + 3); LineTo(tx + 7, y + 4); LineTo(tx + 10, y + 4);
+            LineTo(tx + 10, y + 13); LineTo(tx, y + 13); LineTo(tx, y + 4);
         } else {
             MoveTo(tx + 1, y + 3); LineTo(tx + 6, y + 3); LineTo(tx + 9, y + 6);
             LineTo(tx + 9, y + 13); LineTo(tx + 1, y + 13); LineTo(tx + 1, y + 3);
