@@ -105,7 +105,9 @@
   limit cut at whole words (Rename stops there too).
 - Settings blade in three groups (App, Library, This document); **Back Up
   Library…** copies the whole library, dated, to any folder or disk (done
-  locally). Later, perhaps: a "Use a Backup…" to switch to one.
+  locally). No "Use a Backup…" button: History covers getting a version
+  back, and restoring a whole library is rare, so the Product Guide
+  explains it instead (release readiness).
 - Mac-only paths to verify: Move Library on one disk, Duplicate folder,
   loose documents wrapped at launch, System 6 (checklist sent with 92).
 - **Safe saves (from the Neo review; done, build 103):** saving rewrites the document in
@@ -257,7 +259,15 @@ Launch got slower around builds 81-90. Before changing anything, measure:
   what it doesn't cover yet (Cmd-click links, writing icons, Recent's
   writing names and path, Focus starting on the first keystroke, any
   writing holding more documents). Keep it short enough to read in one
-  sitting.
+  sitting. Add **Restoring a backup** (no button for it): quit the app;
+  drag the current Writings folder to the Trash, and don't empty it yet
+  (the app looks for its library where Move Library last put it, and
+  skips a folder in the Trash; a renamed folder would still be found);
+  copy the backup folder beside the app and rename it exactly
+  "Writings"; open the app. Settings, histories, templates and writing
+  icons come back as they were on the backup's date; Recent forgets
+  anything newer. To keep the library elsewhere, use Move Library
+  afterward. Empty the Trash once all is well.
 - **System 7 full evaluation pass** (day-to-day testing and feedback are
   on System 6.0.8, the more limited system; 7.1 is re-validated here).
   Work found or held for it:
