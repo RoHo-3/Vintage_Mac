@@ -33,7 +33,7 @@ static short gY;                         /* top of the panel being drawn: 0, or 
 enum { kRoot, kProject, kFolder, kSections, kSettings, kHistory, kFocus };
 enum { aNone, aPush, aOpenDoc, aJump, aLibrary, aQuit,
        aFont, aSize, aMarks, aWords, aClock, aNewDoc, aMoveLib, aBackup, aNewFolder,
-       aVersion, aGoal, aGoalOther, aGoalOff };
+       aVersion, aGoal, aGoalOther, aGoalOff, aHead };
 
 typedef struct {
     short kind;
@@ -52,7 +52,7 @@ typedef struct {
 } Row;
 
 #define kMaxDepth 3                      /* drawer -> project -> one folder */
-#define kMaxRows  64
+#define kMaxRows  128                    /* a writing shown whole: a long book fits */
 
 static WindowPtr gWin;
 static Boolean   gOpen;
@@ -127,8 +127,8 @@ static Boolean ProjectOfDoc(short *vol, long *dir, long *project)
 
 /* ---- rows of each blade -------------------------------------------------- */
 
-/* The folder holding the open document, shown open under its row, so
-   the writing's list always shows where you are (Chapters > Chapter 3). */
+/* A folder's documents, indented under its row: the writing's list shows
+   the whole writing, so where you are always shows (Notes > Research). */
 static void BuildOpenFolder(long dir)
 {
     static DirItem sub[kMaxItems];
@@ -170,11 +170,13 @@ static void BuildFolderRows(long dir, Boolean allowFolders)
         CopyP(name, r->text, 31);
         CopyP(items[i].name, r->file, 31);
         r->icon = items[i].isFolder ? 'f' : 'd';
-        if (items[i].isFolder) {
+        if (items[i].isFolder && allowFolders) {
+            r->act = aHead;              /* the writing shown whole: a folder */
+            r->arg = 0;                  /* heads its documents, shown under it */
+            BuildOpenFolder(items[i].dirID);
+        } else if (items[i].isFolder) {
             r->arrow = 1;
-            if (!allowFolders) r->act = aNone;       /* three levels at most */
-            if (Doc_HasFile() && dvol == vol && ddir == items[i].dirID)
-                BuildOpenFolder(items[i].dirID);     /* the open document is in it */
+            r->act = aNone;                          /* three levels at most */
         } else if (Doc_HasFile() && dvol == vol && ddir == dir
                    && SameName(items[i].name, Doc_Name()))
             r->current = 1;                          /* the open document */
@@ -655,6 +657,8 @@ static void Activate(short i)
     case aGoalOff:
         Drawer_Close();
         Chrome_SetGoal(0, 0);
+        break;
+    case aHead:                          /* a folder heading its documents */
         break;
     case aVersion: {
         Ptr t;
