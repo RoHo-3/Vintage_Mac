@@ -476,7 +476,12 @@ template). Numbered below in their original order:
    (Return starts it). A loose document found in My Writings at launch
    (dropped in from the Finder) is wrapped in a folder of its own name, its
    journal moving with it.
-3. **Recent** — recently opened files.
+3. **Recent** — recently opened files. A document inside a writing shows
+   the writing's name on a second line, in italic ("Outline" / "To Have
+   And..."), so two books' Outlines tell apart; a writing's title page
+   doesn't (its name is the writing's), nor does a document on its own.
+   The picked tile's whole path shows in Recent's header line, beside
+   RECENT: "To Have And To Have Not > Notes > Places" (build 124).
 
 **Clicks.** Documents and folders work as in the Finder: one click
 selects, a double-click (or Return) opens — a folder in the Library, a

@@ -419,6 +419,38 @@ Boolean Files_ProjectOf(short vol, long dir, long *project)
     return false;
 }
 
+/* The writing that holds dir, named (writing), and the folders from it
+   down to dir joined with " > " (path, MacRoman \310; a Str255). False
+   when dir isn't inside a writing in My Writings. */
+Boolean Files_WritingPath(short vol, long dir, unsigned char *writing, unsigned char *path)
+{
+    CInfoPBRec ci;
+    Str63 names[6];
+    short n = 0, i, k;
+    if (vol != gProjVol) return false;
+    while (n < 6 && dir > 1) {
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = names[n];
+        ci.dirInfo.ioVRefNum = vol;
+        ci.dirInfo.ioFDirIndex = -1;
+        ci.dirInfo.ioDrDirID = dir;
+        if (PBGetCatInfoSync(&ci) != noErr) return false;
+        n++;
+        if (ci.dirInfo.ioDrParID == gProjDir) break;
+        dir = ci.dirInfo.ioDrParID;
+    }
+    if (n == 0 || ci.dirInfo.ioDrParID != gProjDir) return false;
+    for (i = 0; i <= names[n - 1][0]; i++) writing[i] = names[n - 1][i];
+    path[0] = 0;
+    for (k = n - 1; k >= 0; k--) {
+        if (k < n - 1 && path[0] < 250) {
+            path[++path[0]] = ' '; path[++path[0]] = '\310'; path[++path[0]] = ' ';
+        }
+        for (i = 1; i <= names[k][0] && path[0] < 255; i++) path[++path[0]] = names[k][i];
+    }
+    return true;
+}
+
 /* Is dir the folder anc, or inside it? (walks up the parents) */
 Boolean Files_IsInside(short vol, long dir, long anc)
 {

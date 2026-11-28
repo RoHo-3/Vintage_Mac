@@ -108,6 +108,39 @@ static void ShownName(const unsigned char *n, unsigned char *out)
     if (HasMd(out)) out[0] -= 3;
 }
 
+/* Recent's tiles say which writing a document is from (a second line, in
+   italic) unless it is the writing's own namesake; the picked one shows
+   its whole path in Recent's header line. Looked up as Recent loads. */
+static unsigned char gRecWriting[kMaxRecent][32];
+static Str255 gRecPath[kMaxRecent];
+
+static void LoadRecent(void)
+{
+    short i, k, wd, vol;
+    long dir;
+    unsigned char w[64], base[64];
+    Prefs_Load(&gPrefs);
+    for (i = 0; i < kMaxRecent; i++) gRecWriting[i][0] = gRecPath[i][0] = 0;
+    for (i = 0; i < gPrefs.recentCount; i++) {
+        RecentItem *r = &gPrefs.recent[i];
+        if (!Files_WDOf(&r->dir, &wd) || !Files_DirOfWD(wd, &vol, &dir)
+            || !Files_WritingPath(vol, dir, w, gRecPath[i]))
+            continue;                    /* not in a writing: the name says it */
+        ShownName(r->name, base);
+        if (gRecPath[i][0] < 250) {
+            gRecPath[i][++gRecPath[i][0]] = ' ';
+            gRecPath[i][++gRecPath[i][0]] = '\310';
+            gRecPath[i][++gRecPath[i][0]] = ' ';
+        }
+        for (k = 1; k <= base[0] && gRecPath[i][0] < 255; k++)
+            gRecPath[i][++gRecPath[i][0]] = base[k];
+        for (k = 0; k <= w[0] && base[0] == w[0] && base[k] == w[k]; k++) ;
+        if (k > w[0]) continue;          /* the title page: its name is the writing's */
+        for (k = 1; k <= w[0] && k <= 31; k++) gRecWriting[i][k] = w[k];
+        gRecWriting[i][0] = (unsigned char)(k - 1);
+    }
+}
+
 static Boolean Expanded(void);
 
 static short RowCount(short row)
@@ -201,7 +234,7 @@ static Boolean GetTarget(Target *t)
 static void Reload(void)
 {
     LoadFiles();
-    Prefs_Load(&gPrefs);
+    LoadRecent();
     if (gSelRow >= 0 && gSelIdx >= RowCount(gSelRow)) gSelIdx = RowCount(gSelRow) - 1;
     if (gSelRow >= 0 && gSelIdx < 0) gSelRow = -1;
 }
@@ -284,7 +317,7 @@ static void LoadAll(void)
     if (Files_DirOfWD(wd, &vol, &dir) && wd != Files_DocsWD())
         gTplN = Files_List(vol, dir, gTpl, kMaxItems);
     LoadFiles();
-    Prefs_Load(&gPrefs);
+    LoadRecent();
 }
 
 /* Inside a writing, Templates tucks away and My Writings takes its room: two
@@ -566,10 +599,18 @@ static void DrawTile(short row, short idx, short x, short top)
     {   /* the name wraps under its icon, in its own column: two lines, or
            three for the picked tile (its whole name), "..." if still long */
         Boolean picked = row == gSelRow && idx == gSelIdx;
+        Boolean from = row == kRowRecent && gRecWriting[idx][0];   /* + its writing */
         unsigned char line[kLabelLines][40];
-        short n = WrapName(name, kLabelW, picked ? kLabelLines : 2, line), k;
+        short n = WrapName(name, kLabelW, (picked ? kLabelLines : 2) - (from ? 1 : 0), line), k;
+        if (from) {
+            TextFace(italic);
+            WrapName(gRecWriting[idx], kLabelW, 1, &line[n]);
+            TextFace(0);
+            n++;
+        }
         for (k = 0; k < n; k++) {
             short y = top + kLabelBase + k * kLabelLineH;
+            if (from && k == n - 1) TextFace(italic);
             w = StringWidth(line[k]);
             MoveTo(x + (kTileW - w) / 2, y);
             DrawString(line[k]);
@@ -577,6 +618,7 @@ static void DrawTile(short row, short idx, short x, short top)
                 SetRect(&r, x + (kTileW - w) / 2 - 2, y - 9, x + (kTileW + w) / 2 + 2, y + 2);
                 InvertRect(&r);
             }
+            TextFace(0);
         }
     }
 }
@@ -610,7 +652,18 @@ static void DrawRow(short row)
     TextFace(0);                         /* not whatever the page drew last */
     MoveTo(kLeft, top + 13);
     if (row == kRowTpl) DrawString(PSTR("\pTEMPLATES"));
-    else if (row == kRowRecent) DrawString(PSTR("\pRECENT"));
+    else if (row == kRowRecent) {
+        DrawString(PSTR("\pRECENT"));
+        if (gSelRow == kRowRecent && gSelIdx >= 0 && gSelIdx < gPrefs.recentCount
+            && gRecPath[gSelIdx][0]) {   /* the pick's whole path, beside */
+            short px = kLeft + StringWidth(PSTR("\pRECENT")) + 16;
+            for (i = 0; i <= gRecPath[gSelIdx][0] && i < 99; i++) s[i] = gRecPath[gSelIdx][i];
+            if (s[0] > 98) s[0] = 98;    /* (s holds 100) */
+            Fit(s, gWin->portRect.right - 8 - px);
+            MoveTo(px, top + 13);
+            DrawString(s);
+        }
+    }
     else {                               /* each name of the path is a way */
         Point pen;                       /* back to its level (gCrumb) */
         SetRect(&gCrumb[0], kLeft - 2, top + 3, kLeft + StringWidth(PSTR("\pMY WRITINGS")) + 2, top + 16);
@@ -909,7 +962,7 @@ static void DoOpen(void)
                 gPrefs.recentCount--;
                 Prefs_Save(&gPrefs);
             }
-            Prefs_Load(&gPrefs);
+            LoadRecent();
             Select(-1, 0);
             Redraw();
         }
