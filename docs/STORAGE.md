@@ -101,7 +101,7 @@ changes the bytes the writer actually edited.
   double-click into the app. Name length is limited by HFS (31 chars).
 - **Edited elsewhere:** if a document's text no longer matches its latest
   journal checkpoint, the app quietly records the new text as a version in
-  History, marked "◆ Edited on another computer". Nothing is lost on either
+  History, marked "◆ Edited outside the app". Nothing is lost on either
   side.
 - The `.hist` journal stays with the file but is meaningless to other
   editors; they simply ignore it.

@@ -35,6 +35,9 @@ long Enc_Decode(const unsigned char *src, long n, char *dst, long dstCap,
    or -1 if it doesn't fit. Enc_MaxEncoded gives a safe dst size. */
 long Enc_Encode(char *dst, long dstCap, const FileFormat *fmt);
 long Enc_MaxEncoded(void);
+/* A piece of text (n bytes, the app's form) as UTF-8 with LF endings;
+   at most 4 bytes per byte in. -1 if it doesn't fit. */
+long Enc_EncodeText(const char *src, long n, char *dst, long cap);
 
 /* Escapes behave as one character: these return the escape's bounds if
    pos is inside or at one, else pos unchanged. */

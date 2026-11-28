@@ -37,6 +37,7 @@ static const Command kCommands[] = {
     { cInsertTK,    "Write",    "Insert TK",            "placeholder to come mark later fill in xxx",  "" },
     { cUndo,        "Write",    "Undo",                 "revert back mistake",                         "Cmd-Z" },
     { cRedo,        "Write",    "Redo",                 "again forward",                               "Cmd-Shift-Z" },
+    { cCuts,        "Write",    "Move to Cuts",         "darlings keep cut remove save for later kill your darlings trim", "" },
     { cCut,         "Write",    "Cut",                  "clipboard remove",                            "Cmd-X" },
     { cCopy,        "Write",    "Copy",                 "clipboard duplicate",                         "Cmd-C" },
     { cPaste,       "Write",    "Paste",                "clipboard insert",                            "Cmd-V" },
@@ -86,6 +87,8 @@ Boolean Cmd_Available(short id)
     switch (id) {
     case cCut: case cCopy:
         return Ed_HasSelection();
+    case cCuts:
+        return Ed_HasSelection() && Doc_HasFile();
     case cNextSection: case cPrevSection:
         return Ed_HasHeadings();
     case cFocusClear:
@@ -214,6 +217,13 @@ void Cmd_Run(short id)
     case cSettings:    Drawer_OpenBlade('t'); break;
     case cTiming:      App_ShowLaunchTiming(); break;
     case cNextTK:      NextTK(); break;
+    case cCuts:
+        switch (Doc_MoveToCuts()) {
+        case 0: Chrome_ShowMessage((const unsigned char *)"\pMoved to Cuts", 2); break;
+        case 2: Chrome_ShowMessage((const unsigned char *)"\pThis is Cuts: use Cut instead", 3); break;
+        case 3: SysBeep(1); break;
+        }
+        break;
     case cFootnote:
         if (!Ed_InsertFootnote())
             Chrome_ShowMessage((const unsigned char *)"\pFootnote marks go in the text, not in a note", 3);

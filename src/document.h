@@ -42,4 +42,8 @@ void    Doc_ForgetRecent(short wd, const unsigned char *name, const unsigned cha
 Boolean Doc_OpenVersion(Ptr text, long len, unsigned long secs);
 void    Doc_VersionStamp(unsigned long secs, unsigned char *out);   /* appends "Nov 27 16.24" */
 
+/* Move to Cuts: the selection goes to Cuts.md beside this document.
+   0 done; 1 nothing selected; 2 this is Cuts; 3 couldn't write. */
+short   Doc_MoveToCuts(void);
+
 #endif

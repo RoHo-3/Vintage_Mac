@@ -817,7 +817,7 @@ static Boolean OpenFile(const unsigned char *name, short vRef)
                 JR_Checkpoint(Ed_Caret(), "Recovered after a crash");
                 WriteFile();
             } else if (recovered == kRecoverEditedElsewhere)
-                JR_Checkpoint(Ed_Caret(), "Edited on another computer");
+                JR_Checkpoint(Ed_Caret(), "Edited outside the app");
             ok = true;
         } else
             SysBeep(1);                  /* too big for the text buffer */
@@ -946,4 +946,91 @@ Boolean Doc_OpenVersion(Ptr text, long len, unsigned long secs)
     Doc_Remember();
     Chrome_ShowTitleBriefly();
     return true;
+}
+
+/* ---- cuts ----------------------------------------------------------------- */
+
+/* Move to Cuts (from the Neo review): the selection leaves this document
+   but is kept, appended to "Cuts.md" in the same folder under a heading
+   saying where and when it came from. Restoring is a paste. Cuts' own
+   history sees the change the next time it opens ("Edited outside the
+   app"). 0 done; 1 nothing selected; 2 this is Cuts; 3 couldn't write. */
+short Doc_MoveToCuts(void)
+{
+    unsigned char cuts[16], base[40];
+    long a, e, n, head, o, size;
+    short ref, i;
+    Ptr text, out;
+    OSErr err;
+    FInfo fi;
+    Boolean fresh = false;
+    const char *title = "# Cuts\n";
+    if (!gHasFile) return 3;
+    Ed_SelRange(&a, &e);
+    if (e <= a) return 1;
+    cuts[0] = 0;
+    for (i = 0; "Cuts.md"[i]; i++) cuts[++cuts[0]] = (unsigned char)"Cuts.md"[i];
+    if (SameName(gName, cuts)) return 2;
+    n = e - a;
+    text = NewPtr(n);
+    out = NewPtr(n * 4 + 96);
+    if (!text || !out) {
+        if (text) DisposePtr(text);
+        if (out) DisposePtr(out);
+        return 3;
+    }
+    TB_Copy(a, n, text);
+    err = FSOpen(cuts, gVRef, &ref);
+    if (err == fnfErr) {                 /* the first cut makes the file */
+        if (Create(cuts, gVRef, kCreator, kFileType) == noErr)
+            err = FSOpen(cuts, gVRef, &ref);
+        fresh = true;
+    }
+    if (err == noErr) {
+        o = 0;
+        if (fresh)
+            for (i = 0; title[i]; i++) out[o++] = title[i];
+        out[o++] = '\n';
+        BaseOf(gName, base);             /* "## From Chapter 1, Nov 27 16.24" */
+        {
+            unsigned char h2[64];
+            h2[0] = 0;
+            for (i = 0; "## From "[i]; i++) h2[++h2[0]] = (unsigned char)"## From "[i];
+            for (i = 1; i <= base[0] && h2[0] < 40; i++) h2[++h2[0]] = base[i];
+            h2[++h2[0]] = ',';
+            h2[++h2[0]] = ' ';
+            {
+                unsigned long now;
+                GetDateTime(&now);
+                Doc_VersionStamp(now, h2);
+            }
+            head = Enc_EncodeText((const char *)h2 + 1, h2[0], out + o, 64 * 4);
+            if (head > 0) o += head;
+        }
+        out[o++] = '\n';
+        out[o++] = '\n';
+        size = Enc_EncodeText(text, n, out + o, n * 4);
+        if (size >= 0) {
+            o += size;
+            out[o++] = '\n';
+            err = SetFPos(ref, fsFromLEOF, 0);
+            if (err == noErr) {
+                long count = o;
+                err = FSWrite(ref, &count, out);
+            }
+        } else
+            err = -1;
+        FSClose(ref);
+        FlushVol(NULL, gVRef);
+        if (fresh && GetFInfo(cuts, gVRef, &fi) == noErr) {
+            fi.fdType = kFileType;
+            fi.fdCreator = kCreator;
+            SetFInfo(cuts, gVRef, &fi);
+        }
+    }
+    DisposePtr(text);
+    DisposePtr(out);
+    if (err != noErr) return 3;
+    Ed_DeleteSelection();                /* only once the words are kept */
+    return 0;
 }

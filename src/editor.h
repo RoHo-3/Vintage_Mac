@@ -71,4 +71,7 @@ void    Ed_InsertTK(void);
 Boolean Ed_InsertFootnote(void);    /* false inside a note */
 Boolean Ed_JumpFootnote(void);      /* mark <-> note; false if on neither */
 
+void    Ed_SelRange(long *start, long *end);
+void    Ed_DeleteSelection(void);
+
 #endif

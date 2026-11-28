@@ -1723,6 +1723,19 @@ void Ed_JumpSection(short dir)
     Ed_SetCaret(p);
 }
 
+/* The selection as positions in the text (start <= end). */
+void Ed_SelRange(long *start, long *end)
+{
+    *start = SelStart();
+    *end = SelEnd();
+}
+
+/* Remove the selection (undoable): what Move to Cuts leaves behind. */
+void Ed_DeleteSelection(void)
+{
+    if (HasSel()) InsertText("", 0, false);
+}
+
 /* Footnotes, the editing half (ROADMAP: footnotes before tables). The
    standard form is a mark [^label] in the text and a note "[^label]: ..."
    as its own paragraph, usually at the end. How they look on screen is

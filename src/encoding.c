@@ -178,6 +178,37 @@ long Enc_Encode(char *dst, long cap, const FileFormat *fmt)
     return o;
 }
 
+/* Encode n bytes of text in the app's form (src) as UTF-8 with LF line
+   endings: a piece of the text going to another file (Move to Cuts). */
+long Enc_EncodeText(const char *src, long n, char *dst, long cap)
+{
+    long p, o = 0;
+    unsigned char c;
+    unsigned long u;
+    for (p = 0; p < n; p++) {
+        c = (unsigned char)src[p];
+        if (c == '\r') {
+            if (o + 1 > cap) return -1;
+            dst[o++] = '\n';
+            continue;
+        }
+        if (c == kEscStart) {
+            u = 0;
+            while (p + 1 < n && (unsigned char)src[p + 1] != kEscEnd) {
+                char h = src[++p];
+                u = (u << 4) | (unsigned long)((h >= 'A') ? h - 'A' + 10 : h - '0');
+            }
+            p++;
+            o = PutUTF8(dst, o, cap, u);
+        } else if (c >= 0x80)
+            o = PutUTF8(dst, o, cap, kMacRoman[c - 0x80]);
+        else
+            o = PutUTF8(dst, o, cap, c);
+        if (o < 0) return -1;
+    }
+    return o;
+}
+
 long Enc_EscapeStart(long pos)
 {
     long p, limit = pos - kMaxEscLen;

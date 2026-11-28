@@ -149,7 +149,8 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 ## Later alphas
 
 - Drawer blades: Links, Find, Focus Timer, History, Export
-- **Focus goal: N minutes or N words (one milestone with the Focus
+- **Focus goal: N minutes or N words (decided: both count up, "12 of 25
+  min" like "312 of 500 new words"; keep the two the same way round) (one milestone with the Focus
   Timer; first version done, build 104: Cmd-K > Focus for Minutes... /
   Focus for Words... / Clear Focus Goal).** One place to set a session goal, either a timer or a word
   count. The quiet footer shows progress beside the word count and the
@@ -186,14 +187,11 @@ Launch got slower around builds 81-90. Before changing anything, measure:
     drawer dot is still to do):* a standard `TK` mark ("to come") for a fact or name
     to fill in later; Cmd-K › Next TK jumps to it; the drawer shows a dot
     beside documents that still have one. Plain text, no Markdown change.
-  - *Cuts (Neo's "Darlings"):* move a selected passage to a plain `Cuts`
-    document in the same writing, with a line saying where it came from,
-    so cut words are kept, not deleted. Restore by pasting. Open design
-    point: appending to Cuts.md while another document is open bypasses
-    Cuts' own journal, so its History would later call that change
-    "Edited on another computer". Options: give the journal a way to
-    record an outside append (a snapshot of the new text), or make Cuts a
-    section at the end of the same document.
+  - *Cuts (Neo's "Darlings"; done, build 108):* Cmd-K > Move to Cuts
+    appends the selection to `Cuts.md` beside the document, under "## From
+    <document>, Nov 27 16.24", then removes it (undo brings it back).
+    Cuts' own History marks that change "Edited outside the app", the label
+    now used for any change made outside the app.
   - *Footnote gesture (editing half done, build 107: Cmd-K > Insert
     Footnote, Jump to Footnote; marks show as plain text until their look
     is designed),* for the footnotes item: one key adds `[^n]` and
@@ -263,6 +261,32 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - Fonts are automatic rasterizations, not hand-tuned.
 - H6 uses capitals as a stand-in for small caps; testing focuses on System
   7.1 until a full System 6.0.8 pass later.
+
+## v.next feature conversations
+
+Tabled for after v1; each needs a design talk before any code.
+
+- **History, beyond "open as a copy"** (the copy stays: restoring is never
+  destructive). Three ways to go further, cheapest first:
+  1. *Step through in place, read-only.* The History blade picks a
+     version; the page shows it greyed with "Viewing Nov 27 16:24" in the
+     strip; Cmd-[ and Cmd-] step to the older or newer version; any key
+     that would edit, or Esc, returns to the live text. Needs a second
+     text buffer (memory: one more copy of the document) and a guard so
+     autosave never writes the viewed version.
+  2. *Compare two versions (WinDiff style).* Pick two versions (or a
+     version and now); the page shows them merged, removed text struck
+     through and added text underlined (1-bit friendly: no colour), with
+     Cmd-] / Cmd-[ jumping change to change. Needs a line-level diff
+     (paragraphs as lines keeps it cheap on a 68000) and the read-only
+     view from option 1.
+  3. *Side by side.* Two columns of ~30 characters on a 512-pixel screen
+     is too narrow for prose; better on a modern build than here.
+  Also: `+ Mark this version...` (name a version), already in DESIGN.md.
+- **TK, the rest:** a keyboard shortcut (Neo uses Cmd-Shift-X, which is
+  our Strikethrough, so another key), and a dot beside documents in the
+  drawer that still hold a TK (reading every file in a writing: check
+  the cost on a floppy first, or keep a count in each journal).
 
 ## Future exploration
 
