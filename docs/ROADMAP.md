@@ -96,6 +96,28 @@
   templates move together (same disk: one move; another disk: copied, then
   the original to the Trash).
 
+## 0.05 alpha — templates, links, History, Focus (released, build 134)
+
+Published as the v0.05-alpha pre-release. Six templates with learning
+links, the A2 Library with writing icons and Recent breadcrumbs, links
+between documents, History, Focus goals, footnotes, TK, Cuts, safe saves,
+and the typewriter app icon.
+
+## 0.06 alpha — find and revisit (GitHub milestone ".06 alpha")
+
+- **Find, Find Again and Replace** (Cmd-F, Cmd-G): a drawer blade and
+  Cmd-K commands, working the way the classic Mac Find does. No way to
+  search a document today: the biggest everyday gap left.
+- **History, step-through in place:** read-only, keys to step back and
+  forward one version at a time (the remaining History piece before v1).
+- **TK dot in the drawer** beside documents that still have a placeholder.
+- **Writing-view scroll hairline**, matching the Library's.
+- **Quality: keep or remove Rename** (below).
+
+Held for 0.07 or later: moving writings to and from a modern Mac over
+BlueSCSI Wi-Fi (no last-write-wins), Export, the Links blade and back
+stack, web links through FrogFind, smart typography.
+
 ## Before 0.05: quality pass
 
 - **Decide: keep or remove the Library's Rename.** Names follow the first
