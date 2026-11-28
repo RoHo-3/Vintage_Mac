@@ -126,6 +126,31 @@ static Boolean ProjectOfDoc(short *vol, long *dir, long *project)
 
 /* ---- rows of each blade -------------------------------------------------- */
 
+/* The folder holding the open document, shown open under its row, so
+   the writing's list always shows where you are (Chapters > Chapter 3). */
+static void BuildOpenFolder(long dir)
+{
+    static DirItem sub[kMaxItems];
+    short vol, n, i;
+    long proj;
+    Row *r;
+    unsigned char name[40];
+    Files_ProjectsDir(&vol, &proj);
+    n = Files_List(vol, dir, sub, kMaxItems);
+    for (i = 0; i < n; i++) {
+        if (sub[i].isFolder) continue;   /* folders go one level deep */
+        r = AddRow("", aOpenDoc, dir);
+        if (!r) return;
+        CopyP(sub[i].name, name, 31);
+        NoMd(name);
+        CopyP(name, r->text, 31);
+        CopyP(sub[i].name, r->file, 31);
+        r->icon = 'd';
+        r->indent = 1;
+        if (SameName(sub[i].name, Doc_Name())) r->current = 1;
+    }
+}
+
 static void BuildFolderRows(long dir, Boolean allowFolders)
 {
     static DirItem items[kMaxItems];
@@ -147,6 +172,8 @@ static void BuildFolderRows(long dir, Boolean allowFolders)
         if (items[i].isFolder) {
             r->arrow = 1;
             if (!allowFolders) r->act = aNone;       /* three levels at most */
+            if (Doc_HasFile() && dvol == vol && ddir == items[i].dirID)
+                BuildOpenFolder(items[i].dirID);     /* the open document is in it */
         } else if (Doc_HasFile() && dvol == vol && ddir == dir
                    && SameName(items[i].name, Doc_Name()))
             r->current = 1;                          /* the open document */
@@ -550,6 +577,10 @@ static void Activate(short i)
     case aOpenDoc: {
         short wd, vol;
         long proj;
+        if (r->current) {                /* the page you're on: back to it */
+            Drawer_Close();
+            break;
+        }
         Files_ProjectsDir(&vol, &proj);
         if (Files_WDFor(vol, r->arg, &wd) && Doc_OpenAt(r->file, wd))
             Drawer_Close();              /* the document shows; drawer goes */
