@@ -108,8 +108,14 @@
   locally). No "Use a Backup…" button: History covers getting a version
   back, and restoring a whole library is rare, so the Product Guide
   explains it instead (release readiness).
-- Mac-only paths to verify: Move Library on one disk, Duplicate folder,
-  loose documents wrapped at launch, System 6 (checklist sent with 92).
+- Mac-only paths (Move Library, Duplicate folder, loose documents wrapped
+  at launch, Import/Open from another folder, System 6): **verified by
+  Robert in the 92 pass.** Fixes that came from it: Import/Open no longer
+  bombs (the 384 KB scratch buffer, then a journal snapshot written into
+  an edit-sized buffer), Standard File's port restored, working
+  directories closed after Move Library so System 6 can empty the Trash.
+  Re-check these in the release readiness pass, as files gained invisible
+  companions since (Writing Kind).
 - **Safe saves (from the Neo review; done, build 103):** saving rewrites the document in
   place, so on a nearly full floppy a longer version can stop part way
   and leave the new start joined to the old end. The journal still has
