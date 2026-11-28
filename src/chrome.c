@@ -35,7 +35,7 @@ static long      gWords = -1;             /* -1: needs counting */
    the goal was set: gGoalPrior holds what earlier documents added. */
 static char      gGoalKind;               /* 0 none, 'm' minutes, 'w' words */
 static long      gGoalTarget, gGoalBase, gGoalPrior, gLastCount;
-static unsigned long gGoalStart;
+static unsigned long gGoalStart;          /* 0: set, waiting for the first keystroke */
 static short     gSaveState = kSaveUnsaved;
 static Str63     gTitle;
 
@@ -177,6 +177,7 @@ static void DrawDot(void)
 static long GoalDone(void)
 {
     long d;
+    if (!gGoalStart) return 0;           /* nothing typed since it was set */
     if (gGoalKind == 'm')
         return (long)((TickCount() - gGoalStart) / 3600);
     if (gWords < 0) gWords = CountWords();
@@ -346,6 +347,12 @@ void Chrome_CharTyped(void)
 {
     if (gClockStart == 0)
         gClockStart = TickCount();
+    if (gGoalKind && !gGoalStart) {      /* a Focus goal starts with writing too */
+        gGoalStart = TickCount();
+        gWords = CountWords();           /* before this character goes in */
+        gGoalBase = gLastCount = gWords;
+        gGoalPrior = 0;
+    }
 }
 
 void Chrome_KeyPressed(void)
@@ -462,7 +469,7 @@ void Chrome_SetGoal(char kind, long target)
 {
     gGoalKind = target > 0 ? kind : 0;
     gGoalTarget = target;
-    gGoalStart = TickCount();
+    gGoalStart = 0;                      /* the first keystroke starts it */
     gGoalPrior = 0;
     if (gWords < 0) gWords = CountWords();
     gGoalBase = gLastCount = gWords;

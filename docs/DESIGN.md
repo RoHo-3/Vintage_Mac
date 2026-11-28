@@ -341,12 +341,15 @@ half a second. Cost: one tiny redraw per second.
 
 **Focus (drawer → Focus ›, top level; also Cmd-K):** a goal for this
 sitting, in minutes or in new words (built in 104-106).
-- Presets: 15 · 25 · 45 · 60 minutes, 250 · 500 · 1,000 new words, and
-  Other… (a small dialog; it offers the last number used). Stop This Goal
+- Presets: 10 · 15 · 25 · 45 · 60 minutes, 250 · 500 · 1,000 new words, and
+  Other… (a small dialog; it offers the last number used, kept across
+  launches). Stop This Goal
   ends one early. The drawer row shows the goal set ("25 min").
 - The footer adds the progress beside the count and the clock:
   "312 of 500 new words", "12 of 25 min". New words are what this sitting
   added, across documents opened since the goal was set.
+- A goal starts with the first typed character after it is set, like the
+  session clock (build 122): setting it and settling in costs nothing.
 - Met at the next pause, never mid-sentence: the footer flashes once, the
   strip says "Goal reached: 500 new words", and the goal clears.
 - The session clock itself is turned on or off in Settings. (Earlier idea,
@@ -375,7 +378,7 @@ redraw mid-write and a bar would only flash. The dithered dot is an honest
 | `Sections ›` | Sections | Headings of the current document, indented by level |
 | `Links ›` | Links | Links in this document (target, ⚠ if broken, web links marked) and **Linking here** — backlinks from other project documents. Clicking goes there; editing/removing stays in the link pill |
 | `Find ›` | Find | Find & Replace (see below); opened by the row or Cmd-F, prefilled with the selection if there is one |
-| `Focus ›` | Focus | 15 · 25 · 45 · 60 min, 250 · 500 · 1,000 new words, Other…, Stop This Goal |
+| `Focus ›` | Focus | 10 · 15 · 25 · 45 · 60 min, 250 · 500 · 1,000 new words, Other…, Stop This Goal |
 | `History ›` | History | One timeline of versions (see below) |
 | `Export ›` | Export | Markdown… · Print… · Template… |
 | `Settings ›` | Settings | App preferences: Session clock on/off, Word count on/off |
