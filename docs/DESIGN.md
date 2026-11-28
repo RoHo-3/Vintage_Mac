@@ -428,7 +428,7 @@ new and open. Three horizontally scrolling rows of 32×32 1-bit icons:
    themselves are never changed (edit them in the Finder — a power-user
    feature). Each opens with a `#` name that reads well if kept ("Untitled
    Story"), short labelled prompts, a rule, then "Start here."
-2. **My Writings** (A2, build 110): inside a writing, Recent tucks away
+2. **My Writings** (A2, build 111): inside a writing, Recent tucks away
    (a classic zoom outline) and this shelf takes two lines of six tiles,
    scrolled a line at a time with a 2-px hairline at the right; at the
    top it's one line and Recent shows. The New tile follows the folder:

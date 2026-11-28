@@ -262,10 +262,10 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - H6 uses capitals as a stand-in for small caps; testing focuses on System
   7.1 until a full System 6.0.8 pass later.
 
-## Library: A2 chosen (first build: 110)
+## Library: A2 chosen (first build: 111)
 
 - A2 chosen (B ruled out: it loses the quiet look; C not taken). Built
-  in 110: everything below, to check on System 6 and 7.
+  in 111: everything below, to check on System 6 and 7.
 - Recent hides only while a writing is open in My Writings, which then
   takes two rows of tiles; it comes back at the top level. A classic
   zoom-outline animation, not a slide.
