@@ -39,6 +39,8 @@ Boolean Files_IsInside(short vol, long dir, long ancestor);
 Boolean Files_FolderName(short vol, long dir, unsigned char *name);
 Boolean Files_ProjectOf(short vol, long dir, long *project);   /* its writing folder */
 Boolean Files_WritingPath(short vol, long dir, unsigned char *writing, unsigned char *path);
+Boolean Files_SetKind(short vol, long dir, ConstStr255Param kind);   /* template it came from */
+Boolean Files_Kind(short vol, long dir, unsigned char *kind);
 void    Files_SetDialogFolder(short wdRef);
 void    Files_TidyJournals(void);  /* launch: orphaned .hist files to the Trash */   /* next SFGetFile/SFPutFile */
 

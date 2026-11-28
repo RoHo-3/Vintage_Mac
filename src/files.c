@@ -451,6 +451,41 @@ Boolean Files_WritingPath(short vol, long dir, unsigned char *writing, unsigned 
     return true;
 }
 
+/* A writing made from a template remembers which (its icon in the
+   Library): an invisible file, "Writing Kind", in its folder, holding the
+   template's name. It travels with the folder through renames, moves,
+   Duplicate and backups; the documents stay plain TEXT. */
+#define kKindName "\pWriting Kind"
+Boolean Files_SetKind(short vol, long dir, ConstStr255Param kind)
+{
+    short ref;
+    long n = kind[0];
+    FInfo fi;
+    OSErr err = HCreate(vol, dir, (ConstStr255Param)kKindName, kCreator, 'KIND');
+    if (err != noErr && err != dupFNErr) return false;
+    if (HOpen(vol, dir, (ConstStr255Param)kKindName, fsWrPerm, &ref) != noErr) return false;
+    err = FSWrite(ref, &n, (Ptr)(kind + 1));
+    SetEOF(ref, kind[0]);
+    FSClose(ref);
+    if (HGetFInfo(vol, dir, (ConstStr255Param)kKindName, &fi) == noErr) {
+        fi.fdFlags |= 0x4000;            /* invisible: not a document */
+        HSetFInfo(vol, dir, (ConstStr255Param)kKindName, &fi);
+    }
+    return err == noErr;
+}
+
+Boolean Files_Kind(short vol, long dir, unsigned char *kind)
+{
+    short ref;
+    long n = 31;
+    kind[0] = 0;
+    if (HOpen(vol, dir, (ConstStr255Param)kKindName, fsRdPerm, &ref) != noErr) return false;
+    FSRead(ref, &n, (Ptr)(kind + 1));    /* eofErr: shorter, fine */
+    FSClose(ref);
+    kind[0] = (unsigned char)(n > 31 ? 31 : n);
+    return kind[0] > 0;
+}
+
 /* Is dir the folder anc, or inside it? (walks up the parents) */
 Boolean Files_IsInside(short vol, long dir, long anc)
 {

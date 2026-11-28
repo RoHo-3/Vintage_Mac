@@ -15,6 +15,8 @@
 #include <Dialogs.h>
 #include <TextUtils.h>
 
+#include "wicons.inc"
+
 #define PSTR(s) ((ConstStr255Param)(s))
 
 /* Low-memory globals (Retro68 has no GetDblTime/GetCaretTime glue). */
@@ -50,6 +52,8 @@ static Boolean   gOpen;
 /* shelves */
 static DirItem   gTpl[kMaxItems];
 static short     gTplN;
+static short     gTplIcon[kMaxItems];     /* the writing icon, or -1: a page */
+static short     gFileIcon[kMaxItems];    /* My Writings: each writing's icon */
 static DirItem   gFiles[kMaxItems];      /* index 0: New (a writing) at the top,
                                             the up tile inside a writing */
 static short     gFilesN;
@@ -284,6 +288,20 @@ static void AddSpecial(short kind, const unsigned char *name, long dirID)
     gSpecialN++;
 }
 
+/* A template's name to its icon: the six defaults have their own; any
+   other writing is a manuscript. -1: not a known one. */
+static short KindIcon(const unsigned char *k)
+{
+    static const char *const kNames[] = { "Article", "Book", "Essay",
+                                          "Journal", "Script", "Short Story" };
+    short i, j;
+    for (i = 0; i < 6; i++) {
+        for (j = 0; kNames[i][j] && j < k[0] && kNames[i][j] == (char)k[j + 1]; j++) ;
+        if (!kNames[i][j] && j == k[0]) return i;
+    }
+    return -1;
+}
+
 static void LoadFiles(void)
 {
     gSpecialN = 0;
@@ -307,6 +325,17 @@ static void LoadFiles(void)
                                      kMaxItems - gSpecialN);
     if (gDepth == 0)                     /* My Writings: newest first */
         Files_SortNewest(gFiles + gSpecialN, gFilesN - gSpecialN);
+    {
+        short i, k;
+        unsigned char kind[32];
+        for (i = 0; i < gFilesN; i++) {
+            gFileIcon[i] = -1;           /* a plain folder, or a page */
+            if (gDepth == 0 && i >= gSpecialN && gFiles[i].isFolder) {
+                k = Files_Kind(gVol, gFiles[i].dirID, kind) ? KindIcon(kind) : -1;
+                gFileIcon[i] = k >= 0 ? k : kWManuscript;
+            }
+        }
+    }
 }
 
 static void LoadAll(void)
@@ -316,6 +345,15 @@ static void LoadAll(void)
     gTplN = 0;
     if (Files_DirOfWD(wd, &vol, &dir) && wd != Files_DocsWD())
         gTplN = Files_List(vol, dir, gTpl, kMaxItems);
+    {
+        short i;
+        unsigned char nm[40];
+        for (i = 0; i < gTplN; i++) {
+            ShownName(gTpl[i].name, nm);
+            gTplIcon[i] = KindIcon(nm);
+            if (gTplIcon[i] < 0 && gTpl[i].isFolder) gTplIcon[i] = kWManuscript;
+        }
+    }
     LoadFiles();
     LoadRecent();
 }
@@ -507,6 +545,19 @@ static void PlusAt(short cx, short cy)
 
 /* The + tiles: a folder (New, New Folder) or a page (New
    Document) with a + in it. */
+/* A writing icon from the table, placed as the folder was (x, y as for
+   IconFolder): the 38-wide frame starts 4 to the left. */
+static void IconWriting(short which, short x, short y)
+{
+    BitMap src;
+    Rect dst;
+    src.baseAddr = (Ptr)kWIcon[which];
+    src.rowBytes = kWIconRow;
+    SetRect(&src.bounds, 0, 0, kWIconW, kWIconH);
+    SetRect(&dst, x - 4, y, x - 4 + kWIconW, y + kWIconH);
+    CopyBits(&src, &qd.thePort->portBits, &src.bounds, &dst, srcOr, NULL);
+}
+
 static void IconNew(short kind, short x, short y)
 {
     if (kind == kSpNewDoc) {
@@ -517,6 +568,9 @@ static void IconNew(short kind, short x, short y)
             EraseRect(&r);
         }
         PlusAt(x + 16, y + 18);
+    } else if (kind == kSpNewWriting) {
+        IconWriting(kWBlank, x, y);      /* a new writing: a blank manuscript */
+        PlusAt(x + 11, y + 17);          /* the front page's middle */
     } else {
         IconFolder(x, y, false);
         PlusAt(x + 16, y + 19);          /* the middle under the inner line */
@@ -582,12 +636,14 @@ static void DrawTile(short row, short idx, short x, short top)
     SetRect(&r, x - 3, top + kIconTop - 1, x + kTileW + 3,
             top + kLabelBase + (kLabelLines - 1) * kLabelLineH + 4);
     EraseRect(&r);
-    if (row == kRowTpl && gTpl[idx].isFolder)
-        IconFolder(x + 16, top + kIconTop, false);   /* a writing of several documents */
+    if (row == kRowTpl && gTplIcon[idx] >= 0)
+        IconWriting(gTplIcon[idx], x + 16, top + kIconTop);   /* what it makes */
     else if (row == kRowTpl)
         IconDoc(x + 16, top + kIconTop, true);
     else if (IsNewTile(row, idx))
         IconNew(SpecialKind(row, idx), x + 16, top + kIconTop);
+    else if (row == kRowFiles && gFileIcon[idx] >= 0)
+        IconWriting(gFileIcon[idx], x + 16, top + kIconTop);  /* a writing */
     else if (row == kRowFiles && gFiles[idx].isFolder)
         IconFolder(x + 16, top + kIconTop, IsUp(row, idx));
     else
@@ -902,6 +958,7 @@ static void NewFromFolderTemplate(short idx)
         SysBeep(1);
         return;
     }
+    Files_SetKind(dvol, nd, gTpl[idx].name);   /* its icon: this template's */
     CopyP(gTpl[idx].name, page);         /* "Book.md" -> "Untitled Book.md" */
     page[++page[0]] = '.'; page[++page[0]] = 'm'; page[++page[0]] = 'd';
     CopyP(name, newPage);

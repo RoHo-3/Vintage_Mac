@@ -476,6 +476,17 @@ template). Numbered below in their original order:
    (Return starts it). A loose document found in My Writings at launch
    (dropped in from the Finder) is wrapped in a folder of its own name, its
    journal moving with it.
+   **Icons (build 125).** A writing's tile shows what it is, not that it
+   is a folder: Article (a newspaper), Book (a hardback cover), Essay (a
+   page with a pen nib), Journal (a notebook with an elastic band), Script
+   (a punched page with brads), Short Story (a scroll), and the Manuscript
+   (a clipped stack of pages) for every other writing. The Templates shelf
+   shows the same icons, so it teaches them; New is a blank manuscript
+   with a +. Folders inside a writing stay folders and documents stay
+   pages. A writing made from a template remembers which in an invisible
+   "Writing Kind" file in its folder (the template's name), so the icon
+   survives renames, Duplicate and backups; writings from before 125 show
+   the Manuscript. 1-bit, up to 38 wide, the folder's height.
 3. **Recent** — recently opened files. A document inside a writing shows
    the writing's name on a second line, in italic ("Outline" / "To Have
    And..."), so two books' Outlines tell apart; a writing's title page

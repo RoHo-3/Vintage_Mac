@@ -62,9 +62,12 @@ static Point DialogSpot(void)
     return p;
 }
 
+static Str31 gNewKind;                    /* the template a new page came from:
+                                            its writing remembers it (the icon) */
 void Doc_Init(void)
 {
     gHasFile = false;
+    gNewKind[0] = 0;
     gFmt.lineEnding = kEndLF;            /* new files: the modern default */
     gFmt.bom = false;
 }
@@ -373,7 +376,9 @@ static Boolean BecomeFile(const unsigned char *name, short vRef, Boolean follows
             return false;
         }
         gNewWD = vRef;                   /* more new documents join it */
+        if (gNewKind[0]) Files_SetKind(vol, folder, gNewKind);
     }
+    gNewKind[0] = 0;
     err = Create(name, vRef, kCreator, kFileType);
     if (err != noErr && !(err == dupFNErr && !follows)) {   /* dialog: Replace */
         SysBeep(1);
@@ -646,6 +651,8 @@ Boolean Doc_NewFromTemplate(const unsigned char *name, short wd, short destWD)
         gNewWD = destWD;
         JR_Detach();
         Doc_Init();
+        if (!destWD)                     /* a new writing: from this template */
+            BaseOf(name, gNewKind);      /* (an HFS name: fits a Str31) */
         gFmt = fmt;
         Ed_SetShowMarks(false);
         Ed_AdoptText();
