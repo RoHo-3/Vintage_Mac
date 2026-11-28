@@ -110,7 +110,7 @@ Boolean Link_Follow(const char *url)
     unsigned char seg[32], last[32];
     Boolean have = false;
     if (Link_IsWeb(url)) {
-        Say("Web links open on a modern computer", NULL);
+        Say("Open web links on a modern computer", NULL);
         return false;
     }
     if (!Doc_Location(&vol, &dir)) { Say("Save first to follow links", NULL); return false; }
