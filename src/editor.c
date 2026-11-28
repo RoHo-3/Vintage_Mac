@@ -315,6 +315,13 @@ static void DrawRun(short level, unsigned char style, short x, short base, short
     gCodeRun = gMarkRun = false;
     MoveTo(x, base);
     DrawText(gRun, 0, n);
+    if (style & MD_LINK) {               /* a link's text: a line under it */
+        Point e;
+        GetPen(&e);
+        MoveTo(x, base + 1);
+        LineTo(e.h - 1, base + 1);
+        MoveTo(e.h, base);
+    }
     if (style & MD_STRIKE) {             /* QuickDraw has no strike style: draw it */
         Point e;
         short y = base - (Asc(level) * 3) / 10;
@@ -417,7 +424,7 @@ static void DrawLine(long line, short y)
         st = StyleAt(&li, p);
         if (st & MD_HIDDEN)
             continue;
-        st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK | MD_STRIKE);
+        st &= (MD_BOLD | MD_ITALIC | MD_CODE | MD_MARK | MD_STRIKE | MD_LINK);
         w = CW(li.level, st, TB_Char(p));
         if (x + w > li.right)
             break;                       /* trailing spaces hang past the edge */

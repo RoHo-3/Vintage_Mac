@@ -6,20 +6,21 @@
  * Every template opens with a level-1 heading that reads well as a name
  * if kept ("Untitled Story"), then short labelled prompts, then a rule and
  * one "Start here." line. Script is Fountain saved as Markdown: its prompts
- * are Fountain notes and a synopsis, which never print. Book Project is a
- * folder: copied whole into My Writings when picked.
+ * are Fountain notes and a synopsis, which never print. Book is a folder:
+ * copied whole into My Writings when picked, its title page named for it.
  *
  * Plain ASCII and LF line endings, like the files the app writes.
  */
 
 #include <Files.h>
 #include "templates.h"
+#include "files.h"
 
 #define kCreator 'MMDW'
 #define kType    'TEXT'
 
 typedef struct {
-    short folder;            /* 0 Templates, 1 Book Project, 2 its Chapters, 3 its Notes */
+    short folder;            /* 0 Templates, 1 Book, 2 its Chapters, 3 its Notes */
     const char *name;        /* C string */
     const char *text;
 } Tpl;
@@ -31,6 +32,8 @@ static const Tpl kTpls[] = {
       "- **Lede:** who, what, when, where, in a sentence or two\n"
       "- **Why it matters:** \n"
       "- **Then:** the details, most important first\n"
+      "\n"
+      "[How To Write Great Articles](https://owl.purdue.edu/owl/subject_specific_writing/journalism_and_journalistic_writing/the_inverted_pyramid.html)\n"
       "\n"
       "---\n"
       "\n"
@@ -44,6 +47,8 @@ static const Tpl kTpls[] = {
       "- **The other side:** the best case against me, put fairly\n"
       "- **Why it matters:** \n"
       "\n"
+      "[How To Write Great Essays](https://owl.purdue.edu/owl/general_writing/academic_writing/essay_writing/index.html)\n"
+      "\n"
       "---\n"
       "\n"
       "Start here.\n" },
@@ -52,6 +57,8 @@ static const Tpl kTpls[] = {
       "\n"
       "- **On my mind:** \n"
       "- **One thing I noticed:** \n"
+      "\n"
+      "[How To Write Great Journals](https://en.wikipedia.org/wiki/Diary)\n"
       "\n"
       "---\n"
       "\n"
@@ -63,6 +70,7 @@ static const Tpl kTpls[] = {
       "\n"
       "[[Scenes start with INT. or EXT., a place, then DAY or NIGHT.]]\n"
       "[[A name in capitals, then the dialogue on the line below.]]\n"
+      "[[How To Write Great Scripts: https://fountain.io/syntax/]]\n"
       "\n"
       "INT. PLACE - DAY\n"
       "\n"
@@ -76,11 +84,26 @@ static const Tpl kTpls[] = {
       "- **Turn:** the moment it changes\n"
       "- **End:** what is different now\n"
       "\n"
+      "[How To Write Great Short Stories](https://en.wikipedia.org/wiki/Short_story)\n"
+      "\n"
       "---\n"
       "\n"
       "Start here.\n" },
+    { 1, "Book.md",          /* its title page: named like the folder, so the */
+      "# Untitled Book\n"     /* writing's name follows its first line */
+      "\n"
+      "- **In one line:** \n"
+      "- **For readers who:** \n"
+      "\n"
+      "[How To Write Great Books](https://en.wikipedia.org/wiki/Writing_process)\n"
+      "\n"
+      "---\n"
+      "\n"
+      "Chapters are in Chapters; people, places and research in Notes.\n" },
     { 1, "Outline.md",
       "# Outline\n"
+      "\n"
+      "[How To Write Great Outlines](https://en.wikipedia.org/wiki/Outline_%28list%29)\n"
       "\n"
       "- **In one line:** \n"
       "\n"
@@ -98,9 +121,15 @@ static const Tpl kTpls[] = {
     { 2, "Chapter 1.md",
       "# Chapter 1\n"
       "\n"
+      "[How To Write Great Chapters](https://en.wikipedia.org/wiki/Chapter_%28books%29)\n"
+      "\n"
+      "---\n"
+      "\n"
       "Start here.\n" },
     { 3, "People & Characters.md",
       "# People & Characters\n"
+      "\n"
+      "[How To Write Great Characters](https://en.wikipedia.org/wiki/Characterization)\n"
       "\n"
       "## Name\n"
       "\n"
@@ -112,6 +141,8 @@ static const Tpl kTpls[] = {
     { 3, "Places.md",
       "# Places\n"
       "\n"
+      "[How To Write Great Places](https://en.wikipedia.org/wiki/Setting_%28narrative%29)\n"
+      "\n"
       "## Name\n"
       "\n"
       "- **Where:** \n"
@@ -119,6 +150,8 @@ static const Tpl kTpls[] = {
       "- **History:** \n" },
     { 3, "Research.md",
       "# Research\n"
+      "\n"
+      "[How To Write Great Research](https://owl.purdue.edu/owl/research_and_citation/conducting_research/research_overview/index.html)\n"
       "\n"
       "## Source name\n"
       "\n"
@@ -198,13 +231,42 @@ static short Contents(short vol, long dir, Boolean *onlyEmptyBlank)
     return n;
 }
 
+static Boolean Exists(short vol, long dir, const char *name)
+{
+    unsigned char p[64];
+    PStr(name, p);
+    return Files_Exists(vol, dir, p);
+}
+
+/* The first 0.05 set (Book Project, no links) is replaced once: its six
+   go to the Trash (recoverable), the new set comes in. Only when the old
+   Book Project is there and Book isn't: a writer's own set is never
+   touched. */
+static Boolean ReplaceFirstSet(short vol, long dir)
+{
+    static const char *kOld[] = { "Article.md", "Book Project", "Essay.md",
+                                  "Journal.md", "Script.md", "Short Story.md" };
+    unsigned char p[64];
+    short i;
+    if (!Exists(vol, dir, "Book Project") || Exists(vol, dir, "Book"))
+        return false;
+    for (i = 0; i < 6; i++) {
+        PStr(kOld[i], p);
+        Files_Trash(vol, dir, p);
+    }
+    return true;
+}
+
 void Templates_Install(short vol, long dir)
 {
     long folder[4];
     Boolean blank;
     short n = Contents(vol, dir, &blank), i;
-    if (n > 1 || (n == 1 && !blank))
-        return;                          /* the writer's own set: leave it */
+    if (n > 1 || (n == 1 && !blank)) {
+        if (!ReplaceFirstSet(vol, dir))
+            return;                      /* the writer's own set: leave it */
+        blank = false;
+    }
     if (blank) {                         /* Blank left the shelf in 0.05: */
         unsigned char b[64];             /* New makes a blank writing */
         PStr("Blank.md", b);
@@ -212,7 +274,7 @@ void Templates_Install(short vol, long dir)
     }
     folder[0] = dir;
     folder[1] = folder[2] = folder[3] = 0;
-    if (MakeFolder(vol, dir, "Book Project", &folder[1])) {
+    if (MakeFolder(vol, dir, "Book", &folder[1])) {
         MakeFolder(vol, folder[1], "Chapters", &folder[2]);
         MakeFolder(vol, folder[1], "Notes", &folder[3]);
     }

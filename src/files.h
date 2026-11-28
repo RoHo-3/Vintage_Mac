@@ -48,8 +48,10 @@ typedef struct {
     Boolean isFolder;
     long    dirID;                   /* folders: their own ID */
     long    parent;                  /* the folder it is in */
+    unsigned long created;           /* creation date (seconds since 1904) */
 } DirItem;
 short   Files_List(short vol, long dirID, DirItem *items, short max);
+void    Files_SortNewest(DirItem *items, short n);   /* newest made first */
 
 Boolean Files_NewFolder(short vol, long parent, ConstStr255Param name, long *dirID);
 Boolean Files_Rename(short vol, long dirID, ConstStr255Param from, ConstStr255Param to);

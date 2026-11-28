@@ -47,4 +47,6 @@ void    Doc_VersionStamp(unsigned long secs, unsigned char *out);   /* appends "
    0 done; 1 nothing selected; 2 this is Cuts; 3 couldn't write. */
 short   Doc_MoveToCuts(void);
 
+void    Doc_NameFollows(void);    /* the name follows line 1 from now on */
+
 #endif

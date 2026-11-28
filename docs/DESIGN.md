@@ -293,6 +293,12 @@ The app never loads or decodes images (no practical PNG/JPEG decoding on a
 
 ### Links
 
+Built in 114 (display only): `[text](url)` shows its text underlined;
+`[`, `](url)` hide like other markers and show while the caret is in the
+paragraph. Following a link waits for the rest of this section. Every
+template carries one "How To Write Great <Kind>" link to a free
+resource (Purdue OWL, Wikipedia, Fountain).
+
 - Targets: any document, or any section of any document, **in the same
   project** — written as standard relative links
   (`[the letter](Day%20Two.md#the-letter)`) so they work in GitHub,
@@ -431,8 +437,10 @@ template). Numbered below in their original order:
    themselves are never changed (edit them in the Finder — a power-user
    feature). Each opens with a `#` name that reads well if kept ("Untitled
    Story"), short labelled prompts, a rule, then "Start here."
-2. **My Writings** (A2, build 111): inside a writing, Recent tucks away
-   (a classic zoom outline) and this shelf takes two lines of six tiles,
+2. **My Writings** (A2, build 111; 114: Templates, not Recent, tucks
+   away; newest writings first, so a rename doesn't move one): inside a
+   writing, Templates tucks away (a classic zoom outline) and this shelf
+   takes two lines of six tiles,
    scrolled a line at a time with a 2-px hairline at the right; at the
    top it's one line and Recent shows. The New tile follows the folder:
    "New Chapter" in a folder named Chapters (any plain English plural),

@@ -509,6 +509,23 @@ const unsigned char *MD_Parse(long start, long end, Boolean active,
                 ApplyStyle(i + 2, len, MD_STRIKE);
                 i += 1;
             }
+        } else if (c == '[' && i + 1 < len && gTxt[i + 1] != '^') {
+            /* [text](url): the text underlined, "[" and "](url)" markers
+               (hidden away from the caret, as ** is). Footnote marks
+               [^1] and task boxes stay as they are. */
+            long k = i + 1, m;
+            while (k < len && gTxt[k] != ']' && gTxt[k] != '[' && !(gSty[k] & MD_MARK))
+                k++;
+            if (k < len && gTxt[k] == ']' && k > i + 1 && k + 1 < len && gTxt[k + 1] == '(') {
+                for (m = k + 2; m < len && gTxt[m] != ')' && gTxt[m] != ' '; m++)
+                    ;
+                if (m < len && gTxt[m] == ')' && m > k + 2) {
+                    Mark(i, 1, mark);
+                    ApplyStyle(i + 1, k, MD_LINK);
+                    Mark(k, m - k + 1, mark);
+                    i = m;
+                }
+            }
         } else if (c == '*' || c == '_') {
             if (c == '_' && i > 0 && IsAlnum(gTxt[i - 1]))
                 continue;                /* intra-word underscore */

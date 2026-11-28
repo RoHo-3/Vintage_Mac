@@ -20,6 +20,7 @@
 #define MD_PREFIX  0x10     /* heading prefix: hangs in the margin */
 #define MD_MARK    0x20     /* a syntax marker (shown only when active) */
 #define MD_STRIKE  0x40     /* ~~strikethrough~~ (GitHub Markdown) */
+#define MD_LINK    0x80     /* [text](url): the text, underlined */
 
 /* Block info for the paragraph last parsed (MD_Block):
    bits 0-2 kind, 3-4 quote depth (0-3), 5-6 list depth (0-3),

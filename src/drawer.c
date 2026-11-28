@@ -57,6 +57,7 @@ typedef struct {
 static WindowPtr gWin;
 static Boolean   gOpen;
 static Boolean   gByHover, gTouched;     /* opened by hovering; used since */
+static Point     gLastPt;                /* the pointer, to see it move */
 static Blade     gStack[kMaxDepth];
 static short     gDepth = 1;             /* blades in the stack; [0] is the drawer */
 static Row       gRows[kMaxRows];
@@ -430,9 +431,9 @@ static void DrawRow(short i, short x, short y, Boolean sel)
                                             Finder's list views */
         if (r->icon == 'f') {            /* same top (y+3) and bottom (y+13)
                                             as the page beside it */
-            MoveTo(tx, y + 4); LineTo(tx + 3, y + 4); LineTo(tx + 4, y + 3);
-            LineTo(tx + 6, y + 3); LineTo(tx + 7, y + 4); LineTo(tx + 10, y + 4);
-            LineTo(tx + 10, y + 13); LineTo(tx, y + 13); LineTo(tx, y + 4);
+            MoveTo(tx - 1, y + 4); LineTo(tx + 3, y + 4); LineTo(tx + 4, y + 3);
+            LineTo(tx + 6, y + 3); LineTo(tx + 7, y + 4); LineTo(tx + 11, y + 4);
+            LineTo(tx + 11, y + 13); LineTo(tx - 1, y + 13); LineTo(tx - 1, y + 4);   /* 2 px wider */
         } else {
             MoveTo(tx + 1, y + 3); LineTo(tx + 6, y + 3); LineTo(tx + 9, y + 6);
             LineTo(tx + 9, y + 13); LineTo(tx + 1, y + 13); LineTo(tx + 1, y + 3);
@@ -718,6 +719,7 @@ void Drawer_Open(void)
         gClock = !(p.hide & 2);
     }
     gOpen = true;
+    GetMouse(&gLastPt);                  /* only a move takes the highlight */
     Ed_HideCaret();                      /* no cursor left under the dither */
     DrawOver(false);
 }
@@ -794,12 +796,38 @@ void Drawer_OpenByHover(void)
     gTouched = false;
 }
 
+/* The pointer moves the highlight, as down a menu: moving over a row
+   picks it (a click then opens it). Keys still move it too; the pointer
+   only takes over when it moves. */
+
+static void TrackPointer(Point m)
+{
+    Blade *b = &gStack[gDepth - 1];
+    short x = (gDepth - 1) * kStep, y0, i, old, vis = VisibleRows();
+    if (m.h == gLastPt.h && m.v == gLastPt.v) return;
+    gLastPt = m;
+    gY = gDepth > 1 ? kInset : 0;
+    y0 = gY + kRowsTop;
+    if (m.h < x || m.h >= x + kPanelW || m.v < y0) return;
+    i = b->top + (m.v - y0) / kRowH;
+    if (i >= gRowN || i >= b->top + vis || i == b->sel) return;
+    if (gRows[i].sep || gRows[i].act == aNone || gRows[i].act == aHead) return;
+    old = b->sel;
+    b->sel = i;
+    SetPort(gWin);
+    if (old >= b->top && old < b->top + vis)
+        DrawRow(old, x, y0 + (old - b->top) * kRowH, false);
+    DrawRow(i, x, y0 + (i - b->top) * kRowH, true);
+}
+
 void Drawer_Idle(void)
 {
     Point m;
-    if (!gOpen || !gByHover || gTouched) return;
+    if (!gOpen) return;
     SetPort(gWin);
     GetMouse(&m);
+    TrackPointer(m);
+    if (!gByHover || gTouched) return;
     if (m.h > (gDepth - 1) * kStep + kPanelW + 12 || m.v > gWin->portRect.bottom
         || m.h < -4 || m.v < -4)
         Drawer_Close();

@@ -479,6 +479,22 @@ static Boolean IsOutlineDoc(const DirItem *d)
     return !d->isFolder && (NameEq(d->name, "Outline") || NameEq(d->name, "Outline.md"));
 }
 
+/* "Untitled Book.md" in the folder "Untitled Book": the writing's own page. */
+static Boolean IsNamesake(const DirItem *d, const unsigned char *folder)
+{
+    short i, n = d->name[0];
+    if (d->isFolder || folder[0] == 0) return false;
+    if (n > 3 && d->name[n - 2] == '.' && d->name[n - 1] == 'm' && d->name[n] == 'd') n -= 3;
+    if (n != folder[0]) return false;
+    for (i = 1; i <= n; i++) {
+        unsigned char x = d->name[i], y = folder[i];
+        if (x >= 'A' && x <= 'Z') x += 32;
+        if (y >= 'A' && y <= 'Z') y += 32;
+        if (x != y) return false;
+    }
+    return true;
+}
+
 short Files_List(short vol, long dirID, DirItem *items, short max)
 {
     CInfoPBRec ci;
@@ -497,27 +513,54 @@ short Files_List(short vol, long dirID, DirItem *items, short max)
         if (ci.hFileInfo.ioFlAttrib & 0x10) {
             items[n].isFolder = true;
             items[n].dirID = ci.dirInfo.ioDrDirID;
+            items[n].created = ci.dirInfo.ioDrCrDat;
         } else {
             if (!IsDoc(name, ci.hFileInfo.ioFlFndrInfo.fdType))
                 continue;                /* prefs, journals, other files */
             items[n].isFolder = false;
             items[n].dirID = 0;
+            items[n].created = ci.hFileInfo.ioFlCrDat;
         }
         if (name[0] > 31) name[0] = 31;
         for (i = 0; i <= name[0]; i++) items[n].name[i] = name[i];
         items[n].parent = dirID;
         n++;
     }
-    /* "Outline" pinned first, then folders and documents by name */
-    for (i = 1; i < n; i++)
-        for (j = i; j > 0; j--) {
-            DirItem t;
-            DirItem *a = &items[j - 1], *b = &items[j];
-            if (IsOutlineDoc(a) || (!IsOutlineDoc(b) && !LessName(b->name, a->name)))
-                break;
-            t = *a; *a = *b; *b = t;
-        }
+    /* the writing's own page (named like its folder: a Book's title page)
+       pinned first, then "Outline", then folders and documents by name */
+    {
+        Str63 folder;
+        ci.dirInfo.ioCompletion = NULL;
+        ci.dirInfo.ioNamePtr = folder;
+        ci.dirInfo.ioVRefNum = vol;
+        ci.dirInfo.ioFDirIndex = -1;     /* this folder itself */
+        ci.dirInfo.ioDrDirID = dirID;
+        if (PBGetCatInfoSync(&ci) != noErr) folder[0] = 0;
+        for (i = 1; i < n; i++)
+            for (j = i; j > 0; j--) {
+                DirItem t;
+                DirItem *a = &items[j - 1], *b = &items[j];
+                short ra = IsNamesake(a, folder) ? 0 : IsOutlineDoc(a) ? 1 : 2;
+                short rb = IsNamesake(b, folder) ? 0 : IsOutlineDoc(b) ? 1 : 2;
+                if (ra < rb || (ra == rb && !LessName(b->name, a->name)))
+                    break;
+                t = *a; *a = *b; *b = t;
+            }
+    }
     return n;
+}
+
+/* My Writings' order: newest made first, so renaming one doesn't move it
+   (a writing stays where it was put). Equal dates keep the name order. */
+void Files_SortNewest(DirItem *items, short n)
+{
+    short i, j;
+    for (i = 1; i < n; i++)
+        for (j = i; j > 0 && items[j].created > items[j - 1].created; j--) {
+            DirItem t = items[j - 1];
+            items[j - 1] = items[j];
+            items[j] = t;
+        }
 }
 
 Boolean Files_NewFolder(short vol, long parent, ConstStr255Param name, long *dirID)

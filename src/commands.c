@@ -44,7 +44,7 @@ static const Command kCommands[] = {
     { cSelectAll,   "Write",    "Select All",           "everything whole document",                   "Cmd-A" },
     { cNew,         "Document", "New Document\311",     "create blank start template",                 "Cmd-N" },
     { cTplArticle,  "Document", "New Article",          "template news report piece headline lede",   "" },
-    { cTplBook,     "Document", "New Book Project",     "template novel book chapters project memoir", "" },
+    { cTplBook,     "Document", "New Book",             "template novel book chapters project memoir", "" },
     { cTplEssay,    "Document", "New Essay",            "template argument opinion blog post",        "" },
     { cTplJournal,  "Document", "New Journal",          "template diary entry daily pages",           "" },
     { cTplScript,   "Document", "New Script",           "template screenplay fountain film play",     "" },
@@ -93,7 +93,7 @@ static const unsigned char *TemplateName(short id)
 {
     switch (id) {
     case cTplArticle: return (const unsigned char *)"\pArticle";
-    case cTplBook:    return (const unsigned char *)"\pBook Project";
+    case cTplBook:    return (const unsigned char *)"\pBook";
     case cTplEssay:   return (const unsigned char *)"\pEssay";
     case cTplJournal: return (const unsigned char *)"\pJournal";
     case cTplScript:  return (const unsigned char *)"\pScript";

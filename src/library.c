@@ -112,9 +112,9 @@ static Boolean Expanded(void);
 
 static short RowCount(short row)
 {
-    if (row == kRowTpl) return gTplN;
+    if (row == kRowTpl) return Expanded() ? 0 : gTplN;   /* tucked away inside a writing */
     if (row == kRowFiles) return gFilesN;
-    return Expanded() ? 0 : gPrefs.recentCount;   /* tucked away inside a writing */
+    return gPrefs.recentCount;
 }
 
 /* The tiles that lead the My Writings shelf, before its files:
@@ -208,7 +208,7 @@ static void Reload(void)
 
 /* A folder named as a plain English plural, as its documents' kind:
    "Chapters" -> "Chapter", "Stories" -> "Story", "Sketches" -> "Sketch".
-   False for anything else ("Research", "Book Project", "Series"), and for
+   False for anything else ("Research", "Book", "Series"), and for
    a kind too long for a tile's label; then New stays "New Document".
    English only (US, UK, Canada, Australia: ROADMAP). */
 static Boolean Singular(const unsigned char *name, unsigned char *out)
@@ -272,6 +272,8 @@ static void LoadFiles(void)
         AddSpecial(kSpNewFolder, (const unsigned char *)"\pNew Folder", 0);
     gFilesN = gSpecialN + Files_List(gVol, gDir[gDepth], gFiles + gSpecialN,
                                      kMaxItems - gSpecialN);
+    if (gDepth == 0)                     /* My Writings: newest first */
+        Files_SortNewest(gFiles + gSpecialN, gFilesN - gSpecialN);
 }
 
 static void LoadAll(void)
@@ -285,14 +287,14 @@ static void LoadAll(void)
     Prefs_Load(&gPrefs);
 }
 
-/* Inside a writing, Recent tucks away and My Writings takes its room: two
+/* Inside a writing, Templates tucks away and My Writings takes its room: two
    lines of tiles, scrolled up and down a line at a time (a 2-pixel
    hairline at the right shows where), never sideways. Templates and
    Recent keep one line each, with the << >> arrows. */
 #define kLineStep  92                    /* second line of tiles, from the first */
 
 static Boolean Expanded(void) { return gDepth > 0; }
-static Boolean Shown(short row) { return row != kRowRecent || !Expanded(); }
+static Boolean Shown(short row) { return row != kRowTpl || !Expanded(); }
 static short Lines(short row) { return (row == kRowFiles && Expanded()) ? 2 : 1; }
 static short PerShelf(short row) { return kVisible * Lines(row); }
 static short RowTop(short row)           /* below the shelves shown above it */
@@ -448,14 +450,14 @@ static void IconDoc(short x, short y, Boolean dashed)
 
 static void IconFolder(short x, short y, Boolean up)
 {
-    MoveTo(x + 2, y + 6);   LineTo(x + 12, y + 6); LineTo(x + 14, y + 3);
-    LineTo(x + 22, y + 3);  LineTo(x + 22, y + 6); LineTo(x + 29, y + 6);
-    LineTo(x + 29, y + 29); LineTo(x + 2, y + 29); LineTo(x + 2, y + 6);
+    MoveTo(x + 1, y + 6);   LineTo(x + 12, y + 6); LineTo(x + 14, y + 3);
+    LineTo(x + 22, y + 3);  LineTo(x + 22, y + 6); LineTo(x + 30, y + 6);
+    LineTo(x + 30, y + 29); LineTo(x + 1, y + 29); LineTo(x + 1, y + 6);   /* 2 px wider: less boxy */
     if (up) {                            /* a plain 1-pixel arrow, like the + */
         MoveTo(x + 16, y + 14); LineTo(x + 16, y + 23);
         MoveTo(x + 13, y + 17); LineTo(x + 16, y + 14); LineTo(x + 19, y + 17);
     } else {
-        MoveTo(x + 3, y + 9); LineTo(x + 28, y + 9);
+        MoveTo(x + 2, y + 9); LineTo(x + 29, y + 9);
     }
 }
 
@@ -754,23 +756,23 @@ static void Redraw(void)
 
 /* ---- actions ------------------------------------------------------------ */
 
-/* Recent (the top shelf) tucks away as a writing opens, and comes back at
-   the top level: the classic Finder's zoom, a few dotted outlines drawn in
-   turn, between the Recent shelf and its top edge. XOR, so nothing under
-   it is redrawn. */
+/* Templates (the bottom shelf) tucks away as a writing opens, and comes
+   back at the top level: the classic Finder's zoom, a few dotted outlines
+   drawn in turn, between the Templates shelf and its bottom edge. XOR, so
+   nothing under it is redrawn. */
 static void ZoomRecent(Boolean hiding)
 {
     Rect r;
-    short top = kRowsTop, bottom = kRowsTop + kRowH, i, k;
+    short top = kRowsTop + 2 * kRowH, bottom = gWin->portRect.bottom - 1, i, k;
     long until;
     SetPort(gWin);
     PenNormal();
     PenMode(patXor);
     PenPat(&qd.gray);
     for (i = 1; i <= 6; i++) {
-        k = hiding ? i : 7 - i;          /* 1..6: from the whole shelf up */
-        SetRect(&r, 4 + k * 2, top,
-                gWin->portRect.right - 4 - k * 2, bottom - (short)((long)(bottom - top) * k / 7));
+        k = hiding ? i : 7 - i;          /* 1..6: from the whole shelf down */
+        SetRect(&r, 4 + k * 2, top + (short)((long)(bottom - top) * k / 7),
+                gWin->portRect.right - 4 - k * 2, bottom);
         FrameRect(&r);
         Delay(2, &until);
         FrameRect(&r);                   /* XOR again: gone */
@@ -826,19 +828,36 @@ static short NewWD(void)
     return gDepth == 0 ? 0 : WDOfDir(gDir[gDepth]);
 }
 
-/* A folder template (Book Project) becomes a new writing in My Writings,
-   under its own name or the next free one ("Book Project 2"); the Library
-   then shows it open, so its documents are one click away. */
+/* A folder template (Book) becomes a new writing in My Writings, named
+   like a page template's ("Untitled Book", or the next free one). If it
+   has a title page (a document named like the template folder), that is
+   renamed to match and opens with "Untitled Book" picked: typing the title
+   names the document and the writing together, as a page template does.
+   Otherwise the Library shows the new writing open. */
 static void NewFromFolderTemplate(short idx)
 {
-    short tvol, dvol;
+    short tvol, dvol, i, wd;
     long tdir, ddir, nd;
-    unsigned char name[40];
+    unsigned char base[40], name[40], page[40], newPage[40];
     Files_DocsDir(&dvol, &ddir);
+    CopyP((const unsigned char *)"\pUntitled ", base);
+    for (i = 1; i <= gTpl[idx].name[0] && base[0] < 31; i++)
+        base[++base[0]] = gTpl[idx].name[i];
     if (!Files_DirOfWD(Files_TemplatesWD(), &tvol, &tdir)
-        || !Files_FreeName(dvol, ddir, gTpl[idx].name, name)
+        || !Files_FreeName(dvol, ddir, base, name)
         || !Files_CopyFolderTo(tvol, tdir, gTpl[idx].name, dvol, ddir, name, &nd)) {
         SysBeep(1);
+        return;
+    }
+    CopyP(gTpl[idx].name, page);         /* "Book.md" -> "Untitled Book.md" */
+    page[++page[0]] = '.'; page[++page[0]] = 'm'; page[++page[0]] = 'd';
+    CopyP(name, newPage);
+    newPage[++newPage[0]] = '.'; newPage[++newPage[0]] = 'm'; newPage[++newPage[0]] = 'd';
+    if (Files_Exists(dvol, nd, page) && Files_Rename(dvol, nd, page, newPage)
+        && Files_WDFor(dvol, nd, &wd) && Doc_OpenAt(newPage, wd)) {
+        Doc_NameFollows();               /* typing the title renames it all */
+        Ed_Select(2, 2 + base[0]);       /* "# Untitled Book": the name picked */
+        Lib_Close();
         return;
     }
     if (!Expanded()) ZoomRecent(true);
@@ -1232,8 +1251,7 @@ void Lib_Reset(void)
 
 /* Cmd-K > New Article (the guide lists one per template): a template by
    name. A page template starts a new writing at once; a folder template
-   (Book Project) is copied into My Writings and the Library shows it
-   open. False if there's no such template. */
+   (Book) is copied into My Writings and its title page opens. False if there's no such template. */
 Boolean Lib_NewFromTemplateNamed(const unsigned char *name)
 {
     short i, j;
@@ -1263,7 +1281,7 @@ Boolean Lib_HasTemplate(const unsigned char *name)
     unsigned char f[40];
     short i;
     if (!Files_DirOfWD(Files_TemplatesWD(), &vol, &dir)) return false;
-    if (Files_Exists(vol, dir, name)) return true;   /* a folder: Book Project */
+    if (Files_Exists(vol, dir, name)) return true;   /* a folder: Book */
     for (i = 0; i <= name[0]; i++) f[i] = name[i];
     f[++f[0]] = '.'; f[++f[0]] = 'm'; f[++f[0]] = 'd';
     return Files_Exists(vol, dir, f);

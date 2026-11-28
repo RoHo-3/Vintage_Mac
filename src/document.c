@@ -1052,3 +1052,10 @@ short Doc_MoveToCuts(void)
     Ed_DeleteSelection();                /* only once the words are kept */
     return 0;
 }
+
+/* The name follows the first line from now on (a Book's new title page:
+   typing the title renames the page and its writing together). */
+void Doc_NameFollows(void)
+{
+    JR_SetPrefs(JR_Prefs() | kPrefNameFollows);
+}
