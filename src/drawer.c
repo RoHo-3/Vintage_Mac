@@ -9,7 +9,9 @@
 #include "textbuf.h"
 #include "app.h"
 #include "commands.h"
+#include "tk.h"
 
+#include <Files.h>
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <Memory.h>
@@ -49,6 +51,7 @@ typedef struct {
     long    arg;                         /* folder dirID / text position */
     char    arrow, check, checked, current, indent, sep;
     char    icon;                        /* 'f' folder, 'd' document, 0 none */
+    char    tk;                          /* a document still holding a TK: a dot */
 } Row;
 
 #define kMaxDepth 3                      /* drawer -> project -> one folder */
@@ -244,6 +247,56 @@ static void GoalValue(unsigned char *v)
     else CStrCat(v, " words");
 }
 
+/* Which documents still hold a TK. The open one is read from memory;
+   others from disk, in small pieces, remembered by their modified date
+   so opening the drawer again reads nothing that hasn't changed. */
+#define kTKCache 64
+static struct { long dir; unsigned long mod; Str31 name; char tk; } gTKC[kTKCache];
+static short gTKCN, gTKCNext;
+
+static Boolean DocHasTK(short vol, long dir, const unsigned char *name)
+{
+    HParamBlockRec pb;
+    short i, j;
+    Boolean tk;
+    pb.fileParam.ioCompletion = NULL;
+    pb.fileParam.ioNamePtr = (StringPtr)name;
+    pb.fileParam.ioVRefNum = vol;
+    pb.fileParam.ioFDirIndex = 0;
+    pb.fileParam.ioDirID = dir;
+    if (PBHGetFInfoSync(&pb) != noErr) return false;
+    for (i = 0; i < gTKCN; i++) {
+        if (gTKC[i].dir != dir || gTKC[i].name[0] != name[0]) continue;
+        for (j = 1; j <= name[0] && gTKC[i].name[j] == name[j]; j++) ;
+        if (j <= name[0]) continue;
+        if (gTKC[i].mod == pb.fileParam.ioFlMdDat) return gTKC[i].tk;
+        break;                           /* changed since: read again */
+    }
+    tk = TK_InFile(vol, dir, name);
+    if (i == gTKCN) {                    /* a new entry (oldest replaced when full) */
+        if (gTKCN < kTKCache) i = gTKCN++;
+        else { i = gTKCNext; gTKCNext = (gTKCNext + 1) % kTKCache; }
+    }
+    gTKC[i].dir = dir;
+    gTKC[i].mod = pb.fileParam.ioFlMdDat;
+    CopyP(name, gTKC[i].name, 31);
+    gTKC[i].tk = tk;
+    return tk;
+}
+
+static void MarkTKs(void)
+{
+    short i, vol;
+    long proj;
+    Files_ProjectsDir(&vol, &proj);
+    for (i = 0; i < gRowN; i++) {
+        Row *r = &gRows[i];
+        r->tk = 0;
+        if (r->act != aOpenDoc || !r->file[0]) continue;
+        r->tk = r->current ? Ed_HasTK() : DocHasTK(vol, r->arg, r->file);
+    }
+}
+
 static void BuildRows(void)
 {
     Blade *b = &gStack[gDepth - 1];
@@ -343,6 +396,7 @@ static void BuildRows(void)
         for (i = 0; i < gRowN; i++)
             if (gRows[i].current && b->top == 0 && b->sel == 0) b->sel = i;
     }
+    MarkTKs();
 }
 
 /* ---- drawing ------------------------------------------------------------- */
@@ -451,6 +505,12 @@ static void DrawRow(short i, short x, short y, Boolean sel)
         tx += 15;
     }
     vw = r->value[0] ? StringWidth(r->value) + 8 : 0;
+    if (r->tk) {                         /* a TK still to fill: a small dot */
+        Rect d;
+        SetRect(&d, x + kPanelW - 16, y + 6, x + kPanelW - 11, y + 11);
+        PaintOval(&d);
+        vw += 10;
+    }
     CopyP(r->text, t, 39);
     if (r->current) TextFace(bold);      /* the open document, wherever the
                                             selection is (a Window menu's ✓) */

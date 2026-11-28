@@ -1911,6 +1911,15 @@ static Boolean TKAt(long p, long len)
         && (p + 2 >= len || !IsLetter(TB_Char(p + 2)));
 }
 
+/* Does the text hold a TK (the drawer's dot)? */
+Boolean Ed_HasTK(void)
+{
+    long len = TB_Len(), p;
+    for (p = 0; p + 1 < len; p++)
+        if (TKAt(p, len)) return true;
+    return false;
+}
+
 /* Select the next TK after the selection, wrapping to the top. Returns
    how many there are (0: none) and which one is now picked (1-based). */
 short Ed_NextTK(short *which)

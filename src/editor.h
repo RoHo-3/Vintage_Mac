@@ -73,6 +73,7 @@ Boolean Ed_JumpFootnote(void);      /* mark <-> note; false if on neither */
 
 void    Ed_SelRange(long *start, long *end);
 long    Ed_PosAt(Point pt);            /* the text position under a point */
+Boolean Ed_HasTK(void);               /* the text holds a TK placeholder */
 void    Ed_DeleteSelection(void);
 
 void    Ed_Select(long a, long b);

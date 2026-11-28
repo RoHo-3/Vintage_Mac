@@ -23,6 +23,7 @@ set(SOURCES
     src/palette.c
     src/templates.c
     src/links.c
+    src/tk.c
     src/textbuf.c
     src/MacMDWrite.r
     src/icons.r

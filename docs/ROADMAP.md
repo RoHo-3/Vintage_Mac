@@ -110,8 +110,11 @@ and the typewriter app icon.
   search a document today: the biggest everyday gap left.
 - **History, step-through in place:** read-only, keys to step back and
   forward one version at a time (the remaining History piece before v1).
-- **TK dot in the drawer** beside documents that still have a placeholder.
-- **Writing-view scroll hairline**, matching the Library's.
+- **TK dot in the drawer** beside documents that still have a placeholder
+  (built: a small dot at the row's right end; the open document read from
+  memory, others from disk in 2 KB pieces, cached by modified date; the
+  first open of a big writing on a floppy is the cost to watch in 0.08).
+- **Scroll hairline** (built).
 - **Quality: keep or remove Rename** (below).
 - **Focus celebration, final design:** today a strip message and one
   footer flash; settle what it looks like while staying quiet (no sound
