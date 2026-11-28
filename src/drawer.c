@@ -701,6 +701,11 @@ void Drawer_Open(void)
     if (gDepth > 1 && !(gStack[1].kind == kProject
                         && ProjectOfDoc(&vol, &dir, &proj) && proj == gStack[1].dir))
         gDepth = 1;
+    if (gDepth > 2)                      /* never a folder's own blade: the */
+        gDepth = 2;                      /* writing's list, all its folders,
+                                            the open one shown open in it */
+    if (gDepth == 2)
+        gStack[1].sel = gStack[1].top = 0;   /* (it starts on the open document) */
     {
         Prefs p;                         /* the palette may have changed them */
         Prefs_Load(&p);
