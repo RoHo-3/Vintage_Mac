@@ -59,6 +59,7 @@ leaves things as they were. There are no naming dialogs or pop-ups.
 | System | System 6 and 7. Use pre-FSSpec HFS calls; gate System 7 extras with `Gestalt` |
 | Toolchain | Retro68 (GCC). No C standard library — Toolbox calls only |
 | Perf baseline | Real Mac Plus (8 MHz 68000) |
+| Finder icons | A typewriter (paper, two rows of round keys, return lever) for the app; a page with a small typewriter for its `.md` documents (TEXT, creator MMDW). 32x32 ICN# and 16x16 ics#, our own drawings (build 128). The app sets its own bundle bit at launch, since the build tools don't |
 
 ## 2. Layout
 

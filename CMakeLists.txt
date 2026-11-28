@@ -25,6 +25,7 @@ set(SOURCES
     src/links.c
     src/textbuf.c
     src/MacMDWrite.r
+    src/icons.r
     src/fonts.r
 )
 

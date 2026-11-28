@@ -6,6 +6,8 @@
  * No C standard library: everything goes through the Toolbox.
  */
 
+#include <Files.h>
+#include <Resources.h>
 #include <Quickdraw.h>
 #include <Fonts.h>
 #include <Windows.h>
@@ -605,6 +607,33 @@ static void HandleEvent(EventRecord *ev)
     }
 }
 
+/* The Finder shows our icons only if the app's "has bundle" bit is set,
+   and the build tools don't set it. So the app sets it on itself (once),
+   clearing "inited" so the Finder reads the bundle afresh. */
+static void SetOwnBundleBit(void)
+{
+    FCBPBRec fcb;
+    HParamBlockRec pb;
+    Str63 name;
+    fcb.ioCompletion = NULL;
+    fcb.ioNamePtr = name;
+    fcb.ioVRefNum = 0;
+    fcb.ioRefNum = CurResFile();         /* the app's own resource file */
+    fcb.ioFCBIndx = 0;
+    if (PBGetFCBInfoSync(&fcb) != noErr) return;
+    pb.fileParam.ioCompletion = NULL;
+    pb.fileParam.ioNamePtr = name;
+    pb.fileParam.ioVRefNum = fcb.ioFCBVRefNum;
+    pb.fileParam.ioFDirIndex = 0;
+    pb.fileParam.ioDirID = fcb.ioFCBParID;
+    if (PBHGetFInfoSync(&pb) != noErr) return;
+    if (pb.fileParam.ioFlFndrInfo.fdFlags & 0x2000) return;   /* already set */
+    pb.fileParam.ioFlFndrInfo.fdFlags |= 0x2000;              /* hasBundle */
+    pb.fileParam.ioFlFndrInfo.fdFlags &= ~0x0100;             /* not inited */
+    pb.fileParam.ioDirID = fcb.ioFCBParID;
+    PBHSetFInfoSync(&pb);
+}
+
 int main(void)
 {
     EventRecord ev;
@@ -623,6 +652,7 @@ int main(void)
         return 1;
     }
     gT[tEditor] = TickCount();
+    SetOwnBundleBit();           /* our icons in the Finder */
     Files_Init();                /* Writings beside the app (or where it moved) */
     Files_WrapLoose();           /* every writing is a folder */
     gT[tFiles] = TickCount();
