@@ -57,6 +57,7 @@ typedef struct {
 static WindowPtr gWin;
 static Boolean   gOpen;
 static Boolean   gByHover, gTouched;     /* opened by hovering; used since */
+static unsigned long gHoverOpened;      /* when the hover opened it */
 static Point     gLastPt;                /* the pointer, to see it move */
 static Blade     gStack[kMaxDepth];
 static short     gDepth = 1;             /* blades in the stack; [0] is the drawer */
@@ -817,6 +818,7 @@ void Drawer_OpenByHover(void)
     Drawer_Open();
     gByHover = true;
     gTouched = false;
+    gHoverOpened = TickCount();
 }
 
 /* The pointer moves the highlight, as down a menu: moving over a row
@@ -871,7 +873,12 @@ void Drawer_Click(Point pt, EventRecord *ev)
     }
     gY = gDepth > 1 ? kInset : 0;
     if (pt.v < gY + kHeadH) {
-        if (pt.h >= x + 4 && pt.h < x + 24) Pop();       /* hamburger / back */
+        if (pt.h >= x + 4 && pt.h < x + 24) {            /* hamburger / back */
+            if (gDepth == 1 && gByHover && TickCount() - gHoverOpened < 90)
+                return;                  /* the click meant open: the hover
+                                            beat it there, so it stays open */
+            Pop();
+        }
         return;
     }
     if (pt.v < gY + kRowsTop) return;
