@@ -491,6 +491,9 @@ template). Numbered below in their original order:
    the writing's name on a second line, in italic ("Outline" / "To Have
    And..."), so two books' Outlines tell apart; a writing's title page
    doesn't (its name is the writing's), nor does a document on its own.
+   A writing's main document (its title page, or its only document)
+   shows the writing's icon in Recent, so it looks the same on both
+   shelves (build 127); other documents keep the page icon.
    The picked tile's whole path shows in Recent's header line, beside
    RECENT: "To Have And To Have Not > Notes > Places" (build 124).
 

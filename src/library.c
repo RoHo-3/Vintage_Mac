@@ -117,6 +117,10 @@ static void ShownName(const unsigned char *n, unsigned char *out)
    its whole path in Recent's header line. Looked up as Recent loads. */
 static unsigned char gRecWriting[kMaxRecent][32];
 static Str255 gRecPath[kMaxRecent];
+static short gRecIcon[kMaxRecent];       /* a writing's main document: its
+                                            writing's icon; -1: a page */
+
+static short KindIcon(const unsigned char *k);
 
 static void LoadRecent(void)
 {
@@ -124,7 +128,10 @@ static void LoadRecent(void)
     long dir;
     unsigned char w[64], base[64];
     Prefs_Load(&gPrefs);
-    for (i = 0; i < kMaxRecent; i++) gRecWriting[i][0] = gRecPath[i][0] = 0;
+    for (i = 0; i < kMaxRecent; i++) {
+        gRecWriting[i][0] = gRecPath[i][0] = 0;
+        gRecIcon[i] = -1;
+    }
     for (i = 0; i < gPrefs.recentCount; i++) {
         RecentItem *r = &gPrefs.recent[i];
         if (!Files_WDOf(&r->dir, &wd) || !Files_DirOfWD(wd, &vol, &dir)
@@ -139,7 +146,16 @@ static void LoadRecent(void)
         for (k = 1; k <= base[0] && gRecPath[i][0] < 255; k++)
             gRecPath[i][++gRecPath[i][0]] = base[k];
         for (k = 0; k <= w[0] && base[0] == w[0] && base[k] == w[k]; k++) ;
-        if (k > w[0]) continue;          /* the title page: its name is the writing's */
+        if (k > w[0]) {                  /* the writing's main document (its title
+                                            page, or its only one): the writing's icon */
+            long proj;
+            unsigned char kind[32];
+            if (Files_ProjectOf(vol, dir, &proj) && proj == dir) {
+                k = Files_Kind(vol, dir, kind) ? KindIcon(kind) : -1;
+                gRecIcon[i] = k >= 0 ? k : kWManuscript;
+            }
+            continue;
+        }
         for (k = 1; k <= w[0] && k <= 31; k++) gRecWriting[i][k] = w[k];
         gRecWriting[i][0] = (unsigned char)(k - 1);
     }
@@ -642,6 +658,8 @@ static void DrawTile(short row, short idx, short x, short top)
         IconDoc(x + 16, top + kIconTop, true);
     else if (IsNewTile(row, idx))
         IconNew(SpecialKind(row, idx), x + 16, top + kIconTop);
+    else if (row == kRowRecent && gRecIcon[idx] >= 0)
+        IconWriting(gRecIcon[idx], x + 16, top + kIconTop);   /* stands for its writing */
     else if (row == kRowFiles && gFileIcon[idx] >= 0)
         IconWriting(gFileIcon[idx], x + 16, top + kIconTop);  /* a writing */
     else if (row == kRowFiles && gFiles[idx].isFolder)
