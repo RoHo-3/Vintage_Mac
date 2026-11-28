@@ -262,6 +262,24 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - H6 uses capitals as a stand-in for small caps; testing focuses on System
   7.1 until a full System 6.0.8 pass later.
 
+## Library: decisions so far (for the end-of-0.05 ideation)
+
+- B (side rows and a file list) is ruled out: it loses the quiet look.
+  The choice is between A2 and C (Library ideation sketches canvas).
+- Recent hides only while a writing is open in My Writings, which then
+  takes two rows of tiles; it comes back at the top level. A classic
+  zoom-outline animation, not a slide.
+- Scrolling: a thin vertical scroll line like the writing view's, one row
+  at a time, replacing the sideways arrows.
+- The lines between shelves stay.
+- Folder-aware New: inside a folder whose name is a plain English plural,
+  the New tile reads "New <singular>" ("New Chapter" in Chapters, "New
+  Note" in Notes, renamed folders followed); else "New Document". The new
+  page starts as "# Chapter N" (one past the highest) in a Chapters-like
+  numbered folder, else "# Untitled <singular>".
+- Language scope: English only for now (US, UK, Canada, Australia); no
+  localization planned. Plural rules are the same across those.
+
 ## v.next feature conversations
 
 Tabled for after v1; each needs a design talk before any code.
