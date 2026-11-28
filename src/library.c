@@ -505,6 +505,7 @@ static void DrawRow(short row)
     EraseRect(&r);
     TextFont(kGeneva);
     TextSize(9);
+    TextFace(0);                         /* not whatever the page drew last */
     MoveTo(kLeft, top + 13);
     if (row == kRowTpl) DrawString(PSTR("\pTEMPLATES"));
     else if (row == kRowRecent) DrawString(PSTR("\pRECENT"));
@@ -553,6 +554,7 @@ static void DrawActions(void)
     EraseRect(&r);
     TextFont(kGeneva);
     TextSize(9);
+    TextFace(0);
     for (i = 0; i < gActN; i++) {
         CStr(kActName[gActs[i]], s);
         if (i == gActSplit && i > 0) {  /* divider, only between two groups */
@@ -600,8 +602,8 @@ static void DrawHeader(void)
     short w;
     SetRect(&r, 0, 0, gWin->portRect.right, kHeaderH);
     EraseRect(&r);
-    TextFont(kGeneva);
-    TextSize(9);
+    TextFace(0);                         /* the page's last style (a bold
+                                            heading) would carry over */
     TextFont(systemFont);                /* back to writing: just the chevron */
     TextSize(12);
     SetRect(&gBackRect, 2, 0, 26, kHeaderH - 1);
