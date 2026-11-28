@@ -255,6 +255,14 @@ Launch got slower around builds 81-90. Before changing anything, measure:
 - A "Start Here" guide shipped as a real Markdown document in My
   Documents, replacing the first-run welcome text.
 - Full System 6.0.8 test pass; real-hardware pass (Plus, SE, SE/30).
+- **System 7 full evaluation pass** (all testing so far is on System 6;
+  7.1 is a stated target). Work found or held for it:
+  - **Writing icons in the Finder (System 7 only):** give each writing's
+    folder its Library icon (Book, Essay, Manuscript...) as a custom
+    folder icon: an invisible "Icon" file inside it holding the icon,
+    plus the folder's has-custom-icon flag, added when the writing is
+    made and once for older writings. System 6 has no custom folder
+    icons, so writings stay plain folders there (expected, build 128).
 - **Web links through FrogFind (Robert tests, BlueSCSI Wi-Fi Mac):** check
   the template "How To Write Great" pages read well on 512x342 through
   `http://frogfind.com/read.php?a=<url>` (start with the Short Story and
